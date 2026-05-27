@@ -1,0 +1,21 @@
+[project]
+requires = ["python-3.12"]
+project_type = "web"
+
+[preview]
+preview_enable = "enabled"
+
+[subprojects]
+path = ["extracted/media-workbench"]
+
+[dev]
+build = ["bash", "extracted/media-workbench/scripts/coze-preview-build.sh"]
+run = ["bash", "extracted/media-workbench/scripts/coze-preview-run.sh"]
+
+[deploy]
+build = ["bash", "extracted/media-workbench/scripts/coze-deploy-build.sh"]
+run = ["bash", "extracted/media-workbench/scripts/coze-deploy-run.sh"]
+
+[deploy.profile]
+kind = "service"
+flavor = "web"
