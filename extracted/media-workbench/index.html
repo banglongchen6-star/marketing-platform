@@ -493,8 +493,11 @@
       </div>
       <!-- 商务BD -->
       <div class="card" style="margin-bottom:16px;max-width:680px">
-        <div class="card-title">👤 商务BD 登录账号</div>
-        <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 14px">为商务BD设置登录密码后，该BD可在登录页选择自己的身份进入系统，且仅能看到自己负责的排期数据。未设置密码的BD不会出现在登录下拉中。</p>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>👤 商务BD 登录账号</span>
+          <button class="btn btn-primary btn-sm" onclick="openAddBdModal()">＋ 添加</button>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 14px">为商务BD设置登录密码后，该BD可在登录页选择自己的身份进入系统，且仅能看到自己负责的排期数据。</p>
         <div id="admin-bd-list"></div>
       </div>
       <!-- 品宣主管 -->
@@ -1058,6 +1061,54 @@
       <button class="btn btn-danger" id="sv-del-btn" style="display:none;margin-right:auto" onclick="deleteSupervisor()">删除</button>
       <button class="btn btn-secondary" onclick="document.getElementById('supervisor-modal').style.display='none'">取消</button>
       <button class="btn btn-primary" onclick="saveSupervisor()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 商务BD新增/编辑弹窗 -->
+<div class="modal-overlay" id="bd-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:380px;width:96%">
+    <div class="modal-header">
+      <div class="modal-title" id="bd-modal-title">添加商务BD</div>
+      <button class="modal-close" onclick="document.getElementById('bd-modal').style.display='none'">×</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label class="form-label">姓名 <span style="color:red">*</span></label>
+        <input class="form-input" id="bd-name" placeholder="商务BD姓名" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">登录密码 <span style="color:red">*</span></label>
+        <input class="form-input" type="password" id="bd-pass" placeholder="至少4位" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">颜色</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="bd-color" value="#3b82f6" checked /> <span style="width:16px;height:16px;border-radius:50%;background:#3b82f6;display:inline-block"></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="bd-color" value="#10b981" /> <span style="width:16px;height:16px;border-radius:50%;background:#10b981;display:inline-block"></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="bd-color" value="#f59e0b" /> <span style="width:16px;height:16px;border-radius:50%;background:#f59e0b;display:inline-block"></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="bd-color" value="#ef4444" /> <span style="width:16px;height:16px;border-radius:50%;background:#ef4444;display:inline-block"></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="bd-color" value="#8b5cf6" /> <span style="width:16px;height:16px;border-radius:50%;background:#8b5cf6;display:inline-block"></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="bd-color" value="#06b6d4" /> <span style="width:16px;height:16px;border-radius:50%;background:#06b6d4;display:inline-block"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="bd-del-btn" style="display:none;margin-right:auto" onclick="deleteBd()">删除</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('bd-modal').style.display='none'">取消</button>
+      <button class="btn btn-primary" onclick="saveBd()">保存</button>
     </div>
   </div>
 </div>
@@ -4279,7 +4330,7 @@ function renderAdminPanel() {
   const bdContainer = document.getElementById('admin-bd-list');
   if (bdContainer) {
     if (!bds.length) {
-      bdContainer.innerHTML = '<div style="color:var(--text-muted);font-size:.85rem">暂无商务BD，请在「字典管理 → 商务BD」中先添加BD。</div>';
+      bdContainer.innerHTML = '<div style="color:var(--text-muted);font-size:.85rem">暂无商务BD，点击右上角「＋ 添加」新建。</div>';
     } else {
       bdContainer.innerHTML = bds.map(b => {
         const hasPass = !!b.password;
@@ -4291,9 +4342,7 @@ function renderAdminPanel() {
             <span style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;background:${b.color||'#6b7280'}33;display:flex;align-items:center;justify-content:center;font-weight:700;color:${b.color||'#6b7280'}">${b.name[0]}</span>
             <span style="flex:1;font-weight:500;font-size:.9rem">${escapeHtml(b.name)}</span>
             ${statusTag}
-            <input type="password" id="bd-pass-${b.id}" placeholder="输入新密码" style="width:140px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;font-size:.85rem" />
-            <button onclick="saveBdPassword('${b.id}')" class="btn btn-primary btn-sm">保存</button>
-            ${hasPass ? `<button onclick="clearBdPassword('${b.id}')" class="btn btn-secondary btn-sm">清除</button>` : ''}
+            <button onclick="openAddBdModal('${b.id}')" class="btn btn-secondary btn-sm">编辑</button>
           </div>
         `;
       }).join('');
@@ -4323,6 +4372,62 @@ function renderAdminPanel() {
       }).join('');
     }
   }
+}
+
+// 商务BD添加/编辑弹窗
+let _editingBdId = null;
+function openAddBdModal(bdId) {
+  _editingBdId = bdId || null;
+  const bd = bdId ? DB.bds.find(b => b.id === bdId) : null;
+  document.getElementById('bd-modal-title').textContent = bd ? '编辑商务BD' : '添加商务BD';
+  document.getElementById('bd-name').value = bd ? bd.name : '';
+  document.getElementById('bd-pass').value = '';
+  document.getElementById('bd-del-btn').style.display = bd ? 'inline-flex' : 'none';
+  // 设置颜色
+  if (bd) {
+    document.querySelector(`input[name="bd-color"][value="${bd.color || '#3b82f6'}"]`).checked = true;
+  } else {
+    document.querySelector('input[name="bd-color"][value="#3b82f6"]').checked = true;
+  }
+  document.getElementById('bd-modal').style.display = 'flex';
+}
+
+function saveBd() {
+  const name = document.getElementById('bd-name').value.trim();
+  const pass = document.getElementById('bd-pass').value.trim();
+  const color = document.querySelector('input[name="bd-color"]:checked').value;
+  if (!name) { toast('请填写姓名', 'error'); return; }
+  if (!pass) { toast('请设置登录密码', 'error'); return; }
+  if (pass.length < 4) { toast('密码至少4位', 'error'); return; }
+  if (_editingBdId) {
+    const bd = DB.bds.find(b => b.id === _editingBdId);
+    if (!bd) return;
+    bd.name = name;
+    if (pass) bd.password = pass;
+    bd.color = color;
+    toast(`「${name}」信息已更新`, 'success');
+  } else {
+    if (DB.bds.find(b => b.name === name)) { toast('该姓名已存在', 'error'); return; }
+    DB.bds.push({ id: 'bd_' + Date.now(), name, password: pass, color, sort_order: DB.bds.length + 1, is_active: true, created_at: new Date().toISOString() });
+    toast(`已添加商务BD「${name}」`, 'success');
+  }
+  saveData();
+  populateLoginIdentities();
+  renderAdminPanel();
+  document.getElementById('bd-modal').style.display = 'none';
+}
+
+function deleteBd() {
+  if (!_editingBdId) return;
+  const bd = DB.bds.find(b => b.id === _editingBdId);
+  if (!bd) return;
+  if (!confirm(`确认删除「${bd.name}」？删除后该账号将无法登录。`)) return;
+  DB.bds = DB.bds.filter(b => b.id !== _editingBdId);
+  saveData();
+  populateLoginIdentities();
+  renderAdminPanel();
+  document.getElementById('bd-modal').style.display = 'none';
+  toast('已删除', 'info');
 }
 
 function saveBdPassword(bdId) {
@@ -4725,7 +4830,7 @@ function initApp() {
 <script src="js/schedule/editor.js?v=76"></script>
 <script src="js/schedule/budget.js?v=52"></script>
 <script src="js/schedule/monthly-plan.js?v=54"></script>
-<script src="js/schedule/dict.js?v=52"></script>
+<script src="js/schedule/dict.js?v=53"></script>
 <script src="js/schedule/recycle-bin.js?v=52"></script>
 <script src="js/schedule/kols-page.js?v=59"></script>
 <script src="js/schedule/kols-excel.js?v=52"></script>

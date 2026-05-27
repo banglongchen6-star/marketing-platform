@@ -121,10 +121,10 @@
       footerHint: '💡 删除只停用字典并清空引用该层级的排期字段，不影响其他数据。',
     },
     bd: {
-      label: '商务BD',
+      label: '商务',
       nameLabel: '姓名',   // 表头列名
       nameEditable: true,  // 名字单元格可内联编辑
-      placeholder: '键入 BD 姓名（如：张三 / 李四 / 王五）',
+      placeholder: '键入商务姓名',
       list:    () => SD.listBds({ includeInactive: true }),
       create:  (name) => SD.createOrReactivateBd({ name }),
       update:  (id, patch) => SD.updateBd(id, patch),
@@ -159,6 +159,36 @@
           </div>
         `,
       },
+    },
+    supervisor: {
+      label: '品宣主管',
+      nameLabel: '姓名',
+      nameEditable: false,  // 只读，不可编辑
+      readonly: true,       // 标记为只读
+      placeholder: '',
+      list: () => {
+        // 从全局 DB 获取品宣主管列表
+        const svs = (window.DB && window.DB.supervisors) ? window.DB.supervisors : [];
+        return svs.map(sv => ({
+          id: sv.id,
+          name: sv.name,
+          color: '#7c3aed',
+          is_active: true,
+          password: sv.password,
+          hasPassword: !!sv.password,
+        }));
+      },
+      // 品宣主管不支持添加/删除操作
+      create: null,
+      update: null,
+      deactivate: null,
+      hardDelete: null,
+      countUsage: () => ({}),
+      usageLabel: (u) => '',
+      deleteWarn: () => '',
+      footerHint: '💡 品宣主管在「账号管理」中管理，此处仅展示。',
+      // 只展示，不显示操作按钮
+      noActions: true,
     },
   };
 
@@ -225,7 +255,7 @@
     document.getElementById('sched-dict-tabs').innerHTML = renderTabs();
     const body = document.getElementById('sched-dict-body');
     body.innerHTML = `
-      ${renderCreateRow(cfg)}
+      ${cfg.readonly ? '' : renderCreateRow(cfg)}
       ${renderTable(cfg)}
     `;
     document.getElementById('sched-dict-footer').innerHTML = `
@@ -257,6 +287,9 @@
   function renderTable(cfg) {
     const all = cfg.list();
     if (!all.length) {
+      if (cfg.readonly) {
+        return `<div class="sched-empty" style="padding:32px 16px;color:var(--text-muted);font-size:.85rem">暂无品宣主管账号，可在「账号管理」中添加。</div>`;
+      }
       return `<div class="sched-empty">字典里还没有任何条目，请在上方添加。</div>`;
     }
     const sorted = all.slice().sort((a, b) => {
@@ -266,8 +299,10 @@
     const rows = sorted.map((d, i, arr) => renderRow(cfg, d, i, arr)).join('');
     const extraTh = cfg.extraColumn ? `<th>${escapeHtml(cfg.extraColumn.header)}</th>` : '';
     const nameLabel = cfg.nameLabel || '名称';
+    const readonlyClass = cfg.readonly ? 'readonly' : '';
+    const actionsTh = cfg.noActions ? '' : '<th class="col-actions">操作</th>';
     return `
-      <table class="sched-dict-table">
+      <table class="sched-dict-table ${readonlyClass}">
         <thead>
           <tr>
             <th>${escapeHtml(nameLabel)}</th>
@@ -275,7 +310,7 @@
             <th class="col-order">顺序</th>
             <th class="col-status">状态</th>
             <th class="col-usage">使用情况</th>
-            <th class="col-actions">操作</th>
+            ${actionsTh}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -306,28 +341,40 @@
     } else {
       nameCell = `<td><strong>${escapeHtml(d.name)}</strong></td>`;
     }
+    // 只读模式不显示操作按钮
+    const noActions = cfg.noActions;
+    const actionsTd = noActions ? '' : `
+      <td class="col-actions">
+        ${d.is_active
+          ? `<button class="sched-dict-row-action" onclick="DictManager._toggle('${d.id}',false)">停用</button>`
+          : `<button class="sched-dict-row-action primary" onclick="DictManager._toggle('${d.id}',true)">启用</button>`
+        }
+        ${Object.values(usage).some(v => v > 0)
+          ? `<span style="color:var(--text-muted);font-size:.75rem;cursor:default" title="已有关联数据，不可删除">不可删除</span>`
+          : `<button class="sched-dict-row-action danger" onclick="DictManager._delete('${d.id}')">删除</button>`
+        }
+      </td>
+    `;
+    // 只读模式不显示顺序按钮
+    const orderTd = noActions ? '<td></td>' : `
+      <td>
+        <button class="sched-dict-order-btn" onclick="DictManager._move('${d.id}',-1)" ${canUp?'':'disabled'} title="上移">▲</button>
+        <button class="sched-dict-order-btn" onclick="DictManager._move('${d.id}',1)" ${canDown?'':'disabled'} title="下移">▼</button>
+      </td>
+    `;
+    // 只读模式显示密码状态
+    const pwdTd = (cfg.readonly && d.hasPassword !== undefined) ? `<td>${d.hasPassword ? '<span class="sched-dict-status-on">✓ 已设置密码</span>' : '<span class="sched-dict-status-off">未设置</span>'}</td>` : '';
     return `
       <tr class="${inactiveCls}">
         ${nameCell}
         ${extraTd}
-        <td>
-          <button class="sched-dict-order-btn" onclick="DictManager._move('${d.id}',-1)" ${canUp?'':'disabled'} title="上移">▲</button>
-          <button class="sched-dict-order-btn" onclick="DictManager._move('${d.id}',1)" ${canDown?'':'disabled'} title="下移">▼</button>
-        </td>
+        ${orderTd}
         <td>${d.is_active
             ? '<span class="sched-dict-status-on">✓ 已启用</span>'
             : '<span class="sched-dict-status-off">○ 已停用</span>'}</td>
         <td>${usageText}</td>
-        <td class="col-actions">
-          ${d.is_active
-            ? `<button class="sched-dict-row-action" onclick="DictManager._toggle('${d.id}',false)">停用</button>`
-            : `<button class="sched-dict-row-action primary" onclick="DictManager._toggle('${d.id}',true)">启用</button>`
-          }
-          ${Object.values(usage).some(v => v > 0)
-            ? `<span style="color:var(--text-muted);font-size:.75rem;cursor:default" title="已有关联数据，不可删除">不可删除</span>`
-            : `<button class="sched-dict-row-action danger" onclick="DictManager._delete('${d.id}')">删除</button>`
-          }
-        </td>
+        ${pwdTd}
+        ${actionsTd}
       </tr>
     `;
   }
