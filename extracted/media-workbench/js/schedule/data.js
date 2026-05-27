@@ -140,16 +140,8 @@
     mutated = true;
   }
 
-  // 商务 BD 字典（首次为空时种 3 条样例 + 默认色板）
-  if (DB.bds.length === 0) {
-    const now = new Date().toISOString();
-    DB.bds = [
-      { id: uid(), name: '张三', color: '#3b82f6', sort_order: 1, is_active: true, created_at: now }, // 蓝
-      { id: uid(), name: '李四', color: '#10b981', sort_order: 2, is_active: true, created_at: now }, // 绿
-      { id: uid(), name: '王五', color: '#f59e0b', sort_order: 3, is_active: true, created_at: now }, // 橙
-    ];
-    mutated = true;
-  }
+  // 商务 BD 字典（首次为空时保持空白，由用户自行添加）
+  // 已在字典管理中提供添加入口，无需预设样例
 
   // 发货品类字典种子（首次为空时写入）
   if (DB.sample_products.length === 0) {
