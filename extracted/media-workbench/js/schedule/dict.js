@@ -122,73 +122,34 @@
     },
     bd: {
       label: '商务',
-      nameLabel: '姓名',   // 表头列名
-      nameEditable: true,  // 名字单元格可内联编辑
-      placeholder: '键入商务姓名',
-      list:    () => SD.listBds({ includeInactive: true }),
-      create:  (name) => SD.createOrReactivateBd({ name }),
-      update:  (id, patch) => SD.updateBd(id, patch),
-      countUsage: (_name, id) => SD.countBdUsage(id),
-      deactivate: (id) => SD.deactivateBd(id, { cascadeClear: false }),
-      hardDelete: (id) => {
-        const r = SD.deleteBd(id);
-        return { cleared: r.cleared ? `解绑 ${r.cleared} 条记录` : '' };
-      },
-      usageLabel: (u) => {
-        const parts = [];
-        if (u.schedules) parts.push(`${u.schedules} 排期`);
-        if (u.kols) parts.push(`${u.kols} 达人`);
-        return parts.length ? parts.join(' · ') : '未使用';
-      },
-      deleteWarn: (name, u) => {
-        let msg = `⚠️ 删除 BD「${name}」？\n字典将被停用；`;
-        if (u.schedules || u.kols) msg += `\n\n${u.schedules || 0} 条排期 + ${u.kols || 0} 位达人将被解绑（bd_id 设为空），数据本身保留。`;
-        else msg += `\n当前无关联数据。`;
-        return msg;
-      },
-      footerHint: '💡 BD 字典管理颜色和归属；删除时仅解绑，不删数据。',
-      // 自定义额外列：颜色编辑
-      extraColumn: {
-        header: '颜色',
-        render: (row) => `
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="color" value="${row.color || '#3b82f6'}"
-                   onchange="DictManager._updateBdColor('${row.id}', this.value)"
-                   style="width:30px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:0;background:none">
-            <span style="font-size:.72rem;color:var(--text-muted);font-family:monospace">${row.color || '—'}</span>
-          </div>
-        `,
-      },
-    },
-    supervisor: {
-      label: '品宣主管',
       nameLabel: '姓名',
-      nameEditable: false,  // 只读，不可编辑
-      readonly: true,       // 标记为只读
+      nameEditable: false,  // 只读
+      readonly: true,
+      noActions: true,
       placeholder: '',
       list: () => {
-        // 从全局 DB 获取品宣主管列表
-        const svs = (window.DB && window.DB.supervisors) ? window.DB.supervisors : [];
-        return svs.map(sv => ({
+        // 合并商务BD和品宣主管
+        const bds = SD.listBds({ includeInactive: true }).map(b => ({ ...b, _type: 'bd' }));
+        const svs = ((window.DB && window.DB.supervisors) || []).map(sv => ({
           id: sv.id,
           name: sv.name,
           color: '#7c3aed',
           is_active: true,
-          password: sv.password,
+          _type: 'supervisor',
           hasPassword: !!sv.password,
         }));
+        return [...bds, ...svs];
       },
-      // 品宣主管不支持添加/删除操作
-      create: null,
-      update: null,
-      deactivate: null,
-      hardDelete: null,
       countUsage: () => ({}),
-      usageLabel: (u) => '',
+      usageLabel: () => '',
       deleteWarn: () => '',
-      footerHint: '💡 品宣主管在「账号管理」中管理，此处仅展示。',
-      // 只展示，不显示操作按钮
-      noActions: true,
+      footerHint: '💡 商务和品宣主管在「账号管理」中管理，此处仅展示。',
+      extraColumn: {
+        header: '身份',
+        render: (row) => row._type === 'supervisor'
+          ? '<span style="padding:2px 8px;border-radius:10px;font-size:.72rem;background:#7c3aed22;color:#7c3aed;font-weight:600">品宣主管</span>'
+          : '<span style="padding:2px 8px;border-radius:10px;font-size:.72rem;background:#3b82f622;color:#3b82f6;font-weight:600">商务BD</span>',
+      },
     },
   };
 
