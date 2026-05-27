@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>测试统计卡片布局</title>
+  <style>
+    :root {
+      --bg-base: #f4f6f9;
+      --bg-panel: #ffffff;
+      --border: #e4e8ed;
+      --primary: #1a56db;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --shadow: 0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.05);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-base);
+      padding: 24px;
+      margin: 0;
+    }
+    
+    /* 这是数据看板的统计卡片样式 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px 20px;
+      box-shadow: var(--shadow);
+    }
+    
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+    }
+    
+    .stat-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    
+    .stat-value {
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text-primary);
+    }
+    
+    .blue { background: rgba(26,86,219,.1); }
+    .green { background: rgba(5,150,105,.1); }
+    .orange { background: rgba(217,119,6,.1); }
+    .purple { background: rgba(124,58,237,.1); }
+    
+    /* 测试按钮样式 */
+    .test-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .test-btn:hover {
+      opacity: 0.9;
+    }
+    
+    .result {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 统计卡片布局测试</h1>
+  
+  <button class="test-btn" onclick="testLayout()">🔍 检查布局状态</button>
+  
+  <div id="result" class="result"></div>
+  
+  <h2>预期效果：4个卡片应该横向排列（一行四列）</h2>
+  
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">📺</div>
+      <div class="stat-label">总播放量</div>
+      <div class="stat-value">1,234,567</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">💰</div>
+      <div class="stat-label">总花费</div>
+      <div class="stat-value">¥12,345</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">📈</div>
+      <div class="stat-label">CPM</div>
+      <div class="stat-value">¥10.50</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">❤️</div>
+      <div class="stat-label">总点赞</div>
+      <div class="stat-value">89,012</div>
+    </div>
+  </div>
+  
+  <h2>测试按钮功能</h2>
+  <button class="test-btn" onclick="alert('按钮可以点击！')">✅ 测试按钮点击</button>
+  
+  <script>
+    function testLayout() {
+      const statsGrid = document.querySelector('.stats-grid');
+      const computedStyle = window.getComputedStyle(statsGrid);
+      
+      const result = {
+        'display': computedStyle.display,
+        'grid-template-columns': computedStyle.gridTemplateColumns,
+        'gap': computedStyle.gap,
+        '子元素数量': statsGrid.children.length,
+        '是否横向排列': computedStyle.gridTemplateColumns.includes('1fr')
+      };
+      
+      document.getElementById('result').innerHTML = 
+        '<strong>布局检查结果：</strong><br><br>' +
+        Object.entries(result).map(([k, v]) => `${k}: <strong>${v}</strong>`).join('<br>');
+    }
+    
+    // 页面加载后自动测试
+    window.onload = testLayout;
+  </script>
+</body>
+</html>

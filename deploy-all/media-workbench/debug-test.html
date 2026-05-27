@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>诊断 - 品宣运营工作台</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+    h1 { color: #1a56db; }
+    .card { background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 12px 0; border-left: 4px solid #1a56db; }
+    .success { border-left-color: #10b981; }
+    .error { border-left-color: #ef4444; background: #fef2f2; }
+    code { background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    .steps { background: #eff6ff; padding: 16px; border-radius: 8px; margin-top: 20px; }
+    .steps ol { margin: 8px 0 0 0; padding-left: 20px; }
+    .steps li { margin: 8px 0; }
+    button { background: #1a56db; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #1e40af; }
+    .kbd { background: #374151; color: white; padding: 2px 8px; border-radius: 4px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>🔍 品宣运营工作台诊断</h1>
+
+  <div class="card success">
+    ✅ <strong>诊断页面已加载</strong><br>
+    如果你看到这个页面，说明浏览器可以正常加载 HTML 文件。
+  </div>
+
+  <div class="card">
+    <strong>📌 当前版本检查：</strong><br>
+    请打开主页面 <code>index.html</code>，检查登录页面的副标题：<br><br>
+    <span style="font-size: 1.2em; color: #1a56db;">应显示：<strong>[V10-20260508]</strong></span><br><br>
+    如果显示的是旧版本号（如 V9-20260506），说明浏览器缓存了旧文件。
+  </div>
+
+  <div class="card">
+    <strong>🚀 强制刷新步骤：</strong>
+    <div class="steps">
+      <ol>
+        <li>打开 <code>index.html</code></li>
+        <li>按 <span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">R</span> 强制刷新（清除缓存）</li>
+        <li>或者按 <span class="kbd">F12</span> 打开开发者工具，在 Network 标签勾选 "Disable cache"</li>
+        <li>登录后查看数据看板是否显示 4 列卡片</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>📊 stats-grid 布局测试：</strong><br>
+    下面的 4 个卡片应该是横向排列的：
+    <style>
+      .test-grid { display: grid; grid-template-columns: repeat(4, 1fr) !important; gap: 16px; margin-top: 12px; }
+      .test-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; text-align: center; }
+      .test-card .icon { font-size: 2em; }
+      .test-card .label { color: #6b7280; font-size: 0.85em; margin-top: 4px; }
+      .test-card .value { font-size: 1.5em; font-weight: bold; color: #1a56db; margin-top: 4px; }
+    </style>
+    <div class="test-grid">
+      <div class="test-card"><div class="icon">🎬</div><div class="label">发布内容数</div><div class="value">12</div></div>
+      <div class="test-card"><div class="icon">▶️</div><div class="label">总播放量</div><div class="value">45.2K</div></div>
+      <div class="test-card"><div class="icon">💰</div><div class="label">总花费</div><div class="value">¥8,500</div></div>
+      <div class="test-card"><div class="icon">📊</div><div class="label">CPM</div><div class="value">188.06</div></div>
+    </div>
+    <p style="color: #6b7280; font-size: 0.85em; margin-top: 8px;">
+      ✓ 如果上面 4 个卡片是横向排列的，说明 CSS grid-template-columns 正常工作。
+    </p>
+  </div>
+
+  <div class="card">
+    <strong>🖱️ 按钮点击测试：</strong><br>
+    下面的按钮点击后应该弹出提示：
+    <br><br>
+    <button onclick="alert('✅ 按钮点击正常！JavaScript 运行正常。')">测试按钮</button>
+    <p style="color: #6b7280; font-size: 0.85em; margin-top: 8px;">
+      ✓ 如果点击按钮能看到弹窗，说明 JavaScript 正常运行。
+    </p>
+  </div>
+
+  <div class="card error">
+    <strong>❌ 如果问题仍然存在：</strong>
+    <ol>
+      <li>按 <span class="kbd">F12</span> 打开开发者工具</li>
+      <li>点击 <strong>Console</strong> 标签</li>
+      <li>查看是否有红色错误信息</li>
+      <li>截图或复制错误信息</li>
+    </ol>
+  </div>
+
+  <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="color: #9ca3af; font-size: 0.8em;">
+    诊断页面版本: 2026-05-08 V1 | 文件位置: C:\Users\Admin\.qclaw\workspace\media-workbench\debug-test.html
+  </p>
+</body>
+</html>

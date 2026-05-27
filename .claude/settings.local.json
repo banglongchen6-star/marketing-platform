@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/Admin/达人营销/.claude && ls /Users/Admin/达人营销/.claude/ 2>&1)",
+      "mcp__Claude_Preview__preview_start",
+      "WebFetch(domain:gbj9svbd9d.coze.site)",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "mcp__Claude_in_Chrome__select_browser",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__read_page",
+      "Bash(awk '/^function renderDashboard\\\\\\(\\\\\\)/,/^\\\\/\\\\* ========== 品宣 ROI/' /Users/Admin/达人营销/extracted/media-workbench/index.html)",
+      "Bash(git add *)",
+      "Bash(find /Users/Admin -name \".git\" -maxdepth 4 2>/dev/null | head -5)",
+      "Bash(node --check /Users/Admin/达人营销/extracted/media-workbench/js/schedule/editor.js)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(node -e ' *)",
+      "Bash(grep -n \"达人$\\\\|达人<\\\\|达人 \\\\|全部平台\\\\|platform.*tab\\\\|tab.*platform\\\\|抖音.*达人\\\\|renderPlatformTab\\\\|kol-tab\\\\|platform-tab\" /Users/Admin/达人营销/extracted/media-workbench/index.html)",
+      "Bash(xargs ls -lh)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(zip -r media-workbench.zip media-workbench/ --exclude \"*.ps1\" --exclude \"check-js.js\" --exclude \"check-syntax.js\" --exclude \"find-syntax.js\" --exclude \"verify.js\" --exclude \"*.backup\" --exclude \"*.md\" --exclude \"debug*.html\" --exclude \"test-*.html\" --exclude \"test-stats.html\")",
+      "Bash(zip -r media-workbench.zip media-workbench/index.html media-workbench/css/ media-workbench/js/)"
+    ]
+  }
+}

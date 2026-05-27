@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>登录测试</title>
+  <style>
+    body { font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f4f8; }
+    .box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 300px; }
+    input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #1a56db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #1e4bb5; }
+    .error { color: red; margin-top: 10px; font-size: 14px; }
+    #app { display: none; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="login-screen">
+    <div class="box">
+      <h2>登录测试</h2>
+      <input type="text" id="user" placeholder="账号" value="admin">
+      <input type="password" id="pass" placeholder="密码" value="">
+      <button onclick="doLogin()">登录</button>
+      <div class="error" id="error"></div>
+      <p style="font-size: 12px; color: #666; margin-top: 20px;">测试账号: admin / admin123</p>
+    </div>
+  </div>
+  
+  <div id="app">
+    <div class="box">
+      <h2>登录成功!</h2>
+      <p>欢迎, <span id="username"></span></p>
+      <button onclick="doLogout()">退出</button>
+    </div>
+  </div>
+
+  <script>
+    const USERS = { admin: { pass: 'admin123', role: '管理员' } };
+    
+    function doLogin() {
+      const u = document.getElementById('user').value.trim();
+      const p = document.getElementById('pass').value;
+      console.log('尝试登录:', u, p);
+      
+      if (USERS[u] && USERS[u].pass === p) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('username').textContent = u;
+        console.log('登录成功');
+      } else {
+        document.getElementById('error').textContent = '账号或密码错误';
+        console.log('登录失败');
+      }
+    }
+    
+    function doLogout() {
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('pass').value = '';
+      document.getElementById('error').textContent = '';
+    }
+  </script>
+</body>
+</html>

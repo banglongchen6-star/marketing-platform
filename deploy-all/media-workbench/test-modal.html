@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>测试弹窗</title>
+<style>
+body{font-family:Arial;padding:40px;background:#f5f5f5}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:12px;padding:24px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.modal-title{font-size:18px;font-weight:600;margin-bottom:16px}
+.btn{padding:10px 20px;border:none;border-radius:6px;cursor:pointer;margin-right:8px}
+.btn-primary{background:#1a56db;color:#fff}
+.btn-secondary{background:#e5e7eb}
+</style>
+</head>
+<body>
+<h1>弹窗测试</h1>
+<button class="btn btn-primary" onclick="openTestModal()">打开弹窗</button>
+
+<div class="modal-overlay" id="test-modal" style="display:none" onclick="if(event.target.id==='test-modal')document.getElementById('test-modal').style.display='none'">
+  <div class="modal">
+    <div class="modal-title">测试弹窗</div>
+    <p>弹窗正常工作！</p>
+    <button class="btn btn-secondary" onclick="document.getElementById('test-modal').style.display='none'">关闭</button>
+  </div>
+</div>
+
+<script>
+function openTestModal() {
+  document.getElementById('test-modal').style.display = 'flex';
+}
+console.log('JS loaded');
+</script>
+</body>
+</html>

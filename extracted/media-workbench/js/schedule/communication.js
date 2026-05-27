@@ -1,0 +1,1230 @@
+/* =====================================================================
+ * 内容发布（传播执行）页面 · 主模块
+ *
+ * 暴露：window.CommunicationPage = { render, openEditor(id?), ... }
+ *
+ * 一条内容 = 一次合作（主信息来自 schedule_id 反查）+ N 个 publication
+ * 列分组：基本信息 / 发布信息 / 第7天数据 / 看后搜 / 归因数据（仅抖音）
+ * ===================================================================== */
+(function () {
+  const SD = window.ScheduleData;
+  if (!SD) { console.error('[CommunicationPage] ScheduleData 未就绪'); return; }
+
+  /* ------------------------- 状态 ------------------------- */
+  // 所有可选列（用户可在工具栏「自定义列」里勾选）
+  const ALL_COLUMNS = [
+    { key: 'price',        label: '价格',     group: '基本' },
+    { key: 'fans',         label: '粉丝量',   group: '基本' },
+    { key: 'category',     label: '作品类型', group: '基本' },
+    { key: 'platform',     label: '平台',     group: '发布' },
+    { key: 'date',         label: '发布时间', group: '发布' },
+    { key: 'link',         label: '发布链接', group: '发布' },
+    { key: 'views',        label: '播放量',   group: '第7天' },
+    { key: 'likes',        label: '赞',       group: '第7天' },
+    { key: 'comments',     label: '评论',     group: '第7天' },
+    { key: 'completion',   label: '完播率',   group: '第7天' },
+    { key: 'interaction',  label: '互动率',   group: '第7天' },
+    { key: 'search_views', label: '看后搜量', group: '看后搜', douyinOnly: true },
+    { key: 'search_rate',  label: '看后搜率', group: '看后搜', douyinOnly: true },
+    { key: 'attr_direct',  label: '直接归因', group: '归因', douyinOnly: true },
+    { key: 'attr_indirect',label: '简介归因', group: '归因', douyinOnly: true },
+    { key: 'attr_search',  label: '看后搜归因', group: '归因', douyinOnly: true },
+    { key: 'attr_audience',label: '人群获取', group: '归因', douyinOnly: true },
+    { key: 'attr_store',   label: '店铺表现', group: '归因', douyinOnly: true },
+    { key: 'cpa3',         label: 'CPA3',     group: '归因', douyinOnly: true },
+    { key: 'promo_views',  label: '投流播放(万)', group: '投流', douyinOnly: true },
+    { key: 'promo_cost',   label: '投流费(元)',   group: '投流', douyinOnly: true },
+  ];
+  // 默认全部显示
+  const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.map(c => c.key));
+  const COL_PREF_KEY = 'comm_visible_cols_v1';
+  function loadVisible() {
+    try {
+      const raw = localStorage.getItem(COL_PREF_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    } catch(e) {}
+    return new Set(DEFAULT_VISIBLE);
+  }
+  function saveVisible(s) {
+    try { localStorage.setItem(COL_PREF_KEY, JSON.stringify([...s])); } catch(e) {}
+  }
+
+  const state = {
+    // 列表筛选
+    year: 0, month: 0,
+    mainPlatform: '全部',
+    bd_id: '',
+    q: '',
+    // 自定义列
+    visibleCols: loadVisible(),
+    colPopOpen: false,
+    // 编辑器
+    editor: {
+      open: false, mode: 'create', id: null,
+      form: defaultForm(),
+      errors: {},
+    },
+  };
+
+  function defaultForm() {
+    return {
+      schedule_id: '',
+      fans: '',
+      publications: [defaultPublication()],
+    };
+  }
+  function defaultPublication(platform = '抖音', date = '') {
+    return {
+      id: 'pub-' + Math.random().toString(36).slice(2, 8),
+      platform, date, link: '',
+      views: '', likes: '', comments: '',
+      completion: '', interaction: '',
+      search_views: '', search_rate: '',
+      attr_direct: '', attr_indirect: '', attr_search: '',
+      attr_audience: '', attr_store: '', cpa3: '',
+      day7_recorded_at: null,
+    };
+  }
+
+  function initState() {
+    if (state.year) return;
+    const d = new Date();
+    state.year = d.getFullYear();
+    state.month = d.getMonth() + 1;
+  }
+
+  /* ------------------------- 渲染：页面主入口 ------------------------- */
+  function render() {
+    initState();
+    const page = document.getElementById('page-contents');
+    if (!page) return;
+    const kpi = SD.getCommunicationKPI({
+      year: state.year, month: state.month,
+      mainPlatform: state.mainPlatform,
+      bd_id: state.bd_id || undefined,
+    });
+    page.innerHTML = `
+      ${renderToolbar(kpi)}
+      ${renderTabs()}
+      ${renderList()}
+    `;
+    bindToolbar();
+  }
+
+  /* 顶部 tab：按主平台切分 */
+  function renderTabs() {
+    const tabs = [
+      { key: '全部', label: '全部平台' },
+      { key: '抖音', label: '抖音平台' },
+      { key: '小红书', label: '小红书平台' },
+      { key: 'B站', label: 'B站平台' },
+      { key: '视频号', label: '视频号平台' },
+      { key: '快手', label: '快手平台' },
+    ];
+    const frozen = SD.isMonthFrozen(state.year, state.month);
+    const isSupervisor = window.currentUser?.identity === 'supervisor';
+    const freezeBtn = isSupervisor
+      ? frozen
+        ? `<button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:6px;cursor:pointer"
+               onclick="CommunicationPage._toggleFreeze()">🔓 解冻</button>`
+        : `<button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#f1f5f9;border:1px solid #94a3b8;color:#475569;border-radius:6px;cursor:pointer"
+               onclick="CommunicationPage._toggleFreeze()">🔒 冻结</button>`
+      : frozen
+        ? `<span style="font-size:.72rem;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:10px;border:1px solid #f59e0b">🔒 已冻结</span>`
+        : '';
+    return `
+      <div class="sched-tab-bar" style="margin:0 0 14px;background:var(--bg-panel);border-radius:var(--radius);padding:0 8px;box-shadow:var(--shadow);border-bottom:none;display:flex;align-items:center;overflow:hidden">
+        ${tabs.map(t => `
+          <button class="sched-tab ${state.mainPlatform === t.key ? 'active' : ''}"
+                  onclick="CommunicationPage._setMainPlatform('${t.key}')">${escapeHtml(t.label)}</button>
+        `).join('')}
+        ${freezeBtn ? `<div style="margin-left:auto;padding:0 8px;flex-shrink:0">${freezeBtn}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderToolbar(kpi) {
+    const bdList = SD.listBds();
+    const bdOpts = ['<option value="">全部 BD</option>']
+      .concat(bdList.map(b => `<option value="${b.id}" ${state.bd_id === b.id ? 'selected' : ''}>${escapeHtml(b.name)}</option>`));
+    const monthLabel = `${state.year}-${String(state.month).padStart(2, '0')}`;
+    const frozen = SD.isMonthFrozen(state.year, state.month);
+    return `
+      <div class="sched-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="sched-month-btn" onclick="CommunicationPage._prevMonth()">‹</button>
+        <div class="sched-month-current" style="min-width:96px">${monthLabel}</div>
+        <button class="sched-month-btn" onclick="CommunicationPage._nextMonth()">›</button>
+        <input id="__c-search__" class="search-input"
+               style="width:90px"
+               placeholder="🔍 搜达人昵称..." value="${escapeAttr(state.q)}">
+        <select id="__c-bd__" class="filter-select" style="width:90px">${bdOpts.join('')}</select>
+
+        <!-- 4 KPI -->
+        <div style="display:flex;gap:14px;margin-left:16px;padding:0 14px;border-left:1px solid var(--border)">
+          <div>
+            <div style="font-size:.72rem;color:var(--text-muted)">月总曝光</div>
+            <div style="font-weight:600;color:var(--primary)">${kpi.totalExposureWan.toFixed(2)} 万</div>
+            <div style="font-size:.66rem;color:var(--text-muted)">自然 ${kpi.totalViews.toFixed(2)} + 投流 ${kpi.totalPromoViews.toFixed(2)}</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--text-muted)">月总花费</div>
+            <div style="font-weight:600">¥${kpi.totalSpend.toLocaleString()}</div>
+            <div style="font-size:.66rem;color:var(--text-muted)">合作 ¥${kpi.totalPrice.toLocaleString()} + 投流 ¥${kpi.totalPromoCost.toLocaleString()}</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--text-muted)">CPM</div>
+            <div style="font-weight:600;color:var(--purple)">${kpi.cpm}</div>
+          </div>
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:6px;position:relative">
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._toggleColPop(event)">⚙ 自定义列</button>
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.openImport()" title="从 Excel 导入">📥 导入</button>
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.doExport()" title="导出当前筛选数据到 Excel">📤 导出</button>
+          ${frozen ? '' : `<button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor()">＋ 新增</button>`}
+          ${state.colPopOpen ? renderColPop() : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  /* 自定义列浮层 */
+  function renderColPop() {
+    const visible = ALL_COLUMNS; // 所有字段在所有平台视图中均可配置
+    // 按 group 分组
+    const groups = {};
+    visible.forEach(c => { (groups[c.group] = groups[c.group] || []).push(c); });
+    return `
+      <div class="sched-add-dir-pop" id="__col-pop__" style="right:0;top:38px;width:280px;left:auto;padding:10px;display:flex;flex-direction:column;max-height:min(480px,70vh)">
+        <div style="font-size:.82rem;font-weight:500;margin-bottom:8px;color:var(--text-primary);flex-shrink:0">自定义列（${state.visibleCols.size}/${visible.length}）</div>
+        <div id="__col-pop-list__" style="overflow-y:auto;flex:1;margin-bottom:8px">
+          ${Object.entries(groups).map(([g, cols]) => `
+            <div style="margin-bottom:8px">
+              <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px">${escapeHtml(g)}</div>
+              ${cols.map(c => `
+                <label style="display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;font-size:.82rem">
+                  <input type="checkbox" ${state.visibleCols.has(c.key)?'checked':''}
+                         onchange="CommunicationPage._toggleCol('${c.key}', this.checked)">
+                  ${escapeHtml(c.label)}
+                </label>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--border);padding-top:8px;flex-shrink:0">
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._showAllCols()" style="font-size:.75rem;flex:1">全选</button>
+            <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._resetCols()" style="font-size:.75rem;flex:1">恢复默认</button>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="CommunicationPage._saveColPop()" style="width:100%">保存</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function _toggleColPop(ev) {
+    ev && ev.stopPropagation();
+    state.colPopOpen = !state.colPopOpen;
+    render();
+    if (state.colPopOpen) {
+      setTimeout(() => document.addEventListener('click', _outsideColPopClose), 0);
+    }
+  }
+  function _outsideColPopClose(e) {
+    const pop = document.getElementById('__col-pop__');
+    if (!pop || !pop.contains(e.target)) {
+      state.colPopOpen = false;
+      document.removeEventListener('click', _outsideColPopClose);
+      render();
+    }
+  }
+  function _toggleCol(key, on) {
+    const scrollTop = document.getElementById('__col-pop-list__')?.scrollTop || 0;
+    if (on) state.visibleCols.add(key); else state.visibleCols.delete(key);
+    saveVisible(state.visibleCols);
+    render();
+    requestAnimationFrame(() => {
+      const el = document.getElementById('__col-pop-list__');
+      if (el) el.scrollTop = scrollTop;
+    });
+  }
+  function _showAllCols() {
+    const scrollTop = document.getElementById('__col-pop-list__')?.scrollTop || 0;
+    ALL_COLUMNS.forEach(c => state.visibleCols.add(c.key));
+    saveVisible(state.visibleCols);
+    render();
+    requestAnimationFrame(() => {
+      const el = document.getElementById('__col-pop-list__');
+      if (el) el.scrollTop = scrollTop;
+    });
+  }
+  function _resetCols() {
+    const scrollTop = document.getElementById('__col-pop-list__')?.scrollTop || 0;
+    state.visibleCols = new Set(DEFAULT_VISIBLE);
+    saveVisible(state.visibleCols);
+    render();
+    requestAnimationFrame(() => {
+      const el = document.getElementById('__col-pop-list__');
+      if (el) el.scrollTop = scrollTop;
+    });
+  }
+  function _saveColPop() {
+    state.colPopOpen = false;
+    document.removeEventListener('click', _outsideColPopClose);
+    render();
+    window.toast && window.toast('列配置已保存', 'success');
+  }
+
+  function bindToolbar() {
+    const s = document.getElementById('__c-search__');
+    if (s) {
+      let t; s.addEventListener('input', e => {
+        clearTimeout(t);
+        t = setTimeout(() => { state.q = e.target.value; render(); }, 200);
+      });
+    }
+    const b = document.getElementById('__c-bd__');
+    if (b) b.addEventListener('change', e => { state.bd_id = e.target.value; render(); });
+  }
+
+  function _setMainPlatform(p) { state.mainPlatform = p; render(); }
+  function _prevMonth() {
+    if (state.month === 1) { state.year--; state.month = 12; } else state.month--;
+    render();
+  }
+  function _nextMonth() {
+    if (state.month === 12) { state.year++; state.month = 1; } else state.month++;
+    render();
+  }
+
+  /* ------------------------- 列表（主行 + 子行） ------------------------- */
+  function getActiveColumns() {
+    // 所有字段均可在任意平台视图中启用（douyinOnly 仅作说明，不再过滤）
+    return ALL_COLUMNS.filter(c => state.visibleCols.has(c.key));
+  }
+
+  /* 可内联编辑的字段（完播率起往后） */
+  const INLINE_EDIT_KEYS = new Set([
+    'completion', 'interaction',
+    'search_views', 'search_rate',
+    'attr_direct', 'attr_indirect', 'attr_search', 'attr_audience', 'attr_store', 'cpa3',
+    'promo_views', 'promo_cost',
+  ]);
+
+  /**
+   * 通用内联编辑：点击单元格 → input，Enter/失焦保存，Esc 取消
+   */
+  function _inlineEditField(contentId, pubId, field, tdEl) {
+    if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
+    if (tdEl.querySelector('input')) return;
+    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    if (!content) return;
+    const pub = (content.publications || []).find(p => p.id === pubId);
+    if (!pub) return;
+    const current = pub[field];
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = current != null ? String(current) : '';
+    input.placeholder = '输入…';
+    input.style.cssText = 'width:100%;min-width:60px;border:1px solid var(--primary);border-radius:4px;padding:3px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+
+    let saved = false;
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const raw = input.value.trim();
+      let newVal = null;
+      if (raw !== '') {
+        const n = Number(raw);
+        newVal = Number.isFinite(n) ? n : raw;
+      }
+      const unchanged = newVal === current || (newVal == null && (current == null || current === ''));
+      if (!unchanged) {
+        try {
+          const newPubs = (content.publications || []).map(p =>
+            p.id === pubId ? { ...p, [field]: newVal } : p
+          );
+          SD.updateContent(contentId, { publications: newPubs });
+          window.toast && window.toast('已保存', 'success');
+        } catch (e) {
+          window.toast && window.toast('保存失败: ' + e.message, 'error');
+        }
+      }
+      render();
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { e.stopPropagation(); saved = true; render(); }
+    });
+    tdEl.innerHTML = '';
+    tdEl.appendChild(input);
+    input.focus();
+    if (input.value) input.select();
+  }
+
+  /**
+   * 渲染一个完整的 <td>（含内联编辑支持）。
+   * 用于所有非 rowspan 列（price/fans/category/date 在外部处理 rowspan）。
+   */
+  function renderPubTd(p, colKey, content, r, frozen = false) {
+    const ctx = { r, content };
+    // link：内联编辑 URL
+    if (colKey === 'link') {
+      if (frozen) return `<td style="min-width:110px">${p.link ? renderLink(p.link) : '<span style="color:var(--text-muted);font-size:.78rem">-</span>'}</td>`;
+      return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditLink('${content.id}','${p.id}',this)" title="点击填写链接">${p.link ? renderLink(p.link) : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>'}</td>`;
+    }
+    // views：内联编辑（万）
+    if (colKey === 'views') {
+      if (frozen) return `<td style="min-width:70px">${p.views != null ? fmtNullable(p.views, '-') : '-'}</td>`;
+      return `<td style="cursor:pointer;min-width:70px" onclick="CommunicationPage._inlineEditViews('${content.id}','${p.id}',this)" title="点击填写播放量">${p.views != null ? fmtNullable(p.views, '-') : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>'}</td>`;
+    }
+    // 完播率起往后：通用内联编辑
+    if (INLINE_EDIT_KEYS.has(colKey)) {
+      const display = renderPubCell(p, colKey, ctx);
+      if (frozen) return `<td>${display}</td>`;
+      const isEmpty = display === '-';
+      return `<td style="cursor:pointer" onclick="CommunicationPage._inlineEditField('${content.id}','${p.id}','${colKey}',this)" title="点击填写">${isEmpty ? '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>' : display}</td>`;
+    }
+    // 其余静态列
+    return `<td>${renderPubCell(p, colKey, ctx)}</td>`;
+  }
+
+  function renderList() {
+    if (state.mainPlatform === '全部') return renderAllPlatformsList();
+    const list = SD.listContents({
+      year: state.year, month: state.month,
+      mainPlatform: state.mainPlatform,
+      bd_id: state.bd_id || undefined,
+      q: state.q || undefined,
+    });
+    if (!list.length) {
+      return `<div style="background:var(--bg-panel);border-radius:var(--radius);padding:60px 16px;text-align:center;color:var(--text-muted);box-shadow:var(--shadow)">
+        <div style="font-size:2rem;margin-bottom:8px">📭</div>
+        <div>${state.mainPlatform} 当月暂无发布数据</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:6px">点击右上「+ 新增」录入；需要先在排期里有对应排期</div>
+      </div>`;
+    }
+    // 按发布日期升序排列（与全部平台视图一致）
+    list.sort((a, b) => {
+      const da = (a.publications || [])[0]?.date || '';
+      const db = (b.publications || [])[0]?.date || '';
+      return da.localeCompare(db);
+    });
+    const isDouyin = state.mainPlatform === '抖音';
+    const activeCols = getActiveColumns();
+    // 分组统计
+    const groupCounts = {};
+    activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
+    const groupOrder = ['基本', '发布', '第7天', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
+    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
+    return `
+      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 180px)">
+        <table class="comm-table">
+          <thead>
+            <tr class="comm-group-header">
+              <th rowspan="2" style="background:#fafbfd;min-width:120px">${state.mainPlatform}昵称</th>
+              ${groupOrder.map(g => {
+                const gLabel = g === '基本' ? '基本信息'
+                  : g === '发布' ? '发布信息'
+                  : g === '第7天' ? '第7天数据'
+                  : g === '投流' ? '投流（抖音）'
+                  : g + '数据';
+                return `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${gLabel}</th>`;
+              }).join('')}
+            </tr>
+            <tr>
+              ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${list.map(c => renderContentRows(c, isDouyin, activeCols, true)).join('')}
+          </tbody>
+          <tfoot>
+            ${renderListFooter(list, activeCols.length, true)}
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
+
+  // 渲染单个 publication 的某一列单元格
+  function renderPubCell(p, colKey, ctx) {
+    switch (colKey) {
+      case 'price': return ctx.r.price ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
+      case 'fans':  return ctx.content.fans != null ? formatFans(ctx.content.fans) : '-';
+      case 'category': return escapeHtml(ctx.r.category || '-');
+      case 'platform': return `<span class="sched-card-chip platform">${escapeHtml(p.platform)}</span>`;
+      case 'date': {
+        const snapMap = { d0:'当天', d3:'3d', d7:'7d', d30:'30d' };
+        const chip = p.snapshot_day && snapMap[p.snapshot_day]
+          ? `<span style="margin-left:4px;font-size:.62rem;padding:1px 5px;border-radius:3px;background:${p.snapshot_day==='d7'?'#dcfce7':'#fef3c7'};color:${p.snapshot_day==='d7'?'#15803d':'#92400e'};font-weight:500" title="数据采集时点">${snapMap[p.snapshot_day]}</span>`
+          : '';
+        return escapeHtml(p.date || '-') + chip;
+      }
+      case 'link':     return renderLink(p.link);
+      case 'views':       return fmtNullable(p.views, '-');
+      case 'likes':       return renderStatCell(p, 'likes');
+      case 'comments':    return renderStatCell(p, 'comments');
+      case 'completion':  return fmtPercent(p.completion);
+      case 'interaction': return fmtPercent(p.interaction);
+      case 'search_views':return fmtNullable(p.search_views, '-');
+      case 'search_rate': return fmtPercent(p.search_rate);
+      case 'attr_direct': return fmtNullable(p.attr_direct, '-');
+      case 'attr_indirect':return fmtNullable(p.attr_indirect, '-');
+      case 'attr_search': return fmtNullable(p.attr_search, '-');
+      case 'attr_audience':return fmtNullable(p.attr_audience, '-');
+      case 'attr_store':  return escapeHtml(p.attr_store || '-');
+      case 'cpa3':        return fmtNullable(p.cpa3, '-');
+      case 'promo_views': return fmtNullable(p.promo_views, '-');
+      case 'promo_cost':  return p.promo_cost != null ? '¥'+Number(p.promo_cost).toLocaleString() : '-';
+      default: return '-';
+    }
+  }
+  // 哪些列是"基本信息"(整次合作共享，不随 publication 变化)，主行 rowspan 跨多行
+  const MAIN_COLS = new Set(['price','fans','category']);
+
+  function renderContentRows(content, isDouyin, activeCols, readOnly = false, frozen = false) {
+    const r = SD.resolveContent(content);
+    const pubs = content.publications || [];
+    if (!pubs.length) return '';
+    const total = pubs.length;
+    const ctx = { r, content };
+    const main = pubs[0];
+    const sub = pubs.slice(1);
+    const rowStyle = frozen ? 'opacity:.6;' : '';
+    const actionCell = readOnly ? '' : frozen
+      ? `<td rowspan="${total}" class="comm-actions">
+          <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
+        </td>`
+      : `<td rowspan="${total}" class="comm-actions">
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
+          <button class="btn btn-danger btn-sm" style="margin-top:4px" onclick="CommunicationPage._delete('${content.id}')">删除</button>
+        </td>`;
+    // 主行
+    let html = `
+      <tr class="comm-main-row" data-id="${content.id}" style="${rowStyle}">
+        <td rowspan="${total}" style="font-weight:600;background:#fafbfd"><strong>${escapeHtml(r.talent)}</strong>
+          ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
+        </td>
+        ${activeCols.map(c => {
+          if (MAIN_COLS.has(c.key)) {
+            return `<td rowspan="${total}" style="background:#fafbfd">${renderPubCell(main, c.key, ctx)}</td>`;
+          }
+          return renderPubTd(main, c.key, content, r, frozen);
+        }).join('')}
+        ${actionCell}
+      </tr>
+    `;
+    // 子行
+    sub.forEach(p => {
+      html += `<tr class="comm-sub-row">
+        ${activeCols.filter(c => !MAIN_COLS.has(c.key)).map(c => renderPubTd(p, c.key, content, r, frozen)).join('')}
+      </tr>`;
+    });
+    return html;
+  }
+
+  function renderListFooter(list, colCount, readOnly = false) {
+    let totalPrice = 0, totalViews = 0;
+    const uniqueKols = new Set();
+    list.forEach(c => {
+      const r = SD.resolveContent(c);
+      if (!uniqueKols.has(c.schedule_id)) {
+        uniqueKols.add(c.schedule_id);
+        totalPrice += Number(r.price) || 0;
+      }
+      (c.publications || []).forEach(p => { totalViews += Number(p.views) || 0; });
+    });
+    return `
+      <tr class="comm-footer-row">
+        <td colspan="${colCount + 1}">
+          <span style="color:var(--text-secondary)">合计 ${uniqueKols.size} 位达人 ·
+          价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
+          播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
+        </td>
+        ${readOnly ? '' : '<td></td>'}
+      </tr>
+    `;
+  }
+
+  /* ------------------------- 全部平台视图（动态列，与单平台视图共用列系统） ------------------------- */
+  function renderAllPlatformsList() {
+    const list = SD.listContents({
+      year: state.year, month: state.month,
+      bd_id: state.bd_id || undefined,
+      q: state.q || undefined,
+    });
+    if (!list.length) {
+      return `<div style="background:var(--bg-panel);border-radius:var(--radius);padding:60px 16px;text-align:center;color:var(--text-muted);box-shadow:var(--shadow)">
+        <div style="font-size:2rem;margin-bottom:8px">📭</div>
+        <div>当月暂无发布数据</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:6px">点击右上「+ 新增」录入</div>
+      </div>`;
+    }
+
+    // 动态列（全部模式包含抖音字段）
+    const activeCols = getActiveColumns();
+    const groupCounts = {};
+    activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
+    const groupOrder = ['基本', '发布', '第7天', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
+    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
+    const groupLabel = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '投流':'投流（抖音）', '看后搜':'看后搜数据', '归因':'归因数据' };
+
+    // 展平所有 publication，按日期(主)、达人名(次) 排序
+    const allItems = [];
+    const kolFans = {};
+    list.forEach(c => {
+      const r = SD.resolveContent(c);
+      const kolKey = c.kol_id || ('__name__' + r.talent);
+      if (c.fans != null && kolFans[kolKey] == null) kolFans[kolKey] = c.fans;
+      (c.publications || []).forEach(p => allItems.push({ p, c, r, kolKey }));
+    });
+    allItems.sort((a, b) => {
+      const d = (a.p.date || '').localeCompare(b.p.date || '');
+      return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || '');
+    });
+
+    // 将连续的「同达人 + 同日期」合并为一个 block
+    const blocks = [];
+    allItems.forEach(item => {
+      const key = item.kolKey + '|' + (item.p.date || '');
+      const last = blocks[blocks.length - 1];
+      if (last && last.key === key) {
+        last.items.push(item);
+      } else {
+        blocks.push({ key, r: item.r, fans: kolFans[item.kolKey] ?? null, items: [item] });
+      }
+    });
+
+    // 统计（价格按达人去重避免重复计入）
+    let totalViews = 0, totalPrice = 0, totalPubs = 0;
+    const pricedKols = new Set();
+    blocks.forEach(bl => {
+      if (!pricedKols.has(bl.r.talent)) { totalPrice += Number(bl.r.price) || 0; pricedKols.add(bl.r.talent); }
+      bl.items.forEach(({ p }) => { totalViews += Number(p.views) || 0; totalPubs++; });
+    });
+
+    const snapMap = { d0:'当天', d3:'3d', d7:'7d', d30:'30d' };
+
+    // 渲染单个单元格（带内联编辑 & rowspan 控制）
+    function renderCell(col, p, c, r, i, total, sameCategory) {
+      // price / fans：主行 rowspan，子行跳过
+      if (col.key === 'price') {
+        if (i > 0) return '';
+        return `<td rowspan="${total}" style="background:#fafbfd;vertical-align:middle">${r.price ? '¥'+Number(r.price).toLocaleString() : '-'}</td>`;
+      }
+      if (col.key === 'fans') {
+        if (i > 0) return '';
+        return `<td rowspan="${total}" style="background:#fafbfd;vertical-align:middle">${kolFans[c.kol_id||('__name__'+r.talent)] != null ? formatFans(kolFans[c.kol_id||('__name__'+r.talent)]) : '-'}</td>`;
+      }
+      // category：同 block 类型相同则 rowspan
+      if (col.key === 'category') {
+        if (sameCategory) {
+          if (i > 0) return '';
+          return `<td rowspan="${total}" style="vertical-align:middle">${escapeHtml(r.category || '-')}</td>`;
+        }
+        return `<td>${escapeHtml(r.category || '-')}</td>`;
+      }
+      // date：同 block 日期相同，首行 rowspan
+      if (col.key === 'date') {
+        if (i > 0) return '';
+        const chip = p.snapshot_day && snapMap[p.snapshot_day]
+          ? `<span style="margin-left:4px;font-size:.62rem;padding:1px 5px;border-radius:3px;background:${p.snapshot_day==='d7'?'#dcfce7':'#fef3c7'};color:${p.snapshot_day==='d7'?'#15803d':'#92400e'};font-weight:500">${snapMap[p.snapshot_day]}</span>`
+          : '';
+        return `<td rowspan="${total}" style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
+      }
+      // 其余列（含 platform/link/views/inline-edit）统一走 renderPubTd
+      return renderPubTd(p, col.key, c, r, allFrozen);
+    }
+
+    const allFrozen = SD.isMonthFrozen(state.year, state.month);
+    const bodyRows = blocks.map(bl => {
+      const total = bl.items.length;
+      const { r } = bl;
+      const sameCategory = bl.items.every(item => item.r.category === bl.items[0].r.category);
+
+      return bl.items.map(({ p, c }, i) => {
+        const cells = activeCols.map(col => renderCell(col, p, c, r, i, total, sameCategory)).join('');
+        const opCell = i === 0
+          ? allFrozen
+            ? `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+                 <span style="font-size:.72rem;color:#92400e">🔒</span>
+               </td>`
+            : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+                 <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
+               </td>`
+          : '';
+        if (i === 0) {
+          return `<tr class="comm-main-row" data-id="${c.id}" style="${allFrozen ? 'opacity:.6' : ''}">
+            <td rowspan="${total}" style="font-weight:600;background:#fafbfd;vertical-align:middle">
+              <strong>${escapeHtml(r.talent)}</strong>
+              ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
+            </td>
+            ${cells}${opCell}
+          </tr>`;
+        }
+        return `<tr class="comm-sub-row">${cells}</tr>`;
+      }).join('');
+    }).join('');
+
+    return `
+      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 180px)">
+        <table class="comm-table">
+          <thead>
+            <tr class="comm-group-header">
+              <th rowspan="2" style="background:#fafbfd;min-width:130px">达人昵称</th>
+              ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
+              <th rowspan="2" class="comm-actions">操作</th>
+            </tr>
+            <tr>
+              ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>${bodyRows}</tbody>
+          <tfoot>
+            <tr class="comm-footer-row">
+              <td colspan="${activeCols.length + 2}">
+                <span style="color:var(--text-secondary)">合计 ${pricedKols.size} 位达人 · ${totalPubs} 条发布 ·
+                价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
+                播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
+
+  /* ------------------------- 编辑器抽屉 ------------------------- */
+  function _toggleFreeze() {
+    if (window.currentUser?.identity !== 'supervisor') {
+      window.toast && window.toast('仅品宣主管可操作冻结', 'error');
+      return;
+    }
+    const isFrozen = SD.isMonthFrozen(state.year, state.month);
+    const label = isFrozen ? `解冻 ${state.year}年${state.month}月` : `冻结 ${state.year}年${state.month}月`;
+    window.confirmSupervisorPass(label, () => {
+      if (isFrozen) {
+        SD.unfreezeMonth(state.year, state.month);
+        window.toast && window.toast(`${state.year}年${state.month}月 已解冻`, 'success');
+      } else {
+        SD.freezeMonth(state.year, state.month);
+        window.toast && window.toast(`${state.year}年${state.month}月 已冻结`, 'success');
+      }
+      render();
+    });
+  }
+
+  function openEditor(id) {
+    if (id && SD.isMonthFrozen(state.year, state.month)) {
+      window.toast && window.toast('该月已冻结，请先解冻再编辑', 'error');
+      return;
+    }
+    ensureEditorNode();
+    state.editor.errors = {};
+    if (id) {
+      const c = window.DB.contents.find(x => x.id === id);
+      if (!c) return;
+      state.editor.mode = 'edit';
+      state.editor.id = id;
+      state.editor.form = {
+        schedule_id: c.schedule_id,
+        fans: c.fans != null ? String(c.fans) : '',
+        publications: c.publications.map(p => ({ ...p })),
+      };
+    } else {
+      state.editor.mode = 'create';
+      state.editor.id = null;
+      state.editor.form = defaultForm();
+    }
+    state.editor.open = true;
+    paintEditor();
+    requestAnimationFrame(() => {
+      document.getElementById('comm-drawer').classList.add('open');
+      document.getElementById('comm-drawer-overlay').classList.add('open');
+      document.getElementById('cf-schedule')?.focus();
+    });
+  }
+
+  function closeEditor() {
+    state.editor.open = false;
+    const d = document.getElementById('comm-drawer');
+    const o = document.getElementById('comm-drawer-overlay');
+    if (d) d.classList.remove('open');
+    if (o) o.classList.remove('open');
+  }
+
+  function ensureEditorNode() {
+    if (document.getElementById('comm-drawer')) return;
+    const ov = document.createElement('div');
+    ov.id = 'comm-drawer-overlay';
+    ov.className = 'sched-drawer-overlay';
+    ov.addEventListener('click', closeEditor);
+    document.body.appendChild(ov);
+    const d = document.createElement('div');
+    d.id = 'comm-drawer';
+    d.className = 'sched-drawer';
+    d.style.width = '720px';
+    d.innerHTML = `
+      <div class="sched-drawer-header">
+        <div class="sched-drawer-title" id="comm-drawer-title">新增内容</div>
+        <button class="sched-drawer-close" onclick="CommunicationPage._closeEditor()">×</button>
+      </div>
+      <div class="sched-drawer-body" id="comm-drawer-body"></div>
+      <div class="sched-drawer-footer" id="comm-drawer-footer"></div>
+    `;
+    document.body.appendChild(d);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.editor.open) closeEditor();
+    });
+  }
+
+  function paintEditor() {
+    document.getElementById('comm-drawer-title').textContent =
+      state.editor.mode === 'edit' ? '编辑内容' : '新增内容';
+    document.getElementById('comm-drawer-body').innerHTML = renderEditorForm();
+    document.getElementById('comm-drawer-footer').innerHTML = renderEditorFooter();
+    bindEditorForm();
+  }
+
+  function renderEditorForm() {
+    const f = state.editor.form;
+    const err = state.editor.errors;
+    const sched = f.schedule_id ? window.DB.schedules.find(x => x.id === f.schedule_id) : null;
+    const r = sched ? SD.resolveContent({ schedule_id: f.schedule_id }) : null;
+    // 排期选择器（强约束）：仅显示已发布排期（日期 < 今天）
+    const schedOptions = window.SchedulePicker ? window.SchedulePicker.publishedOptionsHTML(f.schedule_id) : '';
+
+    // 检测：新建模式下，选中的排期是否已有自动生成的内容记录
+    let autoCreatedWarning = '';
+    if (state.editor.mode === 'create' && f.schedule_id) {
+      const existingAuto = (window.DB.contents || []).find(c => c.schedule_id === f.schedule_id && c.auto_created);
+      if (existingAuto) {
+        autoCreatedWarning = `
+          <div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:.82rem;display:flex;align-items:flex-start;gap:8px">
+            <span style="font-size:1rem;flex-shrink:0">⚠️</span>
+            <div>
+              <b style="color:#92400e">该排期已有系统自动生成的内容记录</b>
+              <div style="margin-top:4px;color:#78350f">建议直接编辑已有记录填写发布链接和数据，避免重复。
+                <a href="javascript:void(0)" style="color:var(--primary);font-weight:500"
+                   onclick="CommunicationPage._closeEditor();CommunicationPage.openEditor('${existingAuto.id}')">点击去编辑该记录 →</a>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // 主信息（从排期带）
+    const mainInfo = r ? `
+      <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:.85rem">
+        <strong style="color:var(--primary)">主信息（来自关联排期）</strong>
+        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:.82rem">
+          <div><span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(r.talent)}</b></div>
+          <div><span style="color:var(--text-muted)">价格：</span><b>¥${Number(r.price).toLocaleString()}</b></div>
+          <div><span style="color:var(--text-muted)">类型：</span><b>${escapeHtml(r.category || '-')}</b></div>
+          <div><span style="color:var(--text-muted)">BD：</span><b style="color:${r.bd_color || 'inherit'}">${escapeHtml(r.bd_name || '-')}</b></div>
+        </div>
+      </div>
+    ` : '';
+    return `
+      <div class="sched-form-group">
+        <label class="sched-form-label">关联排期<span class="req">*</span></label>
+        <select id="cf-schedule" class="sched-form-control ${err.schedule_id?'error':''}">${schedOptions}</select>
+        <div class="sched-form-hint">只能关联日期已过（状态为「已发布」）的排期</div>
+        ${autoCreatedWarning}
+      </div>
+      ${mainInfo}
+      <div class="sched-form-group">
+        <label class="sched-form-label">粉丝量（发布时快照，单位：人）</label>
+        <input id="cf-fans" class="sched-form-control" type="text"
+               placeholder="如 50000 或 5万"
+               value="${escapeAttr(f.fans)}">
+        <div class="sched-form-hint">${formatFansHint(f.fans)}</div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px">
+        <strong style="font-size:.92rem">📡 发布渠道（${f.publications.length}）</strong>
+        <button class="btn btn-primary btn-sm" onclick="CommunicationPage._addPub()">+ 添加渠道</button>
+      </div>
+      <div id="cf-pubs">
+        ${f.publications.map((p, i) => renderPubBlock(p, i)).join('')}
+      </div>
+    `;
+  }
+
+  function renderPubBlock(p, idx) {
+    const platforms = SD.listPlatforms();
+    const platOpts = platforms.map(pp => `<option value="${escapeAttr(pp.name)}" ${p.platform===pp.name?'selected':''}>${escapeHtml(pp.name)}</option>`).join('');
+    const isDouyin = p.platform === '抖音';
+    const snapOpts = [
+      { v: '',    label: '— 未标记 —' },
+      { v: 'd0',  label: '📅 发布当天' },
+      { v: 'd3',  label: '📊 第 3 天' },
+      { v: 'd7',  label: '✅ 第 7 天（推荐）' },
+      { v: 'd30', label: '📈 第 30 天' },
+    ];
+    return `
+      <div class="comm-pub-block" data-idx="${idx}">
+        <div class="comm-pub-head">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="sched-card-chip platform">渠道 ${idx + 1}</span>
+            <select class="form-control" style="width:110px;height:30px" data-field="platform" onchange="CommunicationPage._updatePub(${idx},'platform',this.value)">
+              ${platOpts}
+            </select>
+            <input type="date" class="form-control" style="width:140px;height:30px" value="${escapeAttr(p.date)}"
+                   onchange="CommunicationPage._updatePub(${idx},'date',this.value)">
+            <select class="form-control" style="width:150px;height:30px" title="数据采集时点"
+                    onchange="CommunicationPage._updateSnapshot(${idx},this.value)">
+              ${snapOpts.map(o => `<option value="${o.v}" ${p.snapshot_day===o.v?'selected':''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
+          ${state.editor.form.publications.length > 1
+            ? `<button class="btn btn-danger btn-sm" onclick="CommunicationPage._removePub(${idx})">删除</button>` : ''}
+        </div>
+        <div class="sched-form-group" style="margin-top:8px">
+          <input class="sched-form-control" placeholder="发布链接 https://..." value="${escapeAttr(p.link)}"
+                 onchange="CommunicationPage._updatePub(${idx},'link',this.value)">
+          ${(function() {
+            if (!p.link || !p.date) return '';
+            const today = new Date().toISOString().slice(0, 10);
+            const endDate = SD.addDays ? SD.addDays(p.date, 6) : '';
+            if (!endDate) return '';
+            if (p.date > today) return '';
+            if (today > endDate) {
+              return `<div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">✅ 7天追踪已结束（${p.date} → ${endDate}）</div>`;
+            }
+            return `<div style="font-size:.72rem;color:var(--info);margin-top:4px;padding:4px 8px;background:rgba(2,132,199,.08);border-radius:4px">📊 自动追踪中 · 点赞/评论将自动更新（截至 ${endDate}）</div>`;
+          })()}
+        </div>
+        <div class="comm-pub-grid">
+          <div><label>播放量(万)</label><input type="text" value="${escapeAttr(p.views)}" onchange="CommunicationPage._updatePub(${idx},'views',this.value)"></div>
+          <div><label>赞</label><input type="number" min="0" value="${escapeAttr(p.likes)}" onchange="CommunicationPage._updatePub(${idx},'likes',this.value)"></div>
+          <div><label>评论</label><input type="number" min="0" value="${escapeAttr(p.comments)}" onchange="CommunicationPage._updatePub(${idx},'comments',this.value)"></div>
+          <div><label>完播率(%)</label><input type="text" value="${escapeAttr(p.completion)}" onchange="CommunicationPage._updatePub(${idx},'completion',this.value)"></div>
+          <div><label>互动率(%)</label><input type="text" value="${escapeAttr(p.interaction)}" onchange="CommunicationPage._updatePub(${idx},'interaction',this.value)"></div>
+        </div>
+        ${isDouyin ? `
+          <div class="comm-pub-subgroup">
+            <div class="comm-pub-subgroup-title">🔍 看后搜（抖音）</div>
+            <div class="comm-pub-grid">
+              <div><label>看后搜量</label><input type="number" min="0" value="${escapeAttr(p.search_views)}" onchange="CommunicationPage._updatePub(${idx},'search_views',this.value)"></div>
+              <div><label>看后搜率(%)</label><input type="text" value="${escapeAttr(p.search_rate)}" onchange="CommunicationPage._updatePub(${idx},'search_rate',this.value)"></div>
+            </div>
+          </div>
+          <div class="comm-pub-subgroup">
+            <div class="comm-pub-subgroup-title">🎯 归因数据（抖音）</div>
+            <div class="comm-pub-grid" style="grid-template-columns:repeat(3,1fr)">
+              <div><label>直接归因</label><input type="number" min="0" value="${escapeAttr(p.attr_direct)}" onchange="CommunicationPage._updatePub(${idx},'attr_direct',this.value)"></div>
+              <div><label>简介归因</label><input type="number" min="0" value="${escapeAttr(p.attr_indirect)}" onchange="CommunicationPage._updatePub(${idx},'attr_indirect',this.value)"></div>
+              <div><label>看后搜归因</label><input type="number" min="0" value="${escapeAttr(p.attr_search)}" onchange="CommunicationPage._updatePub(${idx},'attr_search',this.value)"></div>
+              <div><label>人群获取</label><input type="number" min="0" value="${escapeAttr(p.attr_audience)}" onchange="CommunicationPage._updatePub(${idx},'attr_audience',this.value)"></div>
+              <div><label>店铺表现</label><input type="text" value="${escapeAttr(p.attr_store)}" onchange="CommunicationPage._updatePub(${idx},'attr_store',this.value)"></div>
+              <div><label>CPA3</label><input type="text" value="${escapeAttr(p.cpa3)}" onchange="CommunicationPage._updatePub(${idx},'cpa3',this.value)"></div>
+            </div>
+          </div>
+          <div class="comm-pub-subgroup">
+            <div class="comm-pub-subgroup-title">🚀 投流数据（抖音）</div>
+            <div class="comm-pub-grid" style="grid-template-columns:repeat(2,1fr)">
+              <div><label>投流播放量(万)</label><input type="text" value="${escapeAttr(p.promo_views)}" onchange="CommunicationPage._updatePub(${idx},'promo_views',this.value)"></div>
+              <div><label>投流费(元)</label><input type="text" value="${escapeAttr(p.promo_cost)}" onchange="CommunicationPage._updatePub(${idx},'promo_cost',this.value)"></div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function bindEditorForm() {
+    const sel = document.getElementById('cf-schedule');
+    if (sel) sel.addEventListener('change', e => {
+      state.editor.form.schedule_id = e.target.value;
+      paintEditor();
+    });
+    const fans = document.getElementById('cf-fans');
+    if (fans) fans.addEventListener('input', e => {
+      state.editor.form.fans = e.target.value;
+      const hint = document.querySelector('#cf-fans + .sched-form-hint');
+      if (hint) hint.innerHTML = formatFansHint(e.target.value);
+    });
+  }
+
+  function renderEditorFooter() {
+    const isEdit = state.editor.mode === 'edit';
+    return `
+      ${isEdit ? `<button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${state.editor.id}')">删除</button>` : ''}
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._closeEditor()">取消</button>
+      <button class="btn btn-primary btn-sm" onclick="CommunicationPage._save()">保存</button>
+    `;
+  }
+
+  /* publication 操作 */
+  function _addPub() {
+    state.editor.form.publications.push(defaultPublication(state.mainPlatform, ''));
+    paintEditor();
+  }
+  function _removePub(idx) {
+    if (state.editor.form.publications.length <= 1) {
+      window.toast && window.toast('至少保留一个发布渠道', 'error');
+      return;
+    }
+    state.editor.form.publications.splice(idx, 1);
+    paintEditor();
+  }
+  function _updatePub(idx, field, value) {
+    const p = state.editor.form.publications[idx];
+    if (!p) return;
+    p[field] = value;
+    // 任何指标变化都刷新 snapshot_at
+    if (['views','likes','comments','completion','interaction','search_views','search_rate',
+         'attr_direct','attr_indirect','attr_search','attr_audience','attr_store','cpa3',
+         'promo_views','promo_cost'].includes(field)) {
+      p.snapshot_at = new Date().toISOString();
+    }
+    // 仅在切换 platform 时需要重渲染（显示/隐藏抖音独有字段）
+    if (field === 'platform') paintEditor();
+  }
+  function _updateSnapshot(idx, v) {
+    const p = state.editor.form.publications[idx];
+    if (!p) return;
+    p.snapshot_day = v;
+    p.snapshot_at = new Date().toISOString();
+  }
+
+  /* 保存 */
+  function _save() {
+    const f = state.editor.form;
+    const errs = {};
+    if (!f.schedule_id) errs.schedule_id = '必须关联一条排期';
+    state.editor.errors = errs;
+    if (Object.keys(errs).length) {
+      paintEditor();
+      window.toast && window.toast(Object.values(errs)[0], 'error');
+      return;
+    }
+    try {
+      // 粉丝量解析
+      let fans = null;
+      if (f.fans !== '') {
+        const s = String(f.fans).replace(/[,，\s]/g, '');
+        const w = s.match(/^([\d.]+)\s*万$/);
+        if (w) fans = Math.round(Number(w[1]) * 10000);
+        else {
+          const n = Number(s);
+          if (Number.isFinite(n) && n >= 0) fans = n;
+        }
+      }
+      const data = {
+        schedule_id: f.schedule_id,
+        fans,
+        publications: f.publications,
+      };
+      if (state.editor.mode === 'edit') {
+        SD.updateContent(state.editor.id, data);
+        window.toast && window.toast('已更新', 'success');
+      } else {
+        SD.createContent(data);
+        window.toast && window.toast('已新增', 'success');
+      }
+      closeEditor();
+      render();
+    } catch (e) {
+      window.toast && window.toast(e.message, 'error');
+    }
+  }
+
+  function _delete(id) {
+    if (SD.isMonthFrozen(state.year, state.month)) {
+      window.toast && window.toast('该月已冻结，请先解冻再删除', 'error');
+      return;
+    }
+    if (!confirm('删除这条内容？所有发布渠道一起删除，不可恢复。')) return;
+    try {
+      SD.deleteContent(id);
+      window.toast && window.toast('已删除', 'info');
+      closeEditor();
+      render();
+    } catch (e) {
+      window.toast && window.toast(e.message, 'error');
+    }
+  }
+
+  /* ------------------------- 工具 ------------------------- */
+  /* ------------------------- 内联编辑链接 ------------------------- */
+  /**
+   * 点击发布链接单元格 → 直接在表格里编辑，Enter/失焦保存，Esc 取消
+   * @param {string} contentId 内容记录 id
+   * @param {string} pubId     publication id
+   * @param {HTMLElement} tdEl 被点击的 <td>
+   */
+  function _inlineEditLink(contentId, pubId, tdEl) {
+    if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
+    if (tdEl.querySelector('input')) return; // 已在编辑中
+
+    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    if (!content) return;
+    const pub = (content.publications || []).find(p => p.id === pubId);
+    const currentLink = pub ? (pub.link || '') : '';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentLink;
+    input.placeholder = 'https://...';
+    input.style.cssText = 'width:100%;border:1px solid var(--primary);border-radius:4px;padding:4px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+
+    let saved = false;
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const newLink = input.value.trim();
+      if (newLink === currentLink) { render(); return; }
+      try {
+        const newPubs = (content.publications || []).map(p =>
+          p.id === pubId ? { ...p, link: newLink } : p
+        );
+        // 填了真实链接 → 清除 auto_created 标记，变为真实记录
+        const patch = { publications: newPubs };
+        if (content.auto_created && newLink) patch.auto_created = false;
+        SD.updateContent(contentId, patch);
+        window.toast && window.toast('链接已保存', 'success');
+        window.updateReminderBadge && updateReminderBadge();
+      } catch(e) {
+        window.toast && window.toast('保存失败: ' + e.message, 'error');
+      }
+      render();
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { e.stopPropagation(); saved = true; render(); }
+    });
+
+    tdEl.innerHTML = '';
+    tdEl.appendChild(input);
+    input.focus();
+    if (currentLink) input.select();
+  }
+
+  /**
+   * 点击播放量单元格 → 内联编辑（万，支持小数）
+   */
+  function _inlineEditViews(contentId, pubId, tdEl) {
+    if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
+    if (tdEl.querySelector('input')) return;
+
+    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    if (!content) return;
+    const pub = (content.publications || []).find(p => p.id === pubId);
+    const current = pub && pub.views != null ? pub.views : '';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.step = '0.01';
+    input.value = current;
+    input.placeholder = '万';
+    input.style.cssText = 'width:100%;border:1px solid var(--primary);border-radius:4px;padding:4px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+
+    let saved = false;
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const raw = input.value.trim();
+      const newVal = raw === '' ? null : Number(raw);
+      if (newVal === current || (newVal == null && current === '')) { render(); return; }
+      try {
+        const newPubs = (content.publications || []).map(p =>
+          p.id === pubId ? { ...p, views: newVal } : p
+        );
+        SD.updateContent(contentId, { publications: newPubs });
+        window.toast && window.toast('播放量已保存', 'success');
+      } catch(e) {
+        window.toast && window.toast('保存失败: ' + e.message, 'error');
+      }
+      render();
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { e.stopPropagation(); saved = true; render(); }
+    });
+
+    tdEl.innerHTML = '';
+    tdEl.appendChild(input);
+    input.focus();
+    if (current !== '') input.select();
+  }
+
+  /** 取 publication 的最新一天快照（daily_stats 按日期倒序取第一条） */
+  function getLatestStats(p) {
+    const stats = p.daily_stats || [];
+    if (!stats.length) return null;
+    return stats.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+  }
+
+  /** 渲染点赞/评论单元格：优先展示 daily_stats 最新快照，fallback 到手动值 */
+  function renderStatCell(p, field) {
+    const s = getLatestStats(p);
+    const autoVal = s && s[field] != null ? s[field] : null;
+    const manualVal = p[field];
+    const val = autoVal != null ? autoVal : manualVal;
+    if (val == null || val === '') return '-';
+    const dateTag = autoVal != null
+      ? `<span style="font-size:.62rem;color:var(--text-muted);margin-left:3px" title="数据截至 ${s.date}">${s.date.slice(5)}</span>`
+      : '';
+    return `<span style="color:var(--success);font-weight:500">${Number(val).toLocaleString()}</span>${dateTag}`;
+  }
+
+  function fmtNullable(v, fallback = '-') {
+    if (v == null || v === '') return fallback;
+    return Number(v).toLocaleString();
+  }
+  function fmtPercent(v) {
+    if (v == null || v === '') return '-';
+    return Number(v).toFixed(1) + '%';
+  }
+  function formatFans(n) {
+    if (n == null) return '-';
+    if (n >= 10000) return (n / 10000).toFixed(1) + 'W';
+    return n.toLocaleString();
+  }
+  function formatFansHint(raw) {
+    if (raw === '' || raw == null) return '';
+    const s = String(raw).replace(/[,，\s]/g, '');
+    const w = s.match(/^([\d.]+)\s*万$/);
+    let n;
+    if (w) n = Math.round(Number(w[1]) * 10000);
+    else { n = Number(s); if (!Number.isFinite(n)) return `<span style="color:var(--danger)">「${raw}」格式不识别</span>`; }
+    return `≈ ${n.toLocaleString()} 人`;
+  }
+  function renderLink(url) {
+    if (!url) return '-';
+    const short = url.length > 24 ? url.slice(0, 24) + '...' : url;
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+              style="color:var(--primary);text-decoration:none;font-size:.78rem">${escapeHtml(short)}</a>`;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  /* ------------------------- 暴露 ------------------------- */
+  window.CommunicationPage = {
+    render, openEditor,
+    _setMainPlatform, _prevMonth, _nextMonth,
+    _save, _delete, _closeEditor: closeEditor,
+    _addPub, _removePub, _updatePub, _updateSnapshot,
+    _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
+    _inlineEditLink, _inlineEditViews, _inlineEditField,
+    _toggleFreeze,
+    _getState: () => ({ year: state.year, month: state.month, mainPlatform: state.mainPlatform, bd_id: state.bd_id }),
+  };
+  console.log('[CommunicationPage] 已就绪');
+})();

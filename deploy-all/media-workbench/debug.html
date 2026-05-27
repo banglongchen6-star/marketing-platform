@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>调试测试页面</title>
+  <style>
+    body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+    .test-box { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 8px; }
+    .success { background: #d4edda; border: 1px solid #c3e6cb; }
+    .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    pre { background: #333; color: #0f0; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔬 Media Workbench 调试页面</h1>
+  
+  <div class="test-box">
+    <h3>测试 1: JavaScript 是否正常执行</h3>
+    <button onclick="test1()">运行测试</button>
+    <div id="test1-result"></div>
+  </div>
+  
+  <div class="test-box">
+    <h3>测试 2: 检测按钮点击</h3>
+    <button id="test-btn" onclick="document.getElementById('click-result').textContent = '✅ 按钮点击事件正常工作!'">点击我</button>
+    <div id="click-result"></div>
+  </div>
+  
+  <div class="test-box">
+    <h3>测试 3: CSS Grid 布局测试</h3>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;background:#e0e0e0;padding:10px;">
+      <div style="background:#1a56db;color:white;padding:20px;text-align:center;border-radius:8px;">卡片1</div>
+      <div style="background:#059669;color:white;padding:20px;text-align:center;border-radius:8px;">卡片2</div>
+      <div style="background:#d97706;color:white;padding:20px;text-align:center;border-radius:8px;">卡片3</div>
+      <div style="background:#7c3aed;color:white;padding:20px;text-align:center;border-radius:8px;">卡片4</div>
+    </div>
+    <p>👆 如果上面4个卡片横向排列，说明 CSS Grid 正常工作</p>
+  </div>
+  
+  <div class="test-box">
+    <h3>测试 4: 打开主页面并检查错误</h3>
+    <button onclick="openMainPage()">打开主页面</button>
+    <div id="open-result"></div>
+  </div>
+  
+  <div class="test-box">
+    <h3>测试 5: 模态框测试</h3>
+    <button onclick="testModal()">测试模态框</button>
+    <div id="modal-result"></div>
+  </div>
+  
+  <hr>
+  <h3>📋 控制台日志（请复制）</h3>
+  <pre id="console-log"></pre>
+  
+  <script>
+    const logs = [];
+    const originalLog = console.log;
+    const originalError = console.error;
+    
+    console.log = function(...args) {
+      logs.push('[LOG] ' + args.join(' '));
+      originalLog.apply(console, args);
+      updateLog();
+    };
+    
+    console.error = function(...args) {
+      logs.push('[ERROR] ' + args.join(' '));
+      originalError.apply(console, args);
+      updateLog();
+    };
+    
+    function updateLog() {
+      document.getElementById('console-log').textContent = logs.join('\n');
+    }
+    
+    function test1() {
+      try {
+        document.getElementById('test1-result').innerHTML = '<span class="success">✅ JavaScript 正常执行</span>';
+        console.log('测试1通过: JavaScript 正常');
+      } catch(e) {
+        document.getElementById('test1-result').innerHTML = '<span class="error">❌ 错误: ' + e.message + '</span>';
+        console.error('测试1失败: ' + e.message);
+      }
+    }
+    
+    function openMainPage() {
+      const result = document.getElementById('open-result');
+      result.innerHTML = '<p>正在打开主页面...</p>';
+      
+      const win = window.open('index.html', '_blank');
+      if (win) {
+        result.innerHTML = '<span class="success">✅ 已打开主页面，请查看新窗口中的控制台错误</span>';
+      } else {
+        result.innerHTML = '<span class="error">❌ 弹窗被阻止，请手动打开 index.html</span>';
+      }
+    }
+    
+    function testModal() {
+      const result = document.getElementById('modal-result');
+      
+      // 创建测试模态框
+      const modal = document.createElement('div');
+      modal.id = 'test-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      modal.innerHTML = `
+        <div style="background:white;padding:30px;border-radius:12px;max-width:400px;">
+          <h2>🎉 模态框测试成功!</h2>
+          <p>如果你能看到这个弹窗，说明模态框功能正常。</p>
+          <button onclick="document.getElementById('test-modal').remove();document.getElementById('modal-result').innerHTML='<span class=success>✅ 模态框关闭正常</span>'">关闭</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      result.innerHTML = '<span class="success">✅ 模态框已创建</span>';
+      console.log('模态框测试: 创建成功');
+    }
+    
+    // 页面加载完成后的自动测试
+    window.onload = function() {
+      console.log('调试页面加载完成');
+      console.log('浏览器: ' + navigator.userAgent);
+      console.log('窗口宽度: ' + window.innerWidth + 'px');
+      console.log('设备像素比: ' + window.devicePixelRatio);
+      
+      // 自动运行测试
+      test1();
+    };
+  </script>
+</body>
+</html>
