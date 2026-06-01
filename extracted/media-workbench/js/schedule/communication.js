@@ -67,12 +67,26 @@
   };
 
   function defaultForm() {
+    const defPlat = (SD.listPlatforms()[0] || {}).name || '抖音';
     return {
       schedule_id: '',
       kol_name: '',
       fans: '',
-      publications: [defaultPublication()],
+      main_platform: defPlat,
+      sync_platforms: [],
+      publications: [defaultPublication(defPlat, '')],
     };
+  }
+
+  /** 根据 main_platform + sync_platforms 重建 publications（保留已有数据） */
+  function _rebuildPublications(f) {
+    const allPlats = [f.main_platform, ...f.sync_platforms].filter(Boolean);
+    const existing = f.publications || [];
+    f.publications = allPlats.map((plat, i) => {
+      const found = existing.find(p => p.platform === plat);
+      return found ? { ...found } : defaultPublication(plat, '');
+    });
+    if (f.publications.length === 0) f.publications = [defaultPublication(f.main_platform || '抖音', '')];
   }
   function defaultPublication(platform = '抖音', date = '') {
     return {
@@ -730,11 +744,14 @@
       if (!c) return;
       state.editor.mode = 'edit';
       state.editor.id = id;
+      const pubs = c.publications || [];
       state.editor.form = {
         schedule_id: c.schedule_id || 'none',
         kol_name: c.kol_name || '',
         fans: c.fans != null ? String(c.fans) : '',
-        publications: c.publications.map(p => ({ ...p })),
+        main_platform: pubs[0]?.platform || (SD.listPlatforms()[0]?.name || '抖音'),
+        sync_platforms: pubs.slice(1).map(p => p.platform).filter(Boolean),
+        publications: pubs.map(p => ({ ...p })),
       };
     } else {
       state.editor.mode = 'create';
@@ -857,9 +874,32 @@
         <div class="sched-form-hint">${formatFansHint(f.fans)}</div>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px">
-        <strong style="font-size:.92rem">📡 发布渠道（${f.publications.length}）</strong>
-        <button class="btn btn-primary btn-sm" onclick="CommunicationPage._addPub()">+ 添加渠道</button>
+      <div class="sched-form-group">
+        <label class="sched-form-label">发布平台</label>
+        <div style="margin-top:4px">
+          <div style="font-size:.75rem;color:var(--text-muted);font-weight:500;margin-bottom:5px">主平台（单选）</div>
+          <div id="cf-main-platform-wrap" class="platform-tags">
+            ${SD.listPlatforms().map(p => `
+              <label class="platform-tag ${f.main_platform===p.name?'active':''}">
+                <input type="radio" name="cf-main-platform" value="${escapeAttr(p.name)}" ${f.main_platform===p.name?'checked':''}
+                       onchange="CommunicationPage._setMainPlatform(this.value)">
+                <span>${escapeHtml(p.name)}</span>
+              </label>`).join('')}
+          </div>
+          <div style="font-size:.75rem;color:var(--text-muted);font-weight:500;margin-top:10px;margin-bottom:5px">同步平台（可多选）</div>
+          <div id="cf-sync-platforms-wrap" class="platform-tags">
+            ${SD.listPlatforms().filter(p => p.name !== f.main_platform).map(p => `
+              <label class="platform-tag ${f.sync_platforms.includes(p.name)?'active':''}">
+                <input type="checkbox" value="${escapeAttr(p.name)}" ${f.sync_platforms.includes(p.name)?'checked':''}
+                       onchange="CommunicationPage._toggleSyncPlatform(this.value,this.checked)">
+                <span>${escapeHtml(p.name)}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div style="margin:18px 0 8px">
+        <strong class="comm-pubs-header" style="font-size:.92rem">📡 发布渠道（${f.publications.length}）</strong>
       </div>
       <div id="cf-pubs">
         ${f.publications.map((p, i) => renderPubBlock(p, i)).join('')}
@@ -868,28 +908,22 @@
   }
 
   function renderPubBlock(p, idx) {
-    const platforms = SD.listPlatforms();
-    const platOpts = platforms.map(pp => `<option value="${escapeAttr(pp.name)}" ${p.platform===pp.name?'selected':''}>${escapeHtml(pp.name)}</option>`).join('');
+    const isMain = idx === 0;
     const isDouyin = p.platform === '抖音';
+    const blockLabel = isMain
+      ? `<sup style="font-size:.6rem;font-weight:600;color:var(--primary);margin-right:2px;vertical-align:super">主</sup>${escapeHtml(p.platform)}`
+      : `${escapeHtml(p.platform)} <span style="font-size:.68rem;color:var(--text-muted)">同步</span>`;
     return `
       <div class="comm-pub-block" data-idx="${idx}">
         <div class="comm-pub-head">
           <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-            <span class="sched-card-chip platform" style="align-self:center">${idx === 0 ? '主平台' : `同步平台 ${idx}`}</span>
-            <div style="display:flex;flex-direction:column;gap:3px">
-              <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">发布平台</label>
-              <select class="form-control" style="width:110px;height:32px" data-field="platform" onchange="CommunicationPage._updatePub(${idx},'platform',this.value)">
-                ${platOpts}
-              </select>
-            </div>
+            <span class="sched-card-chip platform" style="align-self:center">${blockLabel}</span>
             <div style="display:flex;flex-direction:column;gap:3px">
               <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">发布日期</label>
               <input type="date" class="form-control" style="width:145px;height:32px" value="${escapeAttr(p.date)}"
                      onchange="CommunicationPage._updatePub(${idx},'date',this.value)">
             </div>
           </div>
-          ${state.editor.form.publications.length > 1
-            ? `<button class="btn btn-danger btn-sm" onclick="CommunicationPage._removePub(${idx})">删除</button>` : ''}
         </div>
         <div class="sched-form-group" style="margin-top:8px">
           <input class="sched-form-control" placeholder="发布链接 https://..." value="${escapeAttr(p.link)}"
@@ -947,8 +981,18 @@
   function bindEditorForm() {
     const sel = document.getElementById('cf-schedule');
     if (sel) sel.addEventListener('change', e => {
-      state.editor.form.schedule_id = e.target.value;
-      if (e.target.value !== 'none') state.editor.form.kol_name = '';
+      const f = state.editor.form;
+      f.schedule_id = e.target.value;
+      if (e.target.value !== 'none') f.kol_name = '';
+      // 关联排期时，从排期自动带入主/同步平台
+      if (e.target.value && e.target.value !== 'none') {
+        const sched = (window.DB.schedules || []).find(s => s.id === e.target.value);
+        if (sched && sched.platform) {
+          f.main_platform = sched.platform;
+          f.sync_platforms = Array.isArray(sched.sync_platforms) ? [...sched.sync_platforms] : [];
+          _rebuildPublications(f);
+        }
+      }
       paintEditor();
     });
     const kolName = document.getElementById('cf-kol-name');
@@ -971,6 +1015,65 @@
       <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._closeEditor()">取消</button>
       <button class="btn btn-primary btn-sm" onclick="CommunicationPage._save()">保存</button>
     `;
+  }
+
+  /* 平台选择器操作 */
+  function _setMainPlatform(name) {
+    const f = state.editor.form;
+    // 从同步平台移除（若已勾选）
+    const idx = f.sync_platforms.indexOf(name);
+    if (idx >= 0) f.sync_platforms.splice(idx, 1);
+    f.main_platform = name;
+    _rebuildPublications(f);
+    // 更新主平台 radio 样式
+    const mainWrap = document.getElementById('cf-main-platform-wrap');
+    if (mainWrap) mainWrap.querySelectorAll('.platform-tag').forEach(label => {
+      const rb = label.querySelector('input[type=radio]');
+      if (rb) label.classList.toggle('active', rb.checked);
+    });
+    // 重建同步平台 wrap（排除刚选的主平台）
+    _rebuildSyncWrap();
+    // 只重绘渠道区域
+    const pubsEl = document.getElementById('cf-pubs');
+    if (pubsEl) pubsEl.innerHTML = f.publications.map((p, i) => renderPubBlock(p, i)).join('');
+    const hdr = document.querySelector('.comm-pubs-header');
+    if (hdr) hdr.textContent = `📡 发布渠道（${f.publications.length}）`;
+  }
+
+  function _toggleSyncPlatform(name, checked) {
+    const f = state.editor.form;
+    if (checked) {
+      if (!f.sync_platforms.includes(name)) f.sync_platforms.push(name);
+    } else {
+      const idx = f.sync_platforms.indexOf(name);
+      if (idx >= 0) f.sync_platforms.splice(idx, 1);
+    }
+    _rebuildPublications(f);
+    // 更新复选框样式
+    const syncWrap = document.getElementById('cf-sync-platforms-wrap');
+    if (syncWrap) syncWrap.querySelectorAll('.platform-tag').forEach(label => {
+      const cb = label.querySelector('input[type=checkbox]');
+      if (cb) label.classList.toggle('active', cb.checked);
+    });
+    // 重绘渠道区域
+    const pubsEl = document.getElementById('cf-pubs');
+    if (pubsEl) pubsEl.innerHTML = f.publications.map((p, i) => renderPubBlock(p, i)).join('');
+    const header = document.querySelector('.comm-pubs-header');
+    if (header) header.textContent = `📡 发布渠道（${f.publications.length}）`;
+  }
+
+  function _rebuildSyncWrap() {
+    const wrap = document.getElementById('cf-sync-platforms-wrap');
+    if (!wrap) return;
+    const f = state.editor.form;
+    wrap.innerHTML = SD.listPlatforms()
+      .filter(p => p.name !== f.main_platform)
+      .map(p => `
+        <label class="platform-tag ${f.sync_platforms.includes(p.name)?'active':''}">
+          <input type="checkbox" value="${escapeAttr(p.name)}" ${f.sync_platforms.includes(p.name)?'checked':''}
+                 onchange="CommunicationPage._toggleSyncPlatform(this.value,this.checked)">
+          <span>${escapeHtml(p.name)}</span>
+        </label>`).join('');
   }
 
   /* publication 操作 */
@@ -1234,6 +1337,7 @@
     render, openEditor,
     _setMainPlatform, _prevMonth, _nextMonth,
     _save, _delete, _closeEditor: closeEditor,
+    _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _addPub, _removePub, _updatePub, _updateSnapshot,
     _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
     _inlineEditLink, _inlineEditViews, _inlineEditField,
