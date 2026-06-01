@@ -413,6 +413,7 @@
       mainPlatform: state.mainPlatform,
       bd_id: state.bd_id || undefined,
       q: state.q || undefined,
+      withPlaceholders: true,
     });
     if (!list.length) {
       return `<div style="background:var(--bg-panel);border-radius:var(--radius);padding:60px 16px;text-align:center;color:var(--text-muted);box-shadow:var(--shadow)">
@@ -421,12 +422,6 @@
         <div style="font-size:.78rem;color:var(--text-muted);margin-top:6px">点击右上「+ 新增」录入；需要先在排期里有对应排期</div>
       </div>`;
     }
-    // 按发布日期升序排列（与全部平台视图一致）
-    list.sort((a, b) => {
-      const da = (a.publications || [])[0]?.date || '';
-      const db = (b.publications || [])[0]?.date || '';
-      return da.localeCompare(db);
-    });
     const isDouyin = state.mainPlatform === '抖音';
     const activeCols = getActiveColumns();
     // 分组统计
@@ -434,6 +429,8 @@
     activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
     const groupOrder = ['基本', '发布', '第7天', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
     const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
+    // 操作列需要 1 列（非冻结），tfoot colspan = activeCols.length + 1（昵称） + 1（操作）
+    const realList = list.filter(c => !c._placeholder);
     return `
       <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 180px)">
         <table class="comm-table">
@@ -448,16 +445,20 @@
                   : g + '数据';
                 return `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${gLabel}</th>`;
               }).join('')}
+              <th rowspan="2">操作</th>
             </tr>
             <tr>
               ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
-            ${list.map(c => renderContentRows(c, isDouyin, activeCols, true)).join('')}
+            ${list.map(c => c._placeholder
+              ? renderPlaceholderRow(c, activeCols)
+              : renderContentRows(c, isDouyin, activeCols, false)
+            ).join('')}
           </tbody>
           <tfoot>
-            ${renderListFooter(list, activeCols.length, true)}
+            ${renderListFooter(realList, activeCols.length, false)}
           </tfoot>
         </table>
       </div>
@@ -499,6 +500,29 @@
   }
   // 哪些列是"基本信息"(整次合作共享，不随 publication 变化)，主行 rowspan 跨多行
   const MAIN_COLS = new Set(['price','fans','category']);
+
+  // 无内容记录的排期"待填写"占位行
+  function renderPlaceholderRow(c, activeCols) {
+    const r = SD.resolveContent(c);
+    const s = (window.DB?.schedules || []).find(x => x.id === c.schedule_id);
+    if (!s) return '';
+    const dateStr = s.schedule_date ? `📅 ${s.schedule_date}` : '日期未定';
+    const mp = s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '';
+    const platStr = mp || '平台未定';
+    return `<tr class="comm-main-row" style="background:#fafbff;opacity:.85">
+      <td style="background:#f0f4ff">
+        <strong>${escapeHtml(r.talent)}</strong>
+        ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
+        <div style="margin-top:4px"><span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#e0e7ff;color:#3730a3">待填写</span></div>
+      </td>
+      <td colspan="${activeCols.length}" style="color:var(--text-muted);font-size:.82rem;text-align:center">
+        ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)} &nbsp;·&nbsp; 排期已建立，尚未录入发布数据
+      </td>
+      <td class="comm-actions">
+        <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填写发布</button>
+      </td>
+    </tr>`;
+  }
 
   function renderContentRows(content, isDouyin, activeCols, readOnly = false, frozen = false) {
     const r = SD.resolveContent(content);
@@ -571,6 +595,7 @@
       year: state.year, month: state.month,
       bd_id: state.bd_id || undefined,
       q: state.q || undefined,
+      withPlaceholders: true,
     });
     if (!list.length) {
       return `<div style="background:var(--bg-panel);border-radius:var(--radius);padding:60px 16px;text-align:center;color:var(--text-muted);box-shadow:var(--shadow)">
@@ -580,6 +605,10 @@
       </div>`;
     }
 
+    // 占位行单独提取，真实内容单独处理
+    const placeholders = list.filter(c => c._placeholder);
+    const realList = list.filter(c => !c._placeholder);
+
     // 动态列（全部模式包含抖音字段）
     const activeCols = getActiveColumns();
     const groupCounts = {};
@@ -588,10 +617,10 @@
     const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
     const groupLabel = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '投流':'投流（抖音）', '看后搜':'看后搜数据', '归因':'归因数据' };
 
-    // 展平所有 publication，按日期(主)、达人名(次) 排序
+    // 展平所有 publication，按日期(主)、达人名(次) 排序（仅真实记录）
     const allItems = [];
     const kolFans = {};
-    list.forEach(c => {
+    realList.forEach(c => {
       const r = SD.resolveContent(c);
       const kolKey = c.kol_id || ('__name__' + r.talent);
       if (c.fans != null && kolFans[kolKey] == null) kolFans[kolKey] = c.fans;
@@ -700,13 +729,17 @@
               ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
             </tr>
           </thead>
-          <tbody>${bodyRows}</tbody>
+          <tbody>
+            ${bodyRows}
+            ${placeholders.map(c => renderPlaceholderRow(c, activeCols)).join('')}
+          </tbody>
           <tfoot>
             <tr class="comm-footer-row">
               <td colspan="${activeCols.length + 2}">
                 <span style="color:var(--text-secondary)">合计 ${pricedKols.size} 位达人 · ${totalPubs} 条发布 ·
                 价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
                 播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
+                ${placeholders.length ? `<span style="margin-left:12px;color:var(--text-muted)">· 待填写 ${placeholders.length} 条</span>` : ''}
               </td>
             </tr>
           </tfoot>
@@ -735,7 +768,7 @@
     });
   }
 
-  function openEditor(id) {
+  function openEditor(id, preScheduleId) {
     if (id && SD.isMonthFrozen(state.year, state.month)) {
       window.toast && window.toast('该月已冻结，请先解冻再编辑', 'error');
       return;
@@ -760,6 +793,21 @@
       state.editor.mode = 'create';
       state.editor.id = null;
       state.editor.form = defaultForm();
+      // 从占位排期预填
+      if (preScheduleId) {
+        const s = (window.DB?.schedules || []).find(x => x.id === preScheduleId);
+        if (s) {
+          const mp = s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '';
+          const sp = Array.isArray(s.sync_platforms) && s.sync_platforms.length
+            ? s.sync_platforms
+            : (Array.isArray(s.platforms) ? s.platforms.slice(1) : []);
+          state.editor.form.schedule_id   = preScheduleId;
+          state.editor.form.main_platform = mp;
+          state.editor.form.sync_platforms = sp;
+          state.editor.form.publications  = [mp, ...sp].filter(Boolean)
+            .map(p => ({ platform: p, date: '', link: '', views: '', likes: '', comments: '' }));
+        }
+      }
     }
     state.editor.open = true;
     paintEditor();

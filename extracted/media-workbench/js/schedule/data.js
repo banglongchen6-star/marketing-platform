@@ -1071,7 +1071,7 @@
   /** 列表查询：按月/主平台/BD/达人名筛选
    *  主平台 = publications[0].platform（按用户录入顺序，第一个即为主）
    */
-  function listContents({ year, month, mainPlatform, bd_id, q } = {}) {
+  function listContents({ year, month, mainPlatform, bd_id, q, withPlaceholders = false } = {}) {
     let rows = DB.contents.slice();
     if (year && month) {
       // 按"主平台首条 publication 的发布日期"在该月内；
@@ -1104,11 +1104,46 @@
         return s && (s.kol_name || '').toLowerCase().includes(lo);
       });
     }
-    // 按主行发布日期倒序
+
+    // 补充：无内容记录的排期作为"待填写"占位行
+    if (withPlaceholders) {
+      const linkedIds = new Set(DB.contents.map(c => c.schedule_id).filter(Boolean));
+      let scheds = (DB.schedules || []).filter(s => !s.deleted_at && !linkedIds.has(s.id));
+      if (year && month) {
+        const monthStr = `${year}-${pad2(month)}`;
+        scheds = scheds.filter(s => s.schedule_date && s.schedule_date.startsWith(monthStr));
+      }
+      if (mainPlatform && mainPlatform !== '全部') {
+        scheds = scheds.filter(s => {
+          const plats = Array.isArray(s.platforms) ? s.platforms : [];
+          return s.platform === mainPlatform || plats.includes(mainPlatform);
+        });
+      }
+      if (bd_id) scheds = scheds.filter(s => s.bd_id === bd_id);
+      if (q) {
+        const lo = String(q).toLowerCase().trim();
+        scheds = scheds.filter(s => (s.kol_name || '').toLowerCase().includes(lo));
+      }
+      rows = rows.concat(scheds.map(s => ({
+        _placeholder: true,
+        id: null,
+        schedule_id: s.id,
+        kol_name: s.kol_name,
+        publications: [],
+        created_at: s.schedule_date || s.created_at || '',
+      })));
+    }
+
+    // 排序：有内容记录按发布日期，占位行按排期日期
     rows.sort((a, b) => {
-      const da = (a.publications||[])[0]?.date || '';
-      const db = (b.publications||[])[0]?.date || '';
-      return db.localeCompare(da);
+      const getDate = x => {
+        if (x._placeholder) {
+          const s = DB.schedules.find(ss => ss.id === x.schedule_id);
+          return s?.schedule_date || '';
+        }
+        return (x.publications||[])[0]?.date || x.created_at || '';
+      };
+      return getDate(b).localeCompare(getDate(a));
     });
     return rows;
   }
