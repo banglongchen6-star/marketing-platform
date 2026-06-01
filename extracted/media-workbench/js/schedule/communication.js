@@ -445,13 +445,10 @@
                   : g + '数据';
                 return `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${gLabel}</th>`;
               }).join('')}
-              <th colspan="3" style="text-align:center">操作</th>
+              <th rowspan="2" colspan="3" style="text-align:center">操作</th>
             </tr>
             <tr>
               ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
-              <th style="min-width:48px">编辑</th>
-              <th style="min-width:80px">转结算</th>
-              <th style="min-width:48px">删除</th>
             </tr>
           </thead>
           <tbody>
@@ -525,11 +522,9 @@
       <td colspan="${activeCols.length}" style="color:var(--text-muted);font-size:.82rem;text-align:center">
         ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)}
       </td>
-      <td class="comm-actions"></td>
-      <td class="comm-actions">
+      <td colspan="3" class="comm-actions">
         <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填待发布</button>
       </td>
-      <td class="comm-actions"></td>
     </tr>`;
   }
 
@@ -751,13 +746,10 @@
             <tr class="comm-group-header">
               <th rowspan="2" style="background:#fafbfd;min-width:130px">达人昵称</th>
               ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
-              <th colspan="3" style="text-align:center">操作</th>
+              <th rowspan="2" colspan="3" style="text-align:center">操作</th>
             </tr>
             <tr>
               ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
-              <th style="min-width:48px">编辑</th>
-              <th style="min-width:80px">转结算</th>
-              <th style="min-width:48px">删除</th>
             </tr>
           </thead>
           <tbody>
