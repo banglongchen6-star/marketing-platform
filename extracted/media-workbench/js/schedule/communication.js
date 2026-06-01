@@ -501,6 +501,19 @@
   // 哪些列是"基本信息"(整次合作共享，不随 publication 变化)，主行 rowspan 跨多行
   const MAIN_COLS = new Set(['price','fans','category']);
 
+  function _payStatusTag(scheduleId, contentId) {
+    const st = scheduleId
+      ? (window.DB?.settlements || []).find(s => s.schedule_id === scheduleId && !s.settled)
+      : (window.DB?.settlements || []).find(s => s.content_id === contentId && !s.settled);
+    if (!st) return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">未付款</span>`;
+    const pays = st.payments || [];
+    const allPaid = pays.length > 0 && pays.every(p => !!p.paid_date);
+    const anyPaid = pays.some(p => !!p.paid_date);
+    if (allPaid) return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-weight:600">已付款</span>`;
+    if (anyPaid) return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">部分付款</span>`;
+    return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">未付款</span>`;
+  }
+
   // 无内容记录的排期"待填写"占位行
   function renderPlaceholderRow(c, activeCols) {
     const r = SD.resolveContent(c);
@@ -512,10 +525,7 @@
     const bdChip = r.bd_color
       ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px"><span style="width:6px;height:6px;border-radius:50%;background:${r.bd_color};flex-shrink:0"></span><span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></span>`
       : '';
-    const phHasSt = (window.DB?.settlements || []).some(st => st.schedule_id === s.id);
-    const phStBtn = phHasSt
-      ? `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600">✓ 已转结算</span>`
-      : `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">待结算</span>`;
+    const phStBtn = _payStatusTag(s.id, null);
     return `<tr class="comm-main-row" style="background:#fafbff;opacity:.85">
       <td style="background:#f0f4ff">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -543,12 +553,7 @@
     const main = pubs[0];
     const sub = pubs.slice(1);
     const rowStyle = frozen ? 'opacity:.6;' : '';
-    const _hasSt = content.schedule_id
-      ? (window.DB?.settlements || []).some(s => s.schedule_id === content.schedule_id)
-      : (window.DB?.settlements || []).some(s => s.content_id === content.id);
-    const stBtn = _hasSt
-      ? `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600">✓ 已转结算</span>`
-      : `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">待结算</span>`;
+    const stBtn = _payStatusTag(content.schedule_id || null, content.id);
     const actionCell = readOnly ? '' : frozen
       ? `<td rowspan="${total}" colspan="3" class="comm-actions" style="vertical-align:middle">
           <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
@@ -711,12 +716,7 @@
 
       return bl.items.map(({ p, c }, i) => {
         const cells = activeCols.map(col => renderCell(col, p, c, r, i, total, sameCategory)).join('');
-        const _cHasSt = c.schedule_id
-          ? (window.DB?.settlements || []).some(s => s.schedule_id === c.schedule_id)
-          : (window.DB?.settlements || []).some(s => s.content_id === c.id);
-        const cStBtn = _cHasSt
-          ? `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600">✓ 已转结算</span>`
-          : `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">待结算</span>`;
+        const cStBtn = _payStatusTag(c.schedule_id || null, c.id);
         const opCell = i === 0
           ? allFrozen
             ? `<td rowspan="${total}" colspan="3" class="comm-actions" style="vertical-align:middle">
