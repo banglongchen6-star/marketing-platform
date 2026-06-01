@@ -542,7 +542,7 @@
           <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
         </td>`
       : `<td rowspan="${total}" class="comm-actions">
-          <div style="display:flex;align-items:center;justify-content:center;gap:12px;white-space:nowrap">
+          <div style="display:flex;align-items:center;justify-content:center;gap:24px;white-space:nowrap">
             <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
             <button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>
             <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${content.id}')">删除</button>
@@ -704,7 +704,7 @@
                  <span style="font-size:.72rem;color:#92400e">🔒</span>
                </td>`
             : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
-                 <div style="display:flex;align-items:center;justify-content:center;gap:12px;white-space:nowrap">
+                 <div style="display:flex;align-items:center;justify-content:center;gap:24px;white-space:nowrap">
                    <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
                    <button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>
                    <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
