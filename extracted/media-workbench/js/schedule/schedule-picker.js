@@ -157,6 +157,28 @@
     return opts.join('');
   }
 
-  window.SchedulePicker = { optionsHTML, publishedOptionsHTML, settlementOptionsHTML, labelFor, chipHTML, openSchedule, notifyChange, advanceStatus };
+  /** 内容发布专用下拉：未选择(placeholder) + 不关联排期 + 已发布排期 */
+  function contentOptionsHTML(selectedId) {
+    const noneSelected = !selectedId;
+    const published = _publishedSchedules();
+    const opts = [
+      `<option value="" disabled${noneSelected ? ' selected' : ''}>— 未选择 —</option>`,
+      `<option value="none"${selectedId === 'none' ? ' selected' : ''}>— 不关联排期 —</option>`,
+    ];
+    published.forEach(s => {
+      const sel = s.id === selectedId ? ' selected' : '';
+      opts.push(`<option value="${escapeHtml(s.id)}"${sel}>${escapeHtml(_label(s))}</option>`);
+    });
+    // 兼容：selectedId 对应已删除记录
+    if (selectedId && selectedId !== 'none' && !published.some(s => s.id === selectedId)) {
+      const orphan = (window.DB.schedules || []).find(s => s.id === selectedId);
+      if (orphan) {
+        opts.push(`<option value="${escapeHtml(orphan.id)}" selected>⚠ ${escapeHtml(_label(orphan))}（已删除）</option>`);
+      }
+    }
+    return opts.join('');
+  }
+
+  window.SchedulePicker = { optionsHTML, publishedOptionsHTML, settlementOptionsHTML, contentOptionsHTML, labelFor, chipHTML, openSchedule, notifyChange, advanceStatus };
   console.log('[SchedulePicker] 已就绪');
 })();

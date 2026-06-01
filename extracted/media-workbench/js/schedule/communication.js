@@ -69,6 +69,7 @@
   function defaultForm() {
     return {
       schedule_id: '',
+      kol_name: '',
       fans: '',
       publications: [defaultPublication()],
     };
@@ -730,7 +731,8 @@
       state.editor.mode = 'edit';
       state.editor.id = id;
       state.editor.form = {
-        schedule_id: c.schedule_id,
+        schedule_id: c.schedule_id || 'none',
+        kol_name: c.kol_name || '',
         fans: c.fans != null ? String(c.fans) : '',
         publications: c.publications.map(p => ({ ...p })),
       };
@@ -792,15 +794,16 @@
   function renderEditorForm() {
     const f = state.editor.form;
     const err = state.editor.errors;
-    const sched = f.schedule_id ? window.DB.schedules.find(x => x.id === f.schedule_id) : null;
-    const r = sched ? SD.resolveContent({ schedule_id: f.schedule_id }) : null;
-    // 排期选择器（强约束）：仅显示已发布排期（日期 < 今天）
-    const schedOptions = window.SchedulePicker ? window.SchedulePicker.publishedOptionsHTML(f.schedule_id) : '';
+    const realSchedId = (f.schedule_id && f.schedule_id !== 'none') ? f.schedule_id : null;
+    const sched = realSchedId ? window.DB.schedules.find(x => x.id === realSchedId) : null;
+    const r = sched ? SD.resolveContent({ schedule_id: realSchedId }) : null;
+    // 排期选择器：未选择 / 不关联排期 / 已发布排期
+    const schedOptions = window.SchedulePicker ? window.SchedulePicker.contentOptionsHTML(f.schedule_id) : '';
 
     // 检测：新建模式下，选中的排期是否已有自动生成的内容记录
     let autoCreatedWarning = '';
-    if (state.editor.mode === 'create' && f.schedule_id) {
-      const existingAuto = (window.DB.contents || []).find(c => c.schedule_id === f.schedule_id && c.auto_created);
+    if (state.editor.mode === 'create' && realSchedId) {
+      const existingAuto = (window.DB.contents || []).find(c => c.schedule_id === realSchedId && c.auto_created);
       if (existingAuto) {
         autoCreatedWarning = `
           <div style="margin-top:8px;padding:10px 12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:.82rem;display:flex;align-items:flex-start;gap:8px">
@@ -829,13 +832,22 @@
         </div>
       </div>
     ` : '';
+    const kolNameBlock = f.schedule_id === 'none' ? `
+      <div class="sched-form-group">
+        <label class="sched-form-label">达人昵称<span class="req">*</span></label>
+        <input id="cf-kol-name" class="sched-form-control ${err.kol_name?'error':''}" type="text"
+               placeholder="请输入达人昵称（必填）"
+               value="${escapeAttr(f.kol_name)}">
+      </div>
+    ` : '';
     return `
       <div class="sched-form-group">
         <label class="sched-form-label">关联排期<span class="req">*</span></label>
         <select id="cf-schedule" class="sched-form-control ${err.schedule_id?'error':''}">${schedOptions}</select>
-        <div class="sched-form-hint">只能关联日期已过（状态为「已发布」）的排期</div>
+        <div class="sched-form-hint">选「不关联排期」需填写达人昵称；或关联一条已发布排期</div>
         ${autoCreatedWarning}
       </div>
+      ${kolNameBlock}
       ${mainInfo}
       <div class="sched-form-group">
         <label class="sched-form-label">粉丝量（发布时快照，单位：人）</label>
@@ -936,7 +948,12 @@
     const sel = document.getElementById('cf-schedule');
     if (sel) sel.addEventListener('change', e => {
       state.editor.form.schedule_id = e.target.value;
+      if (e.target.value !== 'none') state.editor.form.kol_name = '';
       paintEditor();
+    });
+    const kolName = document.getElementById('cf-kol-name');
+    if (kolName) kolName.addEventListener('input', e => {
+      state.editor.form.kol_name = e.target.value;
     });
     const fans = document.getElementById('cf-fans');
     if (fans) fans.addEventListener('input', e => {
@@ -993,7 +1010,8 @@
   function _save() {
     const f = state.editor.form;
     const errs = {};
-    if (!f.schedule_id) errs.schedule_id = '必须关联一条排期';
+    if (!f.schedule_id) errs.schedule_id = '请选择关联排期，或选择「不关联排期」';
+    if (f.schedule_id === 'none' && !f.kol_name.trim()) errs.kol_name = '选择不关联排期时，达人昵称为必填';
     state.editor.errors = errs;
     if (Object.keys(errs).length) {
       paintEditor();
@@ -1013,7 +1031,8 @@
         }
       }
       const data = {
-        schedule_id: f.schedule_id,
+        schedule_id: f.schedule_id === 'none' ? null : f.schedule_id,
+        kol_name: f.schedule_id === 'none' ? f.kol_name.trim() : null,
         fans,
         publications: f.publications,
       };
