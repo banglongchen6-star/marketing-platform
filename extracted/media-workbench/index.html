@@ -4003,6 +4003,21 @@ function transferToSettled(scheduleId) {
   toast('已结转到已结算区 ✅', 'success');
 }
 
+/** 不关联排期的结算单直接转已结算 */
+function transferSettlementById(settlementId) {
+  const st = (DB.settlements||[]).find(x => x.id === settlementId);
+  if (!st) return;
+  const allPaid = st.payments?.length && st.payments.every(p => !!p.paid_date);
+  if (!allPaid) { toast('还有未填申请付款时间的款项，无法结转', 'error'); return; }
+  if (!confirm(`确认将「${st.kol_name || '此记录'}」结转到已结算区？结转后不可删除。`)) return;
+  st.settled    = true;
+  st.settled_at = new Date().toISOString().slice(0,10);
+  st.status     = '已结算';
+  saveData();
+  renderSettlement();
+  toast('已结转到已结算区 ✅', 'success');
+}
+
 /** 退回：已结算 → 待结算 */
 function rollbackFromSettled(settlementId) {
   const st = (DB.settlements||[]).find(x => x.id === settlementId);
@@ -4032,7 +4047,7 @@ function _renderPendingArea() {
   const dateEnd   = document.getElementById('st-pending-date-end')?.value   || '';
 
   // 所有未软删排期，过滤掉已结算的
-  const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => s.schedule_id));
+  const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => s.schedule_id).filter(Boolean));
   let scheds = (DB.schedules||[])
     .filter(s => !s.deleted_at && !settledIds.has(s.id))
     .filter(s => !search || (s.kol_name||s.talent||'').toLowerCase().includes(search))
@@ -4040,12 +4055,20 @@ function _renderPendingArea() {
     .filter(s => !dateEnd   || (s.schedule_date && s.schedule_date <= dateEnd))
     .sort((a,b) => (b.schedule_date||'').localeCompare(a.schedule_date||''));
 
+  // 不关联排期的待结算单（从内容发布「转结算」生成）
+  const unscheduledSts = (DB.settlements||[])
+    .filter(s => !s.schedule_id && !s.settled)
+    .filter(s => !search || (s.kol_name||'').toLowerCase().includes(search))
+    .filter(s => !dateStart || !s.publish_date || s.publish_date >= dateStart)
+    .filter(s => !dateEnd   || !s.publish_date || s.publish_date <= dateEnd)
+    .sort((a,b) => (b.publish_date||b.created_at||'').localeCompare(a.publish_date||a.created_at||''));
+
   // badge
-  document.getElementById('st-pending-badge').textContent = scheds.length;
+  document.getElementById('st-pending-badge').textContent = scheds.length + unscheduledSts.length;
   document.getElementById('st-settled-badge').textContent =
     (DB.settlements||[]).filter(s => s.settled).length;
 
-  // 统计
+  // 统计（排期来源）
   let totalAmt = 0, paidAmt = 0, pendingAmt = 0;
   scheds.forEach(sched => {
     const st = (DB.settlements||[]).find(s => s.schedule_id === sched.id && !s.settled);
@@ -4054,8 +4077,18 @@ function _renderPendingArea() {
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
     (st.payments||[]).forEach(p => {
-      if (p.paid_date)         paidAmt    += parseFloat(p.amount)||0;
-      else                     pendingAmt += parseFloat(p.amount)||0;
+      if (p.paid_date)  paidAmt    += parseFloat(p.amount)||0;
+      else              pendingAmt += parseFloat(p.amount)||0;
+    });
+  });
+  // 统计（不关联排期来源）
+  unscheduledSts.forEach(st => {
+    const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
+    const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
+    totalAmt += base + bonus;
+    (st.payments||[]).forEach(p => {
+      if (p.paid_date)  paidAmt    += parseFloat(p.amount)||0;
+      else              pendingAmt += parseFloat(p.amount)||0;
     });
   });
 
@@ -4063,7 +4096,7 @@ function _renderPendingArea() {
     <div style="display:flex;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(26,86,219,.08),rgba(26,86,219,.04));border:1px solid rgba(26,86,219,.18)">
         <span style="font-size:.72rem;font-weight:600;color:var(--primary);white-space:nowrap">待结算达人数</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--primary)">${scheds.length}</span>
+        <span style="font-size:1.1rem;font-weight:700;color:var(--primary)">${scheds.length + unscheduledSts.length}</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(217,119,6,.08),rgba(217,119,6,.04));border:1px solid rgba(217,119,6,.18)">
         <span style="font-size:.72rem;font-weight:600;color:var(--warning);white-space:nowrap">待付金额</span>
@@ -4081,7 +4114,7 @@ function _renderPendingArea() {
   `;
 
   const container = document.getElementById('settlement-list');
-  if (!scheds.length) {
+  if (!scheds.length && !unscheduledSts.length) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><p>所有达人均已结算完成</p></div>`;
     return;
   }
@@ -4179,6 +4212,70 @@ function _renderPendingArea() {
     }).join('');
   }).join('');
 
+  const unscheduledBodyRows = unscheduledSts.map(st => {
+    const talent = st.kol_name || '—';
+    const plat   = st.platform || '—';
+    const date   = st.publish_date || '—';
+    const pubTag = `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#fef9c3;color:#854d0e">直接录入</span>`;
+
+    const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
+    const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
+    const pays  = st.payments?.length ? st.payments
+      : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
+    const allPaid  = pays.every(p => !!p.paid_date);
+    const partPaid = !allPaid && pays.some(p => !!p.paid_date);
+    const borderColor = allPaid ? '#10b981' : partPaid ? '#3b82f6' : '#f59e0b';
+    const totalSettlement = base + bonus;
+    const totalPaidIn = pays.reduce((s, p) => s + (parseFloat(p.amount)||0), 0);
+    const amountMatch = totalSettlement > 0 && Math.abs(totalPaidIn - totalSettlement) < 0.01;
+    const canTransfer = allPaid && amountMatch;
+
+    const transferReasons = [];
+    if (!allPaid)     transferReasons.push('💰 有款项未付');
+    if (!amountMatch) transferReasons.push('💰 金额未对齐');
+    const transferCell = canTransfer
+      ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferSettlementById('${st.id}')">✅ 可转结算</button>`
+      : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
+
+    const paidSum   = pays.filter(p => !!p.paid_date).reduce((s,p) => s+(parseFloat(p.amount)||0), 0);
+    const unpaidSum = (base + bonus) - paidSum;
+    const isInstallment = st.payment_type === 'installment';
+    const total = pays.length;
+
+    return pays.map((p, i) => {
+      const isPaid = !!p.paid_date;
+      const statusHtml = isPaid
+        ? `<span style="color:var(--success);font-size:.82rem;font-weight:500">✓ ${p.paid_date}</span>`
+        : `<span style="color:var(--text-muted);font-size:.82rem">待付款</span>`;
+      if (i === 0) return `
+        <tr class="comm-main-row" style="border-left:3px solid ${borderColor}">
+          <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
+          <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(plat)}</td>
+          <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
+          <td rowspan="${total}" style="vertical-align:middle">${pubTag}</td>
+          <td rowspan="${total}" style="vertical-align:middle">
+            <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(base+bonus)}</div>
+            ${isInstallment
+              ? `<div style="font-size:.75rem;margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">
+                  ${paidSum>0?`<span style="color:var(--success)">已付¥${fmtNum(paidSum)}</span>`:''}
+                  ${unpaidSum>0?`<span style="color:var(--warning)">未付¥${fmtNum(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付¥${fmtNum(base+bonus)}</span>`}
+                </div>`
+              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtNum(base)} · 奖金¥${fmtNum(bonus)}</div>`:''}
+          </td>
+          <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[st.payment_type]||'全款付清'}</td>
+          <td>${statusHtml}</td>
+          <td rowspan="${total}" style="vertical-align:middle;font-size:.82rem">${escapeHtml(st.account||'—')}</td>
+          <td rowspan="${total}" style="vertical-align:middle">${statusTag(st.invoice||'未开票')}</td>
+          <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+            <button class="btn btn-secondary btn-sm" onclick="openSettlementModal(${st.id})">编辑</button>
+          </td>
+          <td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>
+        </tr>`;
+      return `<tr class="comm-sub-row"><td>${statusHtml}</td></tr>`;
+    }).join('');
+  }).join('');
+
+  const totalCount = scheds.length + unscheduledSts.length;
   container.innerHTML = `
     <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto">
       <table class="comm-table">
@@ -4195,9 +4292,9 @@ function _renderPendingArea() {
             <th>可转结算</th>
           </tr>
         </thead>
-        <tbody>${bodyRows}</tbody>
+        <tbody>${bodyRows}${unscheduledBodyRows}</tbody>
         <tfoot><tr class="comm-footer-row"><td colspan="11">
-          共 ${scheds.length} 位达人待结算 · 待付 <b style="color:var(--warning)">¥${fmtNum(pendingAmt)}</b> · 已付 <b style="color:var(--success)">¥${fmtNum(paidAmt)}</b>
+          共 ${totalCount} 位达人待结算 · 待付 <b style="color:var(--warning)">¥${fmtNum(pendingAmt)}</b> · 已付 <b style="color:var(--success)">¥${fmtNum(paidAmt)}</b>
         </td></tr></tfoot>
       </table>
     </div>`;
@@ -4402,7 +4499,6 @@ function openSettlementModal(id = null) {
 }
 
 function saveSettlement() {
-  if (!_st.schedule_id) { toast('请选择关联排期', 'error'); return; }
   if (_st.bonus_enabled === null || _st.bonus_enabled === undefined) { toast('请选择是否有奖金', 'error'); _stRender(); return; }
   if (!_st.account) { toast('请选择付款账户', 'error'); _stRender(); return; }
   if (!_st.invoice) { toast('请选择发票状态', 'error'); _stRender(); return; }
