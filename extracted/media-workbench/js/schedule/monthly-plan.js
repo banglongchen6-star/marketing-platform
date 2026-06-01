@@ -55,9 +55,6 @@
           <div class="sched-month-current">${state.year} 年 ${state.month} 月</div>
           <button class="sched-month-btn" onclick="MonthlyPlanPage.nextMonth()" title="下月">›</button>
           <button class="sched-month-today" onclick="MonthlyPlanPage.goToday()">本月</button>
-          <span style="margin-left:8px;color:var(--text-muted);font-size:.78rem">
-            该月预算配置 + 与排期实际花费的对比
-          </span>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="SchedulePage && SchedulePage.setMonth(${state.year}, ${state.month}); navigate('schedule')" title="切到内容排期查看具体排期">
           📅 查看排期
