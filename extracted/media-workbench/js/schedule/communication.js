@@ -181,7 +181,7 @@
           <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._toggleColPop(event)">⚙ 自定义列</button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.openImport()" title="从 Excel 导入">📥 导入</button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.doExport()" title="导出当前筛选数据到 Excel">📤 导出</button>
-          ${frozen ? '' : `<button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor()">＋ 新增</button>`}
+          ${frozen ? '' : `<button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor()">＋ 新增内容</button>`}
           ${state.colPopOpen ? renderColPop() : ''}
         </div>
       </div>
