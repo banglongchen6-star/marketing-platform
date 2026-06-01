@@ -670,15 +670,17 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   border-radius: var(--radius-sm);
   padding: 12px;
   margin-bottom: 12px;
+  min-width: 0;
+  overflow: hidden;
 }
 .comm-pub-head {
   display: flex; justify-content: space-between; align-items: center;
 }
 .comm-pub-grid {
   display: grid; gap: 8px;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
 }
-.comm-pub-grid > div { display: flex; flex-direction: column; }
+.comm-pub-grid > div { display: flex; flex-direction: column; min-width: 0; }
 .comm-pub-grid label {
   font-size: .72rem; color: var(--text-secondary); margin-bottom: 3px;
 }
