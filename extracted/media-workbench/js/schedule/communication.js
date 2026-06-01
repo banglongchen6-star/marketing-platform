@@ -875,7 +875,7 @@
       <div class="comm-pub-block" data-idx="${idx}">
         <div class="comm-pub-head">
           <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-            <span class="sched-card-chip platform" style="align-self:center">渠道 ${idx + 1}</span>
+            <span class="sched-card-chip platform" style="align-self:center">${idx === 0 ? '主平台' : `同步平台 ${idx}`}</span>
             <div style="display:flex;flex-direction:column;gap:3px">
               <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">发布平台</label>
               <select class="form-control" style="width:110px;height:32px" data-field="platform" onchange="CommunicationPage._updatePub(${idx},'platform',this.value)">

@@ -143,7 +143,12 @@
     const dirChip = s.category_direction
       ? `<span class="sched-card-chip direction" title="达人类型">${escapeHtml(s.category_direction)}</span>` : '';
     const plats = Array.isArray(s.platforms) && s.platforms.length ? s.platforms : (s.platform ? [s.platform] : []);
-    const platChip = plats.map(p => `<span class="sched-card-chip platform" title="平台">${escapeHtml(p)}</span>`).join('');
+    const mainPlat = s.platform || plats[0] || '';
+    const syncPlats = Array.isArray(s.sync_platforms) && s.sync_platforms.length ? s.sync_platforms : plats.slice(1);
+    const platChip = [
+      mainPlat ? `<span class="sched-card-chip platform" title="主平台">${escapeHtml(mainPlat)}<sup style="font-size:.6rem;color:var(--primary);font-weight:600;margin-left:1px;vertical-align:super">主</sup></span>` : '',
+      ...syncPlats.map(p => `<span class="sched-card-chip platform" title="同步平台">${escapeHtml(p)}</span>`),
+    ].filter(Boolean).join('');
     const bd = s.bd_id ? SD.listBds({ includeInactive: true }).find(b => b.id === s.bd_id) : null;
     const bdStyle = bd ? `border-left-color:${bd.color};border-left-width:4px;` : '';
     const frozenStyle = frozen ? 'opacity:.55;filter:grayscale(0.4);cursor:not-allowed;' : '';

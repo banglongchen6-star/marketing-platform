@@ -3764,8 +3764,9 @@ function _stRender() {
 }
 
 function _stSchedInfo(sched) {
-  const plats = Array.isArray(sched.platforms) && sched.platforms.length
-    ? sched.platforms.join(' / ') : (sched.platform || '-');
+  const _mainP = sched.platform || (Array.isArray(sched.platforms) ? sched.platforms[0] : '') || '';
+  const _syncP = Array.isArray(sched.sync_platforms) && sched.sync_platforms.length ? sched.sync_platforms : (Array.isArray(sched.platforms) ? sched.platforms.slice(1) : []);
+  const plats = _mainP ? (_syncP.length ? `${_mainP}（主）· ${_syncP.join(' · ')}` : `${_mainP}（主）`) : '-';
   return `
     <div style="background:var(--bg-secondary);padding:10px 14px;border-radius:6px;margin-bottom:10px;font-size:.82rem;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
       <div><span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(sched.kol_name||'-')}</b></div>
@@ -4091,7 +4092,9 @@ function _renderPendingArea() {
   const bodyRows = scheds.map(sched => {
     const st = (DB.settlements||[]).find(s => s.schedule_id === sched.id && !s.settled);
     const talent  = sched.kol_name || sched.talent || '-';
-    const plat    = Array.isArray(sched.platforms)&&sched.platforms.length ? sched.platforms.join('/') : (sched.platform||'-');
+    const _mp = sched.platform||(Array.isArray(sched.platforms)?sched.platforms[0]:'')||'';
+    const _sp = Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]);
+    const plat = _mp?(_sp.length?`${_mp}（主）· ${_sp.join(' · ')}`:_mp):'-';
     const date    = sched.schedule_date || '-';
     const isPublished = date !== '-' && date < today;
     const pubTag  = isPublished
@@ -4271,7 +4274,7 @@ function _renderSettledArea() {
   const bodyRows = list.map(s => {
     const sched = s.schedule_id ? (DB.schedules||[]).find(x => x.id === s.schedule_id) : null;
     const talent = sched?.kol_name || s.talent || '-';
-    const plat   = sched ? (Array.isArray(sched.platforms)&&sched.platforms.length ? sched.platforms.join('/') : (sched.platform||'-')) : '-';
+    const plat = (() => { if (!sched) return '-'; const mp=sched.platform||(Array.isArray(sched.platforms)?sched.platforms[0]:'')||''; const sp=Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]); return mp?(sp.length?`${mp}（主）· ${sp.join(' · ')}`:mp):'-'; })();
     const date   = sched?.schedule_date || '-';
     const base   = parseFloat(s.contract_amount ?? s.amount) || 0;
     const bonus  = s.bonus_enabled ? (parseFloat(s.bonus_amount)||0) : 0;

@@ -206,6 +206,11 @@
           : [];
         mutated = true;
       }
+      // 迁移：sync_platforms（主平台=第一个，同步=其余）
+      if (!Array.isArray(s.sync_platforms)) {
+        s.sync_platforms = s.platforms.slice(1);
+        mutated = true;
+      }
     });
   }
 
@@ -633,8 +638,9 @@
       category_direction: data.category_direction || '',
       tier: data.tier || '',
       amount: Number(data.amount) || 0,
-      platforms: Array.isArray(data.platforms) ? data.platforms : (data.platform ? [data.platform] : []),
-      platform: (Array.isArray(data.platforms) ? data.platforms : (data.platform ? [data.platform] : []))[0] || '',
+      platform: data.platform || (Array.isArray(data.platforms) ? data.platforms[0] : '') || '',
+      sync_platforms: Array.isArray(data.sync_platforms) ? data.sync_platforms : (Array.isArray(data.platforms) ? data.platforms.slice(1) : []),
+      platforms: data.platform ? [data.platform, ...(Array.isArray(data.sync_platforms) ? data.sync_platforms : [])] : (Array.isArray(data.platforms) ? data.platforms : []),
       status: initialStatus,
       publish_url: data.publish_url || '',
       publish_date: data.publish_date || null,
@@ -681,11 +687,16 @@
     }
     // 清掉控制字段，避免泄漏到 row
     const { _autoAdvanceReason, ...realPatch } = patch;
-    // 同步 platforms 数组
-    if (Array.isArray(realPatch.platforms)) {
+    // 同步 platform / sync_platforms / platforms 三字段保持一致
+    if (realPatch.platform != null || Array.isArray(realPatch.sync_platforms)) {
+      const mainP = realPatch.platform != null ? realPatch.platform : (before.platform || '');
+      const syncP = Array.isArray(realPatch.sync_platforms) ? realPatch.sync_platforms : (Array.isArray(before.sync_platforms) ? before.sync_platforms : []);
+      realPatch.platform = mainP;
+      realPatch.sync_platforms = syncP;
+      realPatch.platforms = mainP ? [mainP, ...syncP] : [];
+    } else if (Array.isArray(realPatch.platforms)) {
       realPatch.platform = realPatch.platforms[0] || '';
-    } else if (realPatch.platform != null) {
-      realPatch.platforms = realPatch.platform ? [realPatch.platform] : [];
+      realPatch.sync_platforms = realPatch.platforms.slice(1);
     }
     DB.schedules[idx] = {
       ...before,

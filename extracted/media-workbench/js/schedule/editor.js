@@ -51,7 +51,8 @@
       bd_id: window.currentUser?.bd_id || null,
       category_direction: '',
       tier: '',
-      platforms: [],
+      platform: '',
+      sync_platforms: [],
       amount: '',
       status: 'planned',
       publish_url: '',
@@ -110,7 +111,8 @@
         bd_id: s.bd_id || null,
         category_direction: s.category_direction || '',
         tier: s.tier || '',
-        platforms: Array.isArray(s.platforms) ? [...s.platforms] : (s.platform ? [s.platform] : []),
+        platform: s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '',
+        sync_platforms: Array.isArray(s.sync_platforms) ? [...s.sync_platforms] : (Array.isArray(s.platforms) ? s.platforms.slice(1) : []),
         amount: s.amount != null ? String(s.amount) : '',
         status: s.status || 'planned',
         publish_url: s.publish_url || '',
@@ -402,14 +404,26 @@
 
       <div class="sched-form-row">
         <div class="sched-form-group" style="flex:1">
-          <label class="sched-form-label">发布平台<span class="req">*</span>（可多选）</label>
-          <div id="f-platforms-wrap" class="platform-tags" style="margin-top:4px">
-            ${SD.listPlatforms().map(p => `
-              <label class="platform-tag ${f.platforms.includes(p.name)?'active':''}">
-                <input type="checkbox" value="${escapeAttr(p.name)}" ${f.platforms.includes(p.name)?'checked':''}
-                       onchange="ScheduleEditor._togglePlatform(this.value,this.checked)">
-                <span>${escapeHtml(p.name)}</span>
-              </label>`).join('')}
+          <label class="sched-form-label">发布平台<span class="req">*</span></label>
+          <div style="margin-top:4px">
+            <div style="font-size:.75rem;color:var(--text-muted);font-weight:500;margin-bottom:5px">主平台（单选）</div>
+            <div id="f-main-platform-wrap" class="platform-tags">
+              ${SD.listPlatforms().map(p => `
+                <label class="platform-tag ${f.platform===p.name?'active':''}">
+                  <input type="radio" name="f-main-platform" value="${escapeAttr(p.name)}" ${f.platform===p.name?'checked':''}
+                         onchange="ScheduleEditor._setMainPlatform(this.value)">
+                  <span>${escapeHtml(p.name)}</span>
+                </label>`).join('')}
+            </div>
+            <div style="font-size:.75rem;color:var(--text-muted);font-weight:500;margin-top:10px;margin-bottom:5px">同步平台（可多选）</div>
+            <div id="f-sync-platforms-wrap" class="platform-tags">
+              ${SD.listPlatforms().filter(p => p.name !== f.platform).map(p => `
+                <label class="platform-tag ${f.sync_platforms.includes(p.name)?'active':''}">
+                  <input type="checkbox" value="${escapeAttr(p.name)}" ${f.sync_platforms.includes(p.name)?'checked':''}
+                         onchange="ScheduleEditor._toggleSyncPlatform(this.value,this.checked)">
+                  <span>${escapeHtml(p.name)}</span>
+                </label>`).join('')}
+            </div>
           </div>
           ${err.platforms ? `<div style="color:var(--danger);font-size:.8rem;margin-top:4px">${err.platforms}</div>` : ''}
           <div class="sched-form-hint">在「字典管理 → 平台」里增减选项</div>
@@ -612,7 +626,7 @@
     const f = state.form;
     onInput('f-date', v => f.schedule_date = v);
     onInput('f-amount', v => f.amount = v);
-    // platforms 由 _togglePlatform 处理，无需 onChange
+    // platforms 由 _setMainPlatform / _toggleSyncPlatform 处理，无需 onChange
     onInput('f-kol-homepage', v => f.kol_homepage = v);
     if (document.getElementById('f-bd')) onChange('f-bd', v => { f.bd_id = v || null; renderAll(); });
     onChange('f-tier', v => f.tier = v);
@@ -738,22 +752,52 @@
     renderAll();
   }
 
-  function _togglePlatform(name, checked) {
-    const plats = state.form.platforms;
-    if (checked) {
-      if (!plats.includes(name)) plats.push(name);
-    } else {
-      const idx = plats.indexOf(name);
-      if (idx >= 0) plats.splice(idx, 1);
+  function _setMainPlatform(name) {
+    // 从同步平台移除（避免重复）
+    const syncIdx = state.form.sync_platforms.indexOf(name);
+    if (syncIdx >= 0) state.form.sync_platforms.splice(syncIdx, 1);
+    state.form.platform = name;
+    // 主平台样式：直接更新 radio
+    const mainWrap = document.getElementById('f-main-platform-wrap');
+    if (mainWrap) {
+      mainWrap.querySelectorAll('.platform-tag').forEach(label => {
+        const rb = label.querySelector('input[type=radio]');
+        if (rb) label.classList.toggle('active', rb.checked);
+      });
     }
-    // 同步更新 label 样式（不重绘整个表单，避免失焦）
-    const wrap = document.getElementById('f-platforms-wrap');
+    // 同步平台 wrap 重建（排除刚选的主平台）
+    _rebuildSyncWrap();
+  }
+
+  function _toggleSyncPlatform(name, checked) {
+    const syncs = state.form.sync_platforms;
+    if (checked) {
+      if (!syncs.includes(name)) syncs.push(name);
+    } else {
+      const idx = syncs.indexOf(name);
+      if (idx >= 0) syncs.splice(idx, 1);
+    }
+    const wrap = document.getElementById('f-sync-platforms-wrap');
     if (wrap) {
       wrap.querySelectorAll('.platform-tag').forEach(label => {
         const cb = label.querySelector('input[type=checkbox]');
         if (cb) label.classList.toggle('active', cb.checked);
       });
     }
+  }
+
+  function _rebuildSyncWrap() {
+    const wrap = document.getElementById('f-sync-platforms-wrap');
+    if (!wrap) return;
+    const f = state.form;
+    wrap.innerHTML = SD.listPlatforms()
+      .filter(p => p.name !== f.platform)
+      .map(p => `
+        <label class="platform-tag ${f.sync_platforms.includes(p.name)?'active':''}">
+          <input type="checkbox" value="${escapeAttr(p.name)}" ${f.sync_platforms.includes(p.name)?'checked':''}
+                 onchange="ScheduleEditor._toggleSyncPlatform(this.value,this.checked)">
+          <span>${escapeHtml(p.name)}</span>
+        </label>`).join('');
   }
 
   async function _copyHomepage() {
@@ -792,7 +836,7 @@
     else if (!/^https?:\/\//i.test(f.kol_homepage.trim())) errs.kol_homepage = '主页链接需以 http:// 或 https:// 开头';
     if (!f.category_direction) errs.category_direction = '请选择达人类型';
     if (!f.tier) errs.tier = '请选择层级';
-    if (!f.platforms || f.platforms.length === 0) errs.platforms = '请至少选择一个平台';
+    if (!f.platform) errs.platforms = '请选择主平台';
     if (!f.bd_id) errs.bd_id = '请选择商务 BD';
     if (f.amount === '' || f.amount === null || isNaN(Number(f.amount))) errs.amount = '费用必须为数字';
     else if (Number(f.amount) < 0) errs.amount = '费用不能为负';
@@ -809,7 +853,7 @@
     if (data.bd_id && !kol.bd_id) patch.bd_id = data.bd_id;
     // 主要平台：空则取排期第一个平台
     if (!kol.platform) {
-      const mainPlat = (Array.isArray(data.platforms) && data.platforms[0]) || data.platform || '';
+      const mainPlat = data.platform || (Array.isArray(data.platforms) && data.platforms[0]) || '';
       if (mainPlat) patch.platform = mainPlat;
     }
     // 达人类型：空则补齐
@@ -868,7 +912,9 @@
       bd_id: f.bd_id || null,
       category_direction: f.category_direction || '',
       tier: f.tier || '',
-      platforms: f.platforms || [],
+      platform: f.platform || '',
+      sync_platforms: f.sync_platforms || [],
+      platforms: f.platform ? [f.platform, ...(f.sync_platforms || [])] : [],
       amount: Number(f.amount),
       status: computeStatus(f.schedule_date),
       publish_url: f.publish_url || '',
@@ -1002,7 +1048,8 @@
   window.ScheduleEditor = {
     open, close,
     _save, _deleteThis, _cloneToNew,
-    _pickKol, _pickSampleKol, _createKol, _unlinkKol, _copyHomepage, _togglePlatform,
+    _pickKol, _pickSampleKol, _createKol, _unlinkKol, _copyHomepage,
+    _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _switchTab, _newLinked, _editLinked,
     refreshActiveTab() { if (state.id && state.activeTab !== 'basic') renderAll(); },
     refreshForm() { if (state.open) renderAll(); },
