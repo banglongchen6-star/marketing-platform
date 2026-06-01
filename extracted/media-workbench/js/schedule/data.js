@@ -1216,6 +1216,21 @@
       });
     });
 
+    // 投流数据覆盖：DB.douyin_promo 手动填入的日级数据优先于 publications 聚合值
+    const douyinPromo = DB.douyin_promo || {};
+    if (platforms['抖音']) {
+      allDays.forEach(d => {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${d}`;
+        const manual = douyinPromo[dateStr];
+        if (manual) {
+          platforms['抖音'].promoPerDay[d] = {
+            plays: Number(manual.plays) || 0,
+            cost:  Number(manual.cost)  || 0,
+          };
+        }
+      });
+    }
+
     // 置换成本（按日聚合）
     const replacementsPerDay = {};
     allDays.forEach(d => replacementsPerDay[d] = 0);

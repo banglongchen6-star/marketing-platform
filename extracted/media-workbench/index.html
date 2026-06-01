@@ -1340,7 +1340,8 @@ const DEFAULTS = {
   samples: [],
   materials: [],
   settlements: [],
-  candidates: []
+  candidates: [],
+  douyin_promo: {}
 };
 
 function loadData() {
@@ -2100,12 +2101,20 @@ function renderBrandRoiTable(year, month, bdId) {
       ${isDouyin ? `
         <tr class="roi-promo-row">
           <th class="roi-metric">投流播放</th>
-          ${allDays.map(d => `<td>${fmtCell2(pf.promoPerDay[d].plays)}</td>`).join('')}
+          ${allDays.map(d => {
+            const dateStr = `${year}-${String(month).padStart(2,'0')}-${d}`;
+            const v = pf.promoPerDay[d].plays;
+            return `<td style="cursor:pointer" class="roi-promo-edit" title="点击编辑" onclick="roiEditPromo('${dateStr}','plays',this)">${fmtCell2(v)}</td>`;
+          }).join('')}
           <td class="roi-total">${fmtCell2(sumDays(pf.promoPerDay, 'plays'))}</td>
         </tr>
         <tr class="roi-promo-row">
           <th class="roi-metric">投流费</th>
-          ${allDays.map(d => `<td>${fmtCell2(pf.promoPerDay[d].cost)}</td>`).join('')}
+          ${allDays.map(d => {
+            const dateStr = `${year}-${String(month).padStart(2,'0')}-${d}`;
+            const v = pf.promoPerDay[d].cost;
+            return `<td style="cursor:pointer" class="roi-promo-edit" title="点击编辑" onclick="roiEditPromo('${dateStr}','cost',this)">${fmtCell2(v)}</td>`;
+          }).join('')}
           <td class="roi-total">${fmtCell2(sumDays(pf.promoPerDay, 'cost'))}</td>
         </tr>
       ` : ''}
@@ -2193,6 +2202,11 @@ function renderBrandRoiTable(year, month, bdId) {
     <div class="card" style="margin-bottom:24px">
       <div style="display:none"></div>
       <div style="overflow:auto;max-height:560px">
+        <style>
+          .roi-total { position:sticky; right:0; z-index:2; background:var(--bg-panel); box-shadow:-2px 0 5px rgba(0,0,0,0.08); }
+          thead .roi-total { z-index:3; }
+          .roi-promo-edit:hover { background:rgba(99,102,241,0.08); }
+        </style>
         <table class="roi-matrix">
           <thead>
             <tr>
@@ -2218,6 +2232,33 @@ function renderBrandRoiTable(year, month, bdId) {
 
 function sumDays(perDay, key) {
   return Object.values(perDay).reduce((s, v) => s + (Number(v[key]) || 0), 0);
+}
+
+// 投流数据内联编辑（按日存储在 DB.douyin_promo）
+function roiEditPromo(dateStr, field, td) {
+  if (td.querySelector('input')) return;
+  if (!DB.douyin_promo) DB.douyin_promo = {};
+  const current = Number((DB.douyin_promo[dateStr] || {})[field]) || 0;
+  const inp = document.createElement('input');
+  inp.type = 'number'; inp.min = '0'; inp.step = 'any';
+  inp.value = current || '';
+  inp.style.cssText = 'width:100%;box-sizing:border-box;font-size:.75rem;padding:2px 4px;border:1px solid var(--primary);border-radius:3px;text-align:right;background:#fff';
+  td.innerHTML = '';
+  td.appendChild(inp);
+  inp.focus(); inp.select();
+  function save() {
+    const val = parseFloat(inp.value) || 0;
+    if (!DB.douyin_promo[dateStr]) DB.douyin_promo[dateStr] = {};
+    DB.douyin_promo[dateStr][field] = val;
+    window.DB = DB;
+    saveData();
+    renderDashboard();
+  }
+  inp.addEventListener('blur', save);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') renderDashboard();
+  });
 }
 
 /* 导出当前 ROI 矩阵为 Excel */
@@ -4835,7 +4876,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=70"></script>
+<script src="js/schedule/data.js?v=71"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=61"></script>
 <script src="js/schedule/editor.js?v=78"></script>
