@@ -869,17 +869,26 @@
     return `
       <div class="comm-pub-block" data-idx="${idx}">
         <div class="comm-pub-head">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <span class="sched-card-chip platform">渠道 ${idx + 1}</span>
-            <select class="form-control" style="width:110px;height:30px" data-field="platform" onchange="CommunicationPage._updatePub(${idx},'platform',this.value)">
-              ${platOpts}
-            </select>
-            <input type="date" class="form-control" style="width:140px;height:30px" value="${escapeAttr(p.date)}"
-                   onchange="CommunicationPage._updatePub(${idx},'date',this.value)">
-            <select class="form-control" style="width:150px;height:30px" title="数据采集时点"
-                    onchange="CommunicationPage._updateSnapshot(${idx},this.value)">
-              ${snapOpts.map(o => `<option value="${o.v}" ${p.snapshot_day===o.v?'selected':''}>${o.label}</option>`).join('')}
-            </select>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+            <span class="sched-card-chip platform" style="align-self:center">渠道 ${idx + 1}</span>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">发布平台</label>
+              <select class="form-control" style="width:110px;height:32px" data-field="platform" onchange="CommunicationPage._updatePub(${idx},'platform',this.value)">
+                ${platOpts}
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">发布日期</label>
+              <input type="date" class="form-control" style="width:145px;height:32px" value="${escapeAttr(p.date)}"
+                     onchange="CommunicationPage._updatePub(${idx},'date',this.value)">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">数据采集点</label>
+              <select class="form-control" style="width:150px;height:32px"
+                      onchange="CommunicationPage._updateSnapshot(${idx},this.value)">
+                ${snapOpts.map(o => `<option value="${o.v}" ${p.snapshot_day===o.v?'selected':''}>${o.label}</option>`).join('')}
+              </select>
+            </div>
           </div>
           ${state.editor.form.publications.length > 1
             ? `<button class="btn btn-danger btn-sm" onclick="CommunicationPage._removePub(${idx})">删除</button>` : ''}
