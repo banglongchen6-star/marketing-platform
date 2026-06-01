@@ -517,7 +517,6 @@
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <strong>${escapeHtml(r.talent)}</strong>
           ${bdChip}
-          <span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#e0e7ff;color:#3730a3">待填写</span>
         </div>
       </td>
       <td colspan="${activeCols.length}" style="color:var(--text-muted);font-size:.82rem;text-align:center">
