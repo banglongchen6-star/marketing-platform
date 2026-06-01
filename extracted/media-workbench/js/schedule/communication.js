@@ -509,14 +509,19 @@
     const dateStr = s.schedule_date ? `📅 ${s.schedule_date}` : '日期未定';
     const mp = s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '';
     const platStr = mp || '平台未定';
+    const bdChip = r.bd_color
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px"><span style="width:6px;height:6px;border-radius:50%;background:${r.bd_color};flex-shrink:0"></span><span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></span>`
+      : '';
     return `<tr class="comm-main-row" style="background:#fafbff;opacity:.85">
       <td style="background:#f0f4ff">
-        <strong>${escapeHtml(r.talent)}</strong>
-        ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
-        <div style="margin-top:4px"><span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#e0e7ff;color:#3730a3">待填写</span></div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <strong>${escapeHtml(r.talent)}</strong>
+          ${bdChip}
+          <span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#e0e7ff;color:#3730a3">待填写</span>
+        </div>
       </td>
       <td colspan="${activeCols.length}" style="color:var(--text-muted);font-size:.82rem;text-align:center">
-        ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)} &nbsp;·&nbsp; 排期已建立，尚未录入发布数据
+        ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)}
       </td>
       <td class="comm-actions">
         <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填写发布</button>
