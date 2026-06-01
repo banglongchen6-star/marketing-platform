@@ -3497,6 +3497,9 @@ function _stInit(data) {
   }] : [{ label: '全款', amount: '', plan_date: '', paid_date: '', status: 'pending' }];
   _st = {
     schedule_id:    data ? (data.schedule_id || 'none') : 'none',
+    kol_name:       data?.kol_name       || '',
+    platform:       data?.platform       || '',
+    publish_date:   data?.publish_date   || '',
     contract_amount:data?.contract_amount ?? (data?.amount || ''),
     bonus_enabled:  data ? (data.bonus_enabled ?? null) : null,
     bonus_amount:   data?.bonus_amount   || '',
@@ -3575,6 +3578,32 @@ function _stRender() {
   ];
 
   container.innerHTML = `
+    <!-- 新增时：达人名称 / 平台 / 发布时间 -->
+    ${editingSettlementId === null ? (() => {
+      const pfOpts = (window.ScheduleData?.listPlatforms ? ScheduleData.listPlatforms() : [])
+        .map(p => `<option value="${escapeHtml(p.name)}" ${_st.platform===p.name?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+      return `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">达人名称 <span style="color:red">*</span></label>
+          <input class="form-control" value="${escapeHtml(_st.kol_name)}" placeholder="达人昵称"
+            oninput="_st.kol_name=this.value" />
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">平台</label>
+          <select class="form-control" onchange="_st.platform=this.value">
+            <option value="">— 请选择 —</option>
+            ${pfOpts}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">发布时间</label>
+          <input type="date" class="form-control" value="${escapeHtml(_st.publish_date||'')}"
+            onchange="_st.publish_date=this.value" />
+        </div>
+      </div>`;
+    })() : ''}
+
     <!-- 关联排期：编辑时显示下拉，新增时固定不关联 -->
     ${editingSettlementId !== null ? `
     <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:12px">
@@ -4347,8 +4376,12 @@ function saveSettlement() {
   if (_st.payments.some(p => !p.paid_date)) { toast('请填写所有付款记录的申请付款时间', 'error'); _stRender(); return; }
   const base  = parseFloat(_st.contract_amount) || 0;
   const bonus = _st.bonus_enabled ? (parseFloat(_st.bonus_amount) || 0) : 0;
+  if (editingSettlementId === null && !_st.kol_name.trim()) { toast('请填写达人名称', 'error'); return; }
   const data = {
     schedule_id:     _st.schedule_id === 'none' ? null : _st.schedule_id,
+    kol_name:        _st.kol_name    || '',
+    platform:        _st.platform    || '',
+    publish_date:    _st.publish_date|| '',
     contract_amount: base,
     bonus_enabled:   _st.bonus_enabled,
     bonus_amount:    bonus,
