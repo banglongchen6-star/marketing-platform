@@ -514,8 +514,8 @@
       : '';
     const phHasSt = (window.DB?.settlements || []).some(st => st.schedule_id === s.id);
     const phStBtn = phHasSt
-      ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._schedToSettlement('${s.id}')">✓ 已转结算</button>`
-      : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._schedToSettlement('${s.id}')">转结算</button>`;
+      ? `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600">✓ 已转结算</span>`
+      : `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">待结算</span>`;
     return `<tr class="comm-main-row" style="background:#fafbff;opacity:.85">
       <td style="background:#f0f4ff">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -547,8 +547,8 @@
       ? (window.DB?.settlements || []).some(s => s.schedule_id === content.schedule_id)
       : (window.DB?.settlements || []).some(s => s.content_id === content.id);
     const stBtn = _hasSt
-      ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._toSettlement('${content.id}')">✓ 已转结算</button>`
-      : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>`;
+      ? `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600">✓ 已转结算</span>`
+      : `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">待结算</span>`;
     const actionCell = readOnly ? '' : frozen
       ? `<td rowspan="${total}" colspan="3" class="comm-actions" style="vertical-align:middle">
           <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
@@ -715,8 +715,8 @@
           ? (window.DB?.settlements || []).some(s => s.schedule_id === c.schedule_id)
           : (window.DB?.settlements || []).some(s => s.content_id === c.id);
         const cStBtn = _cHasSt
-          ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._toSettlement('${c.id}')">✓ 已转结算</button>`
-          : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>`;
+          ? `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600">✓ 已转结算</span>`
+          : `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">待结算</span>`;
         const opCell = i === 0
           ? allFrozen
             ? `<td rowspan="${total}" colspan="3" class="comm-actions" style="vertical-align:middle">
