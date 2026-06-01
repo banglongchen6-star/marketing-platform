@@ -731,11 +731,15 @@
   }
 
   /* 软删除：仅打 deleted_at 标记。7 天后由 cleanupExpiredRecycleBin 真正清除。
-     同时联动删除关联的内容发布记录。*/
+     同时联动删除关联的内容发布记录（有填写数据时禁止删除）。*/
   function deleteSchedule(id) {
     const s = DB.schedules.find(x => x.id === id);
     if (!s) throw new Error('排期不存在');
     if (s.deleted_at) return { ok: true, alreadyDeleted: true };
+    // 有填写数据（链接 / 播放量等）时拒绝删除
+    const hasData = (DB.contents || []).filter(c => c.schedule_id === id)
+      .some(c => (c.publications || []).some(p => p.link || parseFloat(p.views) > 0 || parseFloat(p.completion) > 0));
+    if (hasData) throw new Error('内容发布中已有填写数据，无法删除该排期');
     const ts = nowISO();
     s.deleted_at = ts;
     s.updated_at = ts;

@@ -1121,7 +1121,7 @@
       <div class="modal-title" id="sched-impact-title">确认操作</div>
     </div>
     <div class="modal-body" id="sched-impact-body" style="padding:16px 20px"></div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="sched-impact-footer">
       <button class="btn btn-secondary" onclick="document.getElementById('sched-impact-modal').style.display='none'">取消</button>
       <button class="btn btn-primary" id="sched-impact-ok" onclick="_schedImpactOk()">确认</button>
     </div>
@@ -2577,10 +2577,29 @@ function _schedImpactWarning(scheduleId, action, opts, onConfirm) {
     if (settlements.length)
       impacts.push(`💰 已关联 ${settlements.length} 笔结算记录（不受影响）`);
   } else if (action === 'delete') {
+    if (hasData) {
+      // 有填写数据 → 屏蔽删除，提示只能拖拽
+      const kolName = sched.kol_name || sched.talent || '—';
+      const dateStr = sched.schedule_date || sched.date || '';
+      document.getElementById('sched-impact-title').textContent = '无法删除该排期';
+      document.getElementById('sched-impact-body').innerHTML = `
+        <p style="color:var(--text-secondary);font-size:.86rem;margin:0 0 14px">${escapeHtml(kolName)} · ${escapeHtml(dateStr)}</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="padding:9px 12px;background:rgba(220,38,38,.08);border-radius:6px;color:#b91c1c;font-size:.86rem">
+            🔒 内容发布中已有填写数据（链接 / 播放量等），不允许删除
+          </div>
+          <div style="padding:9px 12px;background:rgba(26,86,219,.06);border-radius:6px;color:var(--primary);font-size:.86rem">
+            💡 如需调整日期，请在日历中将该排期拖拽到其他日期
+          </div>
+        </div>
+      `;
+      document.getElementById('sched-impact-footer').innerHTML =
+        `<button class="btn btn-secondary" onclick="document.getElementById('sched-impact-modal').style.display='none'">我知道了</button>`;
+      document.getElementById('sched-impact-modal').style.display = 'flex';
+      return;
+    }
     if (allContents.length)
       dangers.push(`🗑️ ${allContents.length} 条内容发布记录将同步删除`);
-    if (hasData)
-      dangers.push('⚠️ 内容发布中已有填写数据（链接/播放量等），删除后不可恢复');
     if (settlements.length)
       dangers.push(`⚠️ ${settlements.length} 笔结算记录将失去排期关联`);
   }
@@ -2606,9 +2625,11 @@ function _schedImpactWarning(scheduleId, action, opts, onConfirm) {
     </p>
     <div style="display:flex;flex-direction:column;gap:8px">${rows.join('')}</div>
   `;
-  const btn = document.getElementById('sched-impact-ok');
-  btn.className = `btn ${confirmClass}`;
-  btn.textContent = confirmLabel;
+  // 恢复正常 footer（防止上次被改成"我知道了"状态）
+  document.getElementById('sched-impact-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="document.getElementById('sched-impact-modal').style.display='none'">取消</button>
+    <button class="btn ${confirmClass}" id="sched-impact-ok" onclick="_schedImpactOk()">${confirmLabel}</button>
+  `;
   _impactCb = onConfirm;
   document.getElementById('sched-impact-modal').style.display = 'flex';
 }
