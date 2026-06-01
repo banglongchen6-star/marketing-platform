@@ -165,12 +165,12 @@
   const STATUS_CN_TO_EN = {
     '待策划': 'planned',
     '计划中': 'planned',
-    '已联系': 'contacted',
-    '已确认': 'confirmed',
+    '已联系': 'planned',
+    '已确认': 'planned',
     '已发布': 'published',
     '已取消': 'cancelled',
   };
-  const VALID_STATUS = new Set(['planned','contacted','confirmed','published','cancelled']);
+  const VALID_STATUS = new Set(['planned','published','cancelled']);
 
   function normalizeStatus(s) {
     if (!s) return 'planned';

@@ -322,12 +322,12 @@
     bdList.forEach(b => groups[b.id] = {
       id: b.id, name: b.name, color: b.color,
       total: 0, spent: 0, count: 0,
-      statusCount: { planned:0, contacted:0, confirmed:0, published:0, settled:0, cancelled:0 },
+      statusCount: { planned:0, published:0, cancelled:0 },
       pendingSettleAmt: 0,
     });
     groups['__none__'] = { id: null, name: '(未分配 BD)', color: '#94a3b8',
       total: 0, spent: 0, count: 0,
-      statusCount: { planned:0, contacted:0, confirmed:0, published:0, settled:0, cancelled:0 },
+      statusCount: { planned:0, published:0, cancelled:0 },
       pendingSettleAmt: 0,
     };
     schedules.forEach(s => {
@@ -372,8 +372,6 @@
             <th>排期数</th>
             <th>实际花费（万）</th>
             <th>占比</th>
-            <th>已联系</th>
-            <th>已确认</th>
             <th>已发布</th>
             <th>已结算</th>
             <th>已取消</th>
@@ -401,8 +399,6 @@
                     <span style="font-size:.78rem;color:var(--text-secondary);min-width:42px;text-align:right">${pct}%</span>
                   </div>
                 </td>
-                <td>${g.statusCount.contacted || '—'}</td>
-                <td>${g.statusCount.confirmed || '—'}</td>
                 <td><b style="color:var(--purple)">${g.statusCount.published || '—'}</b></td>
                 <td><b style="color:var(--success)">${g.statusCount.settled || '—'}</b></td>
                 <td><span style="color:var(--text-muted)">${g.statusCount.cancelled || '—'}</span></td>

@@ -119,7 +119,7 @@
   }
 
   /** P1a：自动推进状态。如果当前状态"在"或"超过"目标状态，则不再回退。 */
-  const STATUS_ORDER = ['planned','contacted','confirmed','published'];
+  const STATUS_ORDER = ['planned','published'];
   function advanceStatus(scheduleId, to, reason) {
     if (!scheduleId || !to) return;
     const s = (window.DB.schedules || []).find(x => x.id === scheduleId);

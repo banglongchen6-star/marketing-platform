@@ -1946,7 +1946,7 @@ function renderDashboard_LEGACY_DISABLED() {
     .filter(s => s.status !== 'cancelled')
     .reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
   // 状态分布
-  const statusCount = { planned: 0, contacted: 0, confirmed: 0, published: 0 };
+  const statusCount = { planned: 0, published: 0, cancelled: 0 };
   monthSchedules.forEach(s => { statusCount[s.status] = (statusCount[s.status] || 0) + 1; });
   // 待结算：status='published' 但未关联 settlement
   const pendingSettlement = monthSchedules.filter(s => {

@@ -12,8 +12,7 @@
 
   const state = { open: false };
   const STATUS_LABEL = {
-    planned: '计划中', contacted: '已联系', confirmed: '已确认',
-    published: '已发布', settled: '已结算', cancelled: '已取消',
+    planned: '计划中', published: '已发布', cancelled: '已取消',
   };
 
   function ensureNode() {
