@@ -63,18 +63,19 @@
           <button class="sched-month-btn" onclick="MonthlyPlanPage.nextMonth()" title="下月">›</button>
           <button class="sched-month-today" onclick="MonthlyPlanPage.goToday()">本月</button>
         </div>
-        <div style="display:flex;align-items:center;gap:16px;padding:0 4px;flex:1">
-          <span style="color:var(--text-secondary);font-size:.85rem;white-space:nowrap">
-            总预算 <strong style="color:var(--text-primary)">${fmt(total.budget)}万</strong>
-          </span>
-          <span style="color:var(--border)">|</span>
-          <span style="color:var(--text-secondary);font-size:.85rem;white-space:nowrap">
-            已排期 <strong style="color:#2563eb">${fmt(total.spent)}万</strong>
-          </span>
-          <span style="color:var(--border)">|</span>
-          <span style="color:var(--text-secondary);font-size:.85rem;white-space:nowrap">
-            剩余预算 <strong style="color:${remainColor}">${fmt(remaining)}万</strong>
-          </span>
+        <div style="display:flex;align-items:center;gap:8px;flex:1">
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 14px;background:#eff6ff;border-radius:20px;white-space:nowrap">
+            <span style="font-size:.75rem;color:#3b82f6;font-weight:500">总预算</span>
+            <span style="font-size:.95rem;font-weight:700;color:#1d4ed8">${fmt(total.budget)}万</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 14px;background:#f0f9ff;border-radius:20px;white-space:nowrap">
+            <span style="font-size:.75rem;color:#0284c7;font-weight:500">已排期</span>
+            <span style="font-size:.95rem;font-weight:700;color:#0369a1">${fmt(total.spent)}万</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 14px;background:${remaining < 0 ? '#fef2f2' : '#f0fdf4'};border-radius:20px;white-space:nowrap">
+            <span style="font-size:.75rem;color:${remaining < 0 ? '#ef4444' : '#16a34a'};font-weight:500">剩余预算</span>
+            <span style="font-size:.95rem;font-weight:700;color:${remaining < 0 ? '#dc2626' : '#15803d'}">${fmt(remaining)}万</span>
+          </div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="SchedulePage && SchedulePage.setMonth(${state.year}, ${state.month}); navigate('schedule')" title="切到内容排期查看具体排期">
           📅 查看排期
