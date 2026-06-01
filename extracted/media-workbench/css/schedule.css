@@ -716,7 +716,7 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   border-collapse: separate;
   border-spacing: 0;
   font-size: .82rem;
-  table-layout: fixed;
+  width: max-content;
   min-width: 100%;
   background: var(--bg-panel);
 }
@@ -765,10 +765,17 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   background: var(--bg-panel);
   font-weight: 500;
   color: var(--text-primary);
+  width: 80px;
+  min-width: 80px;
   position: sticky;
   right: 0;
-  z-index: 2;
+  z-index: 3;
   box-shadow: -3px 0 6px rgba(0,0,0,0.08);
+}
+.roi-matrix thead th.roi-total {
+  z-index: 5;
+  top: 0;
+  right: 0;
 }
 .roi-matrix .roi-promo-edit:hover { background: rgba(99,102,241,0.08); cursor: pointer; }
 .roi-matrix tbody tr:hover td:not(.roi-platform-name):not(.roi-metric):not(.roi-total) { background: var(--bg-hover); }
