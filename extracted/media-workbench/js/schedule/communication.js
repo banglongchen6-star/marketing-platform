@@ -445,10 +445,13 @@
                   : g + '数据';
                 return `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${gLabel}</th>`;
               }).join('')}
-              <th rowspan="2">操作</th>
+              <th colspan="3" style="text-align:center">操作</th>
             </tr>
             <tr>
               ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
+              <th style="min-width:48px">编辑</th>
+              <th style="min-width:80px">转结算</th>
+              <th style="min-width:48px">删除</th>
             </tr>
           </thead>
           <tbody>
@@ -522,9 +525,11 @@
       <td colspan="${activeCols.length}" style="color:var(--text-muted);font-size:.82rem;text-align:center">
         ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)}
       </td>
+      <td class="comm-actions"></td>
       <td class="comm-actions">
         <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填待发布</button>
       </td>
+      <td class="comm-actions"></td>
     </tr>`;
   }
 
@@ -544,15 +549,17 @@
       ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._toSettlement('${content.id}')">✓ 已转结算</button>`
       : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>`;
     const actionCell = readOnly ? '' : frozen
-      ? `<td rowspan="${total}" class="comm-actions">
+      ? `<td rowspan="${total}" colspan="3" class="comm-actions" style="vertical-align:middle">
           <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
         </td>`
-      : `<td rowspan="${total}" class="comm-actions">
-          <div style="display:flex;align-items:center;justify-content:center;gap:24px;white-space:nowrap">
-            <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
-            ${stBtn}
-            <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${content.id}')">删除</button>
-          </div>
+      : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
+        </td>
+        <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+          ${stBtn}
+        </td>
+        <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+          <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${content.id}')">删除</button>
         </td>`;
     // 主行
     let html = `
@@ -591,12 +598,11 @@
     });
     return `
       <tr class="comm-footer-row">
-        <td colspan="${colCount + 1}">
+        <td colspan="${colCount + (readOnly ? 1 : 4)}">
           <span style="color:var(--text-secondary)">合计 ${uniqueKols.size} 位达人 ·
           价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
           播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
         </td>
-        ${readOnly ? '' : '<td></td>'}
       </tr>
     `;
   }
@@ -712,15 +718,17 @@
           : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>`;
         const opCell = i === 0
           ? allFrozen
-            ? `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+            ? `<td rowspan="${total}" colspan="3" class="comm-actions" style="vertical-align:middle">
                  <span style="font-size:.72rem;color:#92400e">🔒</span>
                </td>`
             : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
-                 <div style="display:flex;align-items:center;justify-content:center;gap:24px;white-space:nowrap">
-                   <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
-                   ${cStBtn}
-                   <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
-                 </div>
+                 <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
+               </td>
+               <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+                 ${cStBtn}
+               </td>
+               <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
+                 <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
                </td>`
           : '';
         if (i === 0) {
@@ -743,10 +751,13 @@
             <tr class="comm-group-header">
               <th rowspan="2" style="background:#fafbfd;min-width:130px">达人昵称</th>
               ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
-              <th rowspan="2" class="comm-actions">操作</th>
+              <th colspan="3" style="text-align:center">操作</th>
             </tr>
             <tr>
               ${activeCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}
+              <th style="min-width:48px">编辑</th>
+              <th style="min-width:80px">转结算</th>
+              <th style="min-width:48px">删除</th>
             </tr>
           </thead>
           <tbody>
@@ -755,7 +766,7 @@
           </tbody>
           <tfoot>
             <tr class="comm-footer-row">
-              <td colspan="${activeCols.length + 2}">
+              <td colspan="${activeCols.length + 4}">
                 <span style="color:var(--text-secondary)">合计 ${pricedKols.size} 位达人 · ${totalPubs} 条发布 ·
                 价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
                 播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
