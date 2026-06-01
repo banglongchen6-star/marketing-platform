@@ -1074,11 +1074,15 @@
   function listContents({ year, month, mainPlatform, bd_id, q } = {}) {
     let rows = DB.contents.slice();
     if (year && month) {
-      // 按"主平台首条 publication 的发布日期"在该月内
+      // 按"主平台首条 publication 的发布日期"在该月内；
+      // 不关联排期且未填发布日期时，回落到 created_at 所在月
       const monthStr = `${year}-${pad2(month)}`;
       rows = rows.filter(c => {
         const p = (c.publications || [])[0];
-        return p && p.date && p.date.startsWith(monthStr);
+        if (p && p.date && p.date.startsWith(monthStr)) return true;
+        // 无发布日期：用 created_at 判断
+        if (!p || !p.date) return (c.created_at || '').startsWith(monthStr);
+        return false;
       });
     }
     if (mainPlatform && mainPlatform !== '全部') {
@@ -1086,6 +1090,7 @@
     }
     if (bd_id) {
       rows = rows.filter(c => {
+        if (!c.schedule_id) return false; // 不关联排期的记录不归属 BD，显示在全部
         const s = DB.schedules.find(x => x.id === c.schedule_id);
         return s && s.bd_id === bd_id;
       });
@@ -1093,6 +1098,8 @@
     if (q) {
       const lo = String(q).toLowerCase().trim();
       rows = rows.filter(c => {
+        // 不关联排期：搜 kol_name
+        if (!c.schedule_id) return (c.kol_name || '').toLowerCase().includes(lo);
         const s = DB.schedules.find(x => x.id === c.schedule_id);
         return s && (s.kol_name || '').toLowerCase().includes(lo);
       });
@@ -1109,11 +1116,12 @@
   /** 给一条内容生成"主信息合并视图"：从 schedule 反查 talent/price/category/bd */
   function resolveContent(c) {
     if (!c) return null;
-    const s = DB.schedules.find(x => x.id === c.schedule_id);
+    const s = c.schedule_id ? DB.schedules.find(x => x.id === c.schedule_id) : null;
     const bd = s && s.bd_id ? DB.bds.find(b => b.id === s.bd_id) : null;
     return {
       ...c,
-      talent: s ? s.kol_name : '(排期已删)',
+      // 不关联排期时直接用内容记录上的 kol_name
+      talent: s ? s.kol_name : (c.kol_name || '—'),
       price: s ? s.amount : 0,
       category: s ? s.category_direction : '',
       tier: s ? s.tier : '',
