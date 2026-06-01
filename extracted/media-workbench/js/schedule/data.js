@@ -730,15 +730,20 @@
     return DB.schedules[idx];
   }
 
-  /* 软删除：仅打 deleted_at 标记。7 天后由 cleanupExpiredRecycleBin 真正清除。*/
+  /* 软删除：仅打 deleted_at 标记。7 天后由 cleanupExpiredRecycleBin 真正清除。
+     同时联动删除关联的内容发布记录。*/
   function deleteSchedule(id) {
     const s = DB.schedules.find(x => x.id === id);
     if (!s) throw new Error('排期不存在');
     if (s.deleted_at) return { ok: true, alreadyDeleted: true };
-    s.deleted_at = nowISO();
-    s.updated_at = s.deleted_at;
+    const ts = nowISO();
+    s.deleted_at = ts;
+    s.updated_at = ts;
+    // 联动删除关联内容发布记录
+    const linkedCount = (DB.contents || []).filter(c => c.schedule_id === id).length;
+    DB.contents = (DB.contents || []).filter(c => c.schedule_id !== id);
     saveData();
-    return { ok: true };
+    return { ok: true, deletedContents: linkedCount };
   }
 
   /* 回收站操作 */
