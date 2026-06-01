@@ -768,7 +768,9 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   position: sticky;
   right: 0;
   z-index: 2;
+  box-shadow: -3px 0 6px rgba(0,0,0,0.08);
 }
+.roi-matrix .roi-promo-edit:hover { background: rgba(99,102,241,0.08); cursor: pointer; }
 .roi-matrix tbody tr:hover td:not(.roi-platform-name):not(.roi-metric):not(.roi-total) { background: var(--bg-hover); }
 
 /* 投流行：蓝色字体（仿原表） */
