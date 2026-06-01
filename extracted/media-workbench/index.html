@@ -3522,6 +3522,14 @@ function _stDefaultPayments(type) {
 
 function _stRefreshTotal() {
   _stSyncFullAmount();
+  // 全款金额显示同步（无论是否已选奖金）
+  if (_st.payment_type === 'full') {
+    const fullAmtEl = document.getElementById('st-full-amount-display');
+    if (fullAmtEl) {
+      const t = (parseFloat(_st.contract_amount) || 0) + (_st.bonus_enabled ? (parseFloat(_st.bonus_amount) || 0) : 0);
+      fullAmtEl.innerHTML = `¥${fmtNum(t)}<span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:6px">自动同步</span>`;
+    }
+  }
   const bar = document.getElementById('st-total-bar');
   if (!bar) return;
   const base  = parseFloat(_st.contract_amount) || 0;
@@ -3539,13 +3547,6 @@ function _stRefreshTotal() {
     <div style="font-size:.82rem;color:var(--text-muted)">总结算金额</div>
     <div style="font-size:1.1rem;font-weight:700;color:var(--primary)">¥${fmtNum(total)}</div>
   `;
-  // 同步全款付清金额显示
-  if (_st.payment_type === 'full') {
-    const fullAmtEl = document.getElementById('st-full-amount-display');
-    if (fullAmtEl) {
-      fullAmtEl.innerHTML = `¥${fmtNum(total)}<span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:6px">自动同步</span>`;
-    }
-  }
 }
 
 function _stSyncFullAmount() {
