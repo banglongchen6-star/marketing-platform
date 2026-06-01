@@ -2068,6 +2068,7 @@ function renderDashboard_LEGACY_DISABLED() {
 function renderDashboard() {
   initDashboardMonth();
   renderBrandRoiTable(dashboardYear, dashboardMonth, dashboardBdId);
+  requestAnimationFrame(fitRoiCardHeight);
 }
 
 /* ========== 品宣 ROI · 平台 × 日期 主表 ========== */
@@ -2199,9 +2200,9 @@ function renderBrandRoiTable(year, month, bdId) {
         </div>
       </div>
     </div>
-    <div class="card" style="margin-bottom:24px">
+    <div class="card" id="roi-card" style="margin-bottom:0;display:flex;flex-direction:column;overflow:hidden">
       <div style="display:none"></div>
-      <div style="overflow:auto;max-height:560px">
+      <div id="roi-scroll" style="overflow:auto;flex:1;min-height:0">
         <table class="roi-matrix">
           <thead>
             <tr>
@@ -2223,6 +2224,14 @@ function renderBrandRoiTable(year, month, bdId) {
       </div>
     </div>
   `;
+}
+
+function fitRoiCardHeight() {
+  const card = document.getElementById('roi-card');
+  if (!card) return;
+  const top = card.getBoundingClientRect().top;
+  const available = window.innerHeight - top - 24; // 24px 底部留白
+  card.style.height = Math.max(200, available) + 'px';
 }
 
 function sumDays(perDay, key) {
@@ -4929,6 +4938,8 @@ function initApp() {
       console.warn('[AutoPublish] 扫描异常', e);
     }
   })();
+
+  window.addEventListener('resize', fitRoiCardHeight);
 </script>
 </body>
 </html>
