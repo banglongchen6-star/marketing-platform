@@ -1140,6 +1140,17 @@
         fans,
         publications: f.publications,
       };
+      // 不关联排期时，自动将达人写入达人库（upsert：同名已存在则跳过）
+      if (f.schedule_id === 'none' && f.kol_name.trim()) {
+        try {
+          SD.quickCreateKol({
+            name: f.kol_name.trim(),
+            platform: f.main_platform || '',
+          });
+        } catch (e) {
+          console.warn('[CommunicationPage] quickCreateKol failed', e);
+        }
+      }
       if (state.editor.mode === 'edit') {
         SD.updateContent(state.editor.id, data);
         window.toast && window.toast('已更新', 'success');
