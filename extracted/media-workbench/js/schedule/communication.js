@@ -804,6 +804,7 @@
     }
     ensureEditorNode();
     state.editor.errors = {};
+    state.editor.fromPlaceholder = false;
     if (id) {
       const c = window.DB.contents.find(x => x.id === id);
       if (!c) return;
@@ -835,6 +836,7 @@
           state.editor.form.sync_platforms = sp;
           state.editor.form.publications  = [mp, ...sp].filter(Boolean)
             .map(p => ({ platform: p, date: '', link: '', views: '', likes: '', comments: '' }));
+          state.editor.fromPlaceholder = true;
         }
       }
     }
@@ -937,14 +939,16 @@
                value="${escapeAttr(f.kol_name)}">
       </div>
     ` : '';
-    return `
+    const schedBlock = state.editor.fromPlaceholder ? '' : `
       <div class="sched-form-group">
         <label class="sched-form-label">关联排期<span class="req">*</span></label>
         <select id="cf-schedule" class="sched-form-control ${err.schedule_id?'error':''}">${schedOptions}</select>
         <div class="sched-form-hint">选「不关联排期」需填写达人昵称；或关联一条已发布排期</div>
         ${autoCreatedWarning}
       </div>
-      ${kolNameBlock}
+      ${kolNameBlock}`;
+    return `
+      ${schedBlock}
       ${mainInfo}
       <div class="sched-form-group">
         <label class="sched-form-label">粉丝量（发布时快照，单位：人）</label>
