@@ -542,7 +542,7 @@
   function renderKolItems() {
     const f = state.form;
     const q = f.kol_name.trim();
-    if (!q) return '<div class="kol-selector-empty">键入达人名称开始搜索</div>';
+    if (!q) return '';
     const items = state.kolItems;
     let html = items.map(it => `
       <div class="kol-selector-item" onclick="ScheduleEditor._pickKol('${it.id}')">
