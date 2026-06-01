@@ -1098,18 +1098,20 @@
     `;
   }
 
-  /* 转结算 */
+  /* 转结算 —— 跳转到达人结算·待结算 tab */
   function _schedToSettlement(schedId) {
-    if (typeof window.openSettlementForSchedule === 'function') {
-      window.openSettlementForSchedule(schedId);
+    if (typeof window.navigate === 'function') {
+      window.navigate('settlement');
+      if (typeof window.setStTab === 'function') window.setStTab('pending');
     } else {
       window.toast && window.toast('结算模块未就绪', 'error');
     }
   }
 
   function _toSettlement(contentId) {
-    if (typeof window.openSettlementForContent === 'function') {
-      window.openSettlementForContent(contentId);
+    if (typeof window.navigate === 'function') {
+      window.navigate('settlement');
+      if (typeof window.setStTab === 'function') window.setStTab('pending');
     } else {
       window.toast && window.toast('结算模块未就绪', 'error');
     }
