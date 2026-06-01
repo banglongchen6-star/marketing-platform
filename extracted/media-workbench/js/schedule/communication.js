@@ -537,6 +537,12 @@
     const main = pubs[0];
     const sub = pubs.slice(1);
     const rowStyle = frozen ? 'opacity:.6;' : '';
+    const _hasSt = content.schedule_id
+      ? (window.DB?.settlements || []).some(s => s.schedule_id === content.schedule_id)
+      : (window.DB?.settlements || []).some(s => s.content_id === content.id);
+    const stBtn = _hasSt
+      ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._toSettlement('${content.id}')">✓ 已转结算</button>`
+      : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>`;
     const actionCell = readOnly ? '' : frozen
       ? `<td rowspan="${total}" class="comm-actions">
           <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
@@ -544,7 +550,7 @@
       : `<td rowspan="${total}" class="comm-actions">
           <div style="display:flex;align-items:center;justify-content:center;gap:24px;white-space:nowrap">
             <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
-            <button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>
+            ${stBtn}
             <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${content.id}')">删除</button>
           </div>
         </td>`;
@@ -698,6 +704,12 @@
 
       return bl.items.map(({ p, c }, i) => {
         const cells = activeCols.map(col => renderCell(col, p, c, r, i, total, sameCategory)).join('');
+        const _cHasSt = c.schedule_id
+          ? (window.DB?.settlements || []).some(s => s.schedule_id === c.schedule_id)
+          : (window.DB?.settlements || []).some(s => s.content_id === c.id);
+        const cStBtn = _cHasSt
+          ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._toSettlement('${c.id}')">✓ 已转结算</button>`
+          : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>`;
         const opCell = i === 0
           ? allFrozen
             ? `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
@@ -706,7 +718,7 @@
             : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
                  <div style="display:flex;align-items:center;justify-content:center;gap:24px;white-space:nowrap">
                    <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
-                   <button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>
+                   ${cStBtn}
                    <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
                  </div>
                </td>`

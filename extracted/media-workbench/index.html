@@ -3540,6 +3540,7 @@ function _stInit(data) {
     invoice:        data?.invoice        || '',
     account:        data?.account        || '',
     note:           data?.note           || '',
+    content_id:     data?.content_id     || null,
   };
 }
 
@@ -4509,6 +4510,7 @@ function openSettlementForContent(contentId) {
       _st.kol_name     = c.kol_name || '';
       _st.platform     = (c.publications && c.publications[0]?.platform) || '';
       _st.publish_date = (c.publications && c.publications[0]?.date)     || '';
+      _st.content_id   = contentId;
       _stRender();
       openModal('settlement-modal');
     }
@@ -4551,6 +4553,7 @@ function saveSettlement() {
     invoice:         _st.invoice,
     account:         _st.account,
     note:            _st.note,
+    content_id:      _st.content_id || null,
     amount:          base + bonus,
     status: _st.payments.every(p => !!p.paid_date) ? '已付款'
           : _st.payments.some(p => !!p.paid_date)  ? '部分已付' : '待结算',
