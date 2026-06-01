@@ -859,13 +859,6 @@
     const platforms = SD.listPlatforms();
     const platOpts = platforms.map(pp => `<option value="${escapeAttr(pp.name)}" ${p.platform===pp.name?'selected':''}>${escapeHtml(pp.name)}</option>`).join('');
     const isDouyin = p.platform === '抖音';
-    const snapOpts = [
-      { v: '',    label: '— 未标记 —' },
-      { v: 'd0',  label: '📅 发布当天' },
-      { v: 'd3',  label: '📊 第 3 天' },
-      { v: 'd7',  label: '✅ 第 7 天（推荐）' },
-      { v: 'd30', label: '📈 第 30 天' },
-    ];
     return `
       <div class="comm-pub-block" data-idx="${idx}">
         <div class="comm-pub-head">
@@ -881,13 +874,6 @@
               <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">发布日期</label>
               <input type="date" class="form-control" style="width:145px;height:32px" value="${escapeAttr(p.date)}"
                      onchange="CommunicationPage._updatePub(${idx},'date',this.value)">
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px">
-              <label style="font-size:.7rem;color:var(--text-muted);font-weight:500">数据采集点</label>
-              <select class="form-control" style="width:150px;height:32px"
-                      onchange="CommunicationPage._updateSnapshot(${idx},this.value)">
-                ${snapOpts.map(o => `<option value="${o.v}" ${p.snapshot_day===o.v?'selected':''}>${o.label}</option>`).join('')}
-              </select>
             </div>
           </div>
           ${state.editor.form.publications.length > 1
