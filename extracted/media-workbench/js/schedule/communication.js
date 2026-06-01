@@ -981,7 +981,7 @@
           </div>
         </div>
         <div class="sched-form-group" style="margin-top:8px">
-          <input class="sched-form-control" placeholder="发布链接 https://..." value="${escapeAttr(p.link)}"
+          <input class="sched-form-control${err[`pub_link_${idx}`] ? ' error' : ''}" placeholder="发布链接 https://...（必填）" value="${escapeAttr(p.link)}"
                  onchange="CommunicationPage._updatePub(${idx},'link',this.value)">
           ${(function() {
             if (!p.link || !p.date) return '';
@@ -1179,6 +1179,9 @@
     const errs = {};
     if (!f.schedule_id) errs.schedule_id = '请选择关联排期，或选择「不关联排期」';
     if (f.schedule_id === 'none' && !f.kol_name.trim()) errs.kol_name = '选择不关联排期时，达人昵称为必填';
+    f.publications.forEach((p, idx) => {
+      if (!p.link || !String(p.link).trim()) errs[`pub_link_${idx}`] = `${p.platform || '平台'} 的发布链接为必填`;
+    });
     state.editor.errors = errs;
     if (Object.keys(errs).length) {
       paintEditor();
