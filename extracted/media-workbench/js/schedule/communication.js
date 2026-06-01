@@ -963,6 +963,7 @@
   }
 
   function renderPubBlock(p, idx) {
+    const err = state.editor.errors;
     const isMain = idx === 0;
     const isDouyin = p.platform === '抖音';
     const blockLabel = isMain
