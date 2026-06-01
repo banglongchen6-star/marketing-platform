@@ -3496,7 +3496,7 @@ function _stInit(data) {
     status: data.status === '已付款' ? 'paid' : 'pending',
   }] : [{ label: '全款', amount: '', plan_date: '', paid_date: '', status: 'pending' }];
   _st = {
-    schedule_id:    data ? (data.schedule_id || 'none') : '',
+    schedule_id:    data ? (data.schedule_id || 'none') : 'none',
     contract_amount:data?.contract_amount ?? (data?.amount || ''),
     bonus_enabled:  data ? (data.bonus_enabled ?? null) : null,
     bonus_amount:   data?.bonus_amount   || '',
@@ -3575,12 +3575,13 @@ function _stRender() {
   ];
 
   container.innerHTML = `
-    <!-- 关联排期 -->
+    <!-- 关联排期：编辑时显示下拉，新增时固定不关联 -->
+    ${editingSettlementId !== null ? `
     <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:12px">
       <label class="form-label">🔗 关联排期 <span style="color:red">*</span></label>
       <select class="form-control" onchange="stOnScheduleChange(this.value)">${schedOpts}</select>
       <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">选「不关联」可手动填写合同金额</div>
-    </div>
+    </div>` : ''}
     ${sched ? _stSchedInfo(sched) : ''}
     ${sched ? _stContentInfo(sched.id) : ''}
 
