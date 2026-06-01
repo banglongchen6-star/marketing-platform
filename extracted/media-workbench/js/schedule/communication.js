@@ -542,12 +542,10 @@
           <span style="font-size:.72rem;color:#92400e">🔒 已冻结</span>
         </td>`
       : `<td rowspan="${total}" class="comm-actions">
-          <div style="display:flex;align-items:center;gap:0;white-space:nowrap">
-            <button class="btn btn-secondary btn-sm" style="border-radius:6px 0 0 6px;border-right:none" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
-            <span style="width:1px;height:24px;background:#d1d5db;flex-shrink:0"></span>
-            <button class="btn btn-sm" style="border-radius:0;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-left:none;border-right:none" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>
-            <span style="width:1px;height:24px;background:#d1d5db;flex-shrink:0"></span>
-            <button class="btn btn-danger btn-sm" style="border-radius:0 6px 6px 0;border-left:none" onclick="CommunicationPage._delete('${content.id}')">删除</button>
+          <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+            <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
+            <button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>
+            <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${content.id}')">删除</button>
           </div>
         </td>`;
     // 主行
@@ -706,12 +704,10 @@
                  <span style="font-size:.72rem;color:#92400e">🔒</span>
                </td>`
             : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
-                 <div style="display:flex;align-items:center;gap:0;white-space:nowrap">
-                   <button class="btn btn-secondary btn-sm" style="border-radius:6px 0 0 6px;border-right:none" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
-                   <span style="width:1px;height:24px;background:#d1d5db;flex-shrink:0"></span>
-                   <button class="btn btn-sm" style="border-radius:0;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-left:none;border-right:none" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>
-                   <span style="width:1px;height:24px;background:#d1d5db;flex-shrink:0"></span>
-                   <button class="btn btn-danger btn-sm" style="border-radius:0 6px 6px 0;border-left:none" onclick="CommunicationPage._delete('${c.id}')">删除</button>
+                 <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+                   <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
+                   <button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>
+                   <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
                  </div>
                </td>`
           : '';
