@@ -668,7 +668,8 @@
                  <span style="font-size:.72rem;color:#92400e">🔒</span>
                </td>`
             : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
-                 <button class="btn btn-danger btn-sm" onclick="CommunicationPage._delete('${c.id}')">删除</button>
+                 <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
+                 <button class="btn btn-danger btn-sm" style="margin-top:4px" onclick="CommunicationPage._delete('${c.id}')">删除</button>
                </td>`
           : '';
         if (i === 0) {
