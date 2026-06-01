@@ -1272,10 +1272,11 @@
       window.toast && window.toast('该月已冻结，请先解冻再删除', 'error');
       return;
     }
-    if (!confirm('删除这条内容？所有发布渠道一起删除，不可恢复。')) return;
+    if (!confirm('删除这条内容？关联的达人结算记录也会一并删除，不可恢复。')) return;
     try {
-      SD.deleteContent(id);
-      window.toast && window.toast('已删除', 'info');
+      const res = SD.deleteContent(id);
+      const msg = res.deletedSettlements > 0 ? `已删除（含 ${res.deletedSettlements} 条结算记录）` : '已删除';
+      window.toast && window.toast(msg, 'info');
       closeEditor();
       render();
     } catch (e) {

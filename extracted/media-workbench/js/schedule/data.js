@@ -893,10 +893,14 @@
 
   function deleteContent(id) {
     const before = DB.contents.length;
+    if (!DB.contents.find(x => x.id === id)) throw new Error('内容记录不存在');
+    const linked = (DB.settlements || []).filter(s => s.content_id === id || (s.schedule_id && DB.contents.find(c => c.id === id)?.schedule_id === s.schedule_id));
+    const hasPaid = linked.some(s => (s.payments || []).some(p => !!p.paid_date));
+    if (hasPaid) throw new Error('达人结算中已有付款记录，无法删除该内容');
+    DB.settlements = (DB.settlements || []).filter(s => !linked.find(l => l.id === s.id));
     DB.contents = DB.contents.filter(x => x.id !== id);
-    if (DB.contents.length === before) throw new Error('内容记录不存在');
     saveData();
-    return { ok: true };
+    return { ok: true, deletedSettlements: linked.length };
   }
 
   /**
