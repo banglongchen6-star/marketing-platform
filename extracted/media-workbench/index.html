@@ -1362,7 +1362,18 @@ function loadData() {
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
 
-function saveData() { localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'})); }
+function saveData() {
+  localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+  // 同步到服务器（防抖 800ms）
+  clearTimeout(saveData._t);
+  saveData._t = setTimeout(() => {
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({...DB, _version:'v11-0509'})
+    }).catch(() => {/* 离线或本地开发时忽略 */});
+  }, 800);
+}
 
 let DB = loadData();
 // 暴露给外部模块（js/schedule/*.js）。`let` 不会自动挂 window，必须显式赋值
@@ -4843,7 +4854,22 @@ function initApp() {
 <script>
   // 所有外部 schedule script 加载完成后再恢复登录态
   // —— 避免 initApp → renderDashboard 时 ScheduleData 未就绪
-  tryRestoreSession();
+  // 从服务器加载最新数据，保证多端数据同步
+  (async function syncFromServer() {
+    try {
+      const res = await fetch('/api/data');
+      if (!res.ok) throw new Error('no server');
+      const serverData = await res.json();
+      if (serverData && Object.keys(serverData).length > 0) {
+        Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
+        window.DB = DB;
+        localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+      }
+    } catch (e) {
+      // 本地开发或离线时直接用 localStorage
+    }
+    tryRestoreSession();
+  })();
 
   // 自动发布扫描：将过期「计划中」排期升为「已发布」并创建内容发布记录
   (function runAutoPublish() {
