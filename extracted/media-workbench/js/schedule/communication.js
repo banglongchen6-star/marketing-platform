@@ -512,6 +512,10 @@
     const bdChip = r.bd_color
       ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:8px"><span style="width:6px;height:6px;border-radius:50%;background:${r.bd_color};flex-shrink:0"></span><span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></span>`
       : '';
+    const phHasSt = (window.DB?.settlements || []).some(st => st.schedule_id === s.id);
+    const phStBtn = phHasSt
+      ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-weight:600" onclick="CommunicationPage._schedToSettlement('${s.id}')">✓ 已转结算</button>`
+      : `<button class="btn btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._schedToSettlement('${s.id}')">转结算</button>`;
     return `<tr class="comm-main-row" style="background:#fafbff;opacity:.85">
       <td style="background:#f0f4ff">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -522,9 +526,11 @@
       <td colspan="${activeCols.length}" style="color:var(--text-muted);font-size:.82rem;text-align:center">
         ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)}
       </td>
-      <td colspan="3" class="comm-actions">
+      <td class="comm-actions">
         <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填待发布</button>
       </td>
+      <td class="comm-actions">${phStBtn}</td>
+      <td class="comm-actions"></td>
     </tr>`;
   }
 
@@ -1093,6 +1099,14 @@
   }
 
   /* 转结算 */
+  function _schedToSettlement(schedId) {
+    if (typeof window.openSettlementForSchedule === 'function') {
+      window.openSettlementForSchedule(schedId);
+    } else {
+      window.toast && window.toast('结算模块未就绪', 'error');
+    }
+  }
+
   function _toSettlement(contentId) {
     if (typeof window.openSettlementForContent === 'function') {
       window.openSettlementForContent(contentId);
@@ -1434,7 +1448,7 @@
   window.CommunicationPage = {
     render, openEditor,
     _setMainPlatform, _prevMonth, _nextMonth,
-    _save, _delete, _closeEditor: closeEditor, _toSettlement,
+    _save, _delete, _closeEditor: closeEditor, _toSettlement, _schedToSettlement,
     _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _addPub, _removePub, _updatePub, _updateSnapshot,
     _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
