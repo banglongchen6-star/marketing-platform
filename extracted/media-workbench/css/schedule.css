@@ -713,7 +713,8 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
 }
 
 .roi-matrix {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: .82rem;
   table-layout: fixed;
   min-width: 100%;
@@ -791,6 +792,11 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   background: #fafbfd;
   font-weight: 600;
 }
+
+/* 投流编辑输入框：隐藏上下箭头 */
+.roi-matrix input[type=number]::-webkit-outer-spin-button,
+.roi-matrix input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.roi-matrix input[type=number] { -moz-appearance: textfield; }
 
 /* ============ KolSelector（达人选择器） ============ */
 .kol-selector { position: relative; z-index: 10; }
