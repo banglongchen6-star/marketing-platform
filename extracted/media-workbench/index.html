@@ -4913,7 +4913,9 @@ function initApp() {
     } catch (e) {
       // 本地开发或离线时直接用 localStorage
     }
-    tryRestoreSession();
+    if (!tryRestoreSession()) {
+      populateLoginIdentities(); // 服务器数据加载后刷新登录下拉
+    }
   })();
 
   // 自动发布扫描：将过期「计划中」排期升为「已发布」并创建内容发布记录
