@@ -683,15 +683,17 @@
     const existing = document.getElementById('kol-dropdown');
     if (existing) existing.remove();
     if (!state.kolOpen) return;
-    const inp = document.getElementById('f-kol-input');
-    if (!inp) return;
-    const rect = inp.getBoundingClientRect();
+    const container = document.getElementById('kol-selector');
+    if (!container) return;
+    const html = renderKolItems();
+    if (!html) return;
     const d = document.createElement('div');
     d.className = 'kol-selector-dropdown';
     d.id = 'kol-dropdown';
-    d.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;width:${rect.width}px;z-index:9999`;
-    d.innerHTML = renderKolItems();
-    document.body.appendChild(d);
+    d.style.cssText = 'position:absolute;top:100%;left:0;width:100%;z-index:9999';
+    d.innerHTML = html;
+    container.style.position = 'relative';
+    container.appendChild(d);
   }
 
   function _pickKol(id) {
