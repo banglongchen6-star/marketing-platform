@@ -4358,6 +4358,35 @@ function openSettlementForSchedule(scheduleId) {
   openModal('settlement-modal');
 }
 
+/** 从内容发布「转结算」入口：支持关联排期 & 不关联排期两种情况 */
+function openSettlementForContent(contentId) {
+  const c = (DB.contents || []).find(x => x.id === contentId);
+  if (!c) { toast('内容记录不存在', 'error'); return; }
+
+  // 先跳转到达人结算页
+  if (typeof navigate === 'function') navigate('settlement');
+
+  setTimeout(() => {
+    if (typeof setStTab === 'function') setStTab('pending');
+
+    if (c.schedule_id) {
+      // 有关联排期：复用现有流程（已有结算单则编辑，否则新建）
+      openSettlementForSchedule(c.schedule_id);
+    } else {
+      // 不关联排期：新建结算单，预填达人信息
+      editingSettlementId = null;
+      document.getElementById('settlement-modal-title').textContent = '填写结算信息';
+      document.getElementById('settlement-del-btn').style.display = 'none';
+      _stInit(null);
+      _st.kol_name     = c.kol_name || '';
+      _st.platform     = (c.publications && c.publications[0]?.platform) || '';
+      _st.publish_date = (c.publications && c.publications[0]?.date)     || '';
+      _stRender();
+      openModal('settlement-modal');
+    }
+  }, 150);
+}
+
 function openSettlementModal(id = null) {
   editingSettlementId = id;
   document.getElementById('settlement-modal-title').textContent = id ? '编辑结算' : '新增结算';

@@ -515,6 +515,7 @@
         </td>`
       : `<td rowspan="${total}" class="comm-actions">
           <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${content.id}')">编辑</button>
+          <button class="btn btn-sm" style="margin-top:4px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${content.id}')">转结算</button>
           <button class="btn btn-danger btn-sm" style="margin-top:4px" onclick="CommunicationPage._delete('${content.id}')">删除</button>
         </td>`;
     // 主行
@@ -669,6 +670,7 @@
                </td>`
             : `<td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
                  <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openEditor('${c.id}')">编辑</button>
+                 <button class="btn btn-sm" style="margin-top:4px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0" onclick="CommunicationPage._toSettlement('${c.id}')">转结算</button>
                  <button class="btn btn-danger btn-sm" style="margin-top:4px" onclick="CommunicationPage._delete('${c.id}')">删除</button>
                </td>`
           : '';
@@ -1018,6 +1020,15 @@
     `;
   }
 
+  /* 转结算 */
+  function _toSettlement(contentId) {
+    if (typeof window.openSettlementForContent === 'function') {
+      window.openSettlementForContent(contentId);
+    } else {
+      window.toast && window.toast('结算模块未就绪', 'error');
+    }
+  }
+
   /* 平台选择器操作 */
   function _setMainPlatform(name) {
     const f = state.editor.form;
@@ -1348,7 +1359,7 @@
   window.CommunicationPage = {
     render, openEditor,
     _setMainPlatform, _prevMonth, _nextMonth,
-    _save, _delete, _closeEditor: closeEditor,
+    _save, _delete, _closeEditor: closeEditor, _toSettlement,
     _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _addPub, _removePub, _updatePub, _updateSnapshot,
     _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
