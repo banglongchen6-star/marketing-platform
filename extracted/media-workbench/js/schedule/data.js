@@ -845,20 +845,28 @@
    *   fans 独立存（发布时粉丝量快照），不和 kol.followers 强绑
    */
   function createContent(data) {
-    if (!data.schedule_id) throw new Error('必须关联一条排期');
-    const s = DB.schedules.find(x => x.id === data.schedule_id && !x.deleted_at);
-    if (!s) throw new Error('关联的排期不存在');
+    // schedule_id 为 null 表示「不关联排期」，此时 kol_name 必填
+    if (data.schedule_id) {
+      const s = DB.schedules.find(x => x.id === data.schedule_id && !x.deleted_at);
+      if (!s) throw new Error('关联的排期不存在');
+    } else if (!data.kol_name || !String(data.kol_name).trim()) {
+      throw new Error('不关联排期时，达人昵称为必填');
+    }
+    const s = data.schedule_id
+      ? DB.schedules.find(x => x.id === data.schedule_id && !x.deleted_at)
+      : null;
     const row = {
       id: uid(),
-      schedule_id: data.schedule_id,
+      schedule_id: data.schedule_id || null,
+      kol_name: data.kol_name ? String(data.kol_name).trim() : null,
       fans: data.fans != null && data.fans !== '' ? Number(data.fans) : null,
       publications: (data.publications || []).map(normalizePublication),
       created_at: nowISO(),
       updated_at: nowISO(),
     };
     DB.contents.push(row);
-    // 自动推进排期状态到 published（如果还没推进过）
-    if (window.SchedulePicker) window.SchedulePicker.advanceStatus(s.id, 'published', '内容已发布');
+    // 自动推进排期状态到 published（仅关联排期时）
+    if (s && window.SchedulePicker) window.SchedulePicker.advanceStatus(s.id, 'published', '内容已发布');
     saveData();
     return row;
   }
