@@ -3591,14 +3591,14 @@ function _stRender() {
             oninput="_st.kol_name=this.value" />
         </div>
         <div class="form-group" style="margin:0">
-          <label class="form-label">平台 <span style="color:red">*</span></label>
+          <label class="form-label">平台</label>
           <select class="form-control" onchange="_st.platform=this.value">
             <option value="">— 请选择 —</option>
             ${pfOpts}
           </select>
         </div>
         <div class="form-group" style="margin:0">
-          <label class="form-label">发布时间 <span style="color:red">*</span></label>
+          <label class="form-label">发布时间</label>
           <input type="date" class="form-control" value="${escapeHtml(_st.publish_date||'')}"
             onchange="_st.publish_date=this.value" />
         </div>
@@ -4381,8 +4381,6 @@ function saveSettlement() {
   const base  = parseFloat(_st.contract_amount) || 0;
   const bonus = _st.bonus_enabled ? (parseFloat(_st.bonus_amount) || 0) : 0;
   if (editingSettlementId === null && !_st.kol_name.trim()) { toast('请填写达人名称', 'error'); return; }
-  if (editingSettlementId === null && !_st.platform) { toast('请选择平台', 'error'); return; }
-  if (editingSettlementId === null && !_st.publish_date) { toast('请填写发布时间', 'error'); return; }
   const data = {
     schedule_id:     _st.schedule_id === 'none' ? null : _st.schedule_id,
     kol_name:        _st.kol_name    || '',
