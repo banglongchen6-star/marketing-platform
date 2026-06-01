@@ -139,6 +139,24 @@
     }
   }
 
-  window.SchedulePicker = { optionsHTML, publishedOptionsHTML, labelFor, chipHTML, openSchedule, notifyChange, advanceStatus };
+  /** 结算专用下拉：未选择(placeholder) + 不关联 + 活跃排期 */
+  function settlementOptionsHTML(selectedId) {
+    const noneSelected = !selectedId;
+    const opts = [
+      `<option value="" disabled${noneSelected ? ' selected' : ''}>— 未选择 —</option>`,
+      `<option value="none"${selectedId === 'none' ? ' selected' : ''}>— 不关联 —</option>`,
+    ];
+    _activeSchedules().forEach(s => {
+      const sel = s.id === selectedId ? ' selected' : '';
+      opts.push(`<option value="${escapeHtml(s.id)}"${sel}>${escapeHtml(_label(s))}</option>`);
+    });
+    if (selectedId && selectedId !== 'none' && !_activeSchedules().some(s => s.id === selectedId)) {
+      const orphan = (window.DB.schedules || []).find(s => s.id === selectedId);
+      if (orphan) opts.push(`<option value="${escapeHtml(orphan.id)}" selected>⚠ ${escapeHtml(_label(orphan))}（已删除）</option>`);
+    }
+    return opts.join('');
+  }
+
+  window.SchedulePicker = { optionsHTML, publishedOptionsHTML, settlementOptionsHTML, labelFor, chipHTML, openSchedule, notifyChange, advanceStatus };
   console.log('[SchedulePicker] 已就绪');
 })();

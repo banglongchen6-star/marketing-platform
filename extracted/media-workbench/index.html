@@ -3496,7 +3496,7 @@ function _stInit(data) {
     status: data.status === '已付款' ? 'paid' : 'pending',
   }] : [{ label: '全款', amount: '', plan_date: '', paid_date: '', status: 'pending' }];
   _st = {
-    schedule_id:    data?.schedule_id    || '',
+    schedule_id:    data ? (data.schedule_id || 'none') : '',
     contract_amount:data?.contract_amount ?? (data?.amount || ''),
     bonus_enabled:  data ? (data.bonus_enabled ?? null) : null,
     bonus_amount:   data?.bonus_amount   || '',
@@ -3561,7 +3561,7 @@ function _stRender() {
   const sched = _st.schedule_id
     ? (window.DB?.schedules || []).find(x => x.id === _st.schedule_id) : null;
   const schedOpts = window.SchedulePicker
-    ? SchedulePicker.optionsHTML(_st.schedule_id) : '';
+    ? SchedulePicker.settlementOptionsHTML(_st.schedule_id) : '';
 
   const contractAmt = parseFloat(_st.contract_amount) || 0;
   const bonusAmt    = _st.bonus_enabled ? (parseFloat(_st.bonus_amount) || 0) : 0;
@@ -3577,9 +3577,9 @@ function _stRender() {
   container.innerHTML = `
     <!-- 关联排期 -->
     <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:12px">
-      <label class="form-label">🔗 关联排期</label>
+      <label class="form-label">🔗 关联排期 <span style="color:red">*</span></label>
       <select class="form-control" onchange="stOnScheduleChange(this.value)">${schedOpts}</select>
-      <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">计划中和已发布的排期均可关联</div>
+      <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">选「不关联」可手动填写合同金额</div>
     </div>
     ${sched ? _stSchedInfo(sched) : ''}
     ${sched ? _stContentInfo(sched.id) : ''}
@@ -3589,10 +3589,15 @@ function _stRender() {
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">合同基础金额（元）</label>
-        <div style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;color:var(--primary)">
-          ¥${fmtNum(parseFloat(_st.contract_amount)||0)}
-          <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:6px">来自排期，不可修改</span>
-        </div>
+        ${_st.schedule_id === 'none'
+          ? `<input type="number" class="form-control" value="${escapeHtml(String(_st.contract_amount||''))}" placeholder="请输入金额" min="0" step="any" oninput="_st.contract_amount=this.value;_stSyncFullAmount();_stRefreshTotal()" />`
+          : _st.schedule_id
+            ? `<div style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;color:var(--primary)">
+                ¥${fmtNum(parseFloat(_st.contract_amount)||0)}
+                <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:6px">来自排期，不可修改</span>
+               </div>`
+            : `<div style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:.85rem">请先选择关联排期</div>`
+        }
       </div>
       <div class="form-group">
         <label class="form-label">是否有奖金 <span style="color:red">*</span></label>
@@ -3760,10 +3765,12 @@ function _stContentInfo(scheduleId) {
 
 function stOnScheduleChange(schedId) {
   _st.schedule_id = schedId;
-  if (schedId) {
+  if (schedId === 'none') {
+    _st.contract_amount = '';
+    _stSyncFullAmount();
+  } else if (schedId) {
     const sched = (window.DB?.schedules||[]).find(x => x.id === schedId);
     if (sched?.amount) {
-      // 合同基础金额始终从排期同步，不可手改
       _st.contract_amount = sched.amount;
       _stSyncFullAmount();
     }
@@ -4340,7 +4347,7 @@ function saveSettlement() {
   const base  = parseFloat(_st.contract_amount) || 0;
   const bonus = _st.bonus_enabled ? (parseFloat(_st.bonus_amount) || 0) : 0;
   const data = {
-    schedule_id:     _st.schedule_id,
+    schedule_id:     _st.schedule_id === 'none' ? null : _st.schedule_id,
     contract_amount: base,
     bonus_enabled:   _st.bonus_enabled,
     bonus_amount:    bonus,
