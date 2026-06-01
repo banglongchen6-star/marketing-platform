@@ -523,7 +523,7 @@
         ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(platStr)}
       </td>
       <td class="comm-actions">
-        <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填写发布</button>
+        <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor(null,'${s.id}')">填待发布</button>
       </td>
     </tr>`;
   }
