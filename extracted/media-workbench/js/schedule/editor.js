@@ -497,28 +497,25 @@
   }
 
   function renderBdSelector(currentId) {
-    const bds = SD.listBds();
+    const personnel = SD.listBdPersonnel();
     const user = window.currentUser;
-    // 新增模式下，BD 或主管登录 → 只读显示，不可更改
-    if (state.mode === 'create') {
-      if (user?.identity === 'bd') {
-        const cur = bds.find(b => b.id === currentId);
-        return `<div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:8px">
-          ${cur ? `<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${cur.color};flex-shrink:0"></span>` : ''}
-          <span style="font-weight:500">${escapeHtml(cur?.name || '-')}</span>
-          <span style="margin-left:auto;font-size:.72rem;color:var(--text-muted)">当前账号</span>
-        </div>`;
-      }
-      // 主管也参与 BD 工作，显示下拉框可自选归属 BD
+    // BD 或主管登录 → 新增时只读自动带入，不可更改
+    if (state.mode === 'create' && (user?.identity === 'bd' || user?.identity === 'supervisor')) {
+      const cur = personnel.find(b => b.id === currentId);
+      return `<div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:8px">
+        ${cur?.color ? `<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${cur.color};flex-shrink:0"></span>` : ''}
+        <span style="font-weight:500">${escapeHtml(cur?.name || '-')}</span>
+        <span style="margin-left:auto;font-size:.72rem;color:var(--text-muted)">当前账号</span>
+      </div>`;
     }
-    if (!bds.length) {
+    if (!personnel.length) {
       return `<div class="sched-form-control" style="background:var(--bg-base);color:var(--text-muted);font-size:.85rem;padding:9px 12px">
-        暂无 BD，可在 <a href="javascript:void(0);DictManager.open('bd')" onclick="DictManager.open('bd')" style="color:var(--primary)">字典管理</a> 里添加
+        暂无 BD，可在 <a href="javascript:void(0)" onclick="DictManager.open('bd')" style="color:var(--primary)">字典管理</a> 里添加
       </div>`;
     }
     const opts = ['<option value="">— 未指定 —</option>']
-      .concat(bds.map(b => `<option value="${escapeAttr(b.id)}" ${currentId===b.id?'selected':''}>${escapeHtml(b.name)}</option>`));
-    const cur = bds.find(b => b.id === currentId);
+      .concat(personnel.map(b => `<option value="${escapeAttr(b.id)}" ${currentId===b.id?'selected':''}>${escapeHtml(b.name)}${b._kind==='supervisor'?' (主管)':''}</option>`));
+    const cur = personnel.find(b => b.id === currentId);
     const colorPreview = cur
       ? `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${cur.color};vertical-align:middle;margin-right:6px;border:1px solid rgba(0,0,0,.1)"></span>${escapeHtml(cur.name)}`
       : '';

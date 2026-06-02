@@ -21,7 +21,9 @@
   };
 
   function defaultForm() {
-    return { name: '', platform: '', homepage: '', followers: '', category: '', notes: '', bd_id: '' };
+    const u = window.currentUser;
+    const autoBdId = (u?.identity === 'bd' || u?.identity === 'supervisor') ? (u.bd_id || '') : '';
+    return { name: '', platform: '', homepage: '', followers: '', category: '', notes: '', bd_id: autoBdId };
   }
 
   /* ------------------------- 已合作达人数据（来自已结算） ------------------------- */
@@ -520,10 +522,21 @@
 
       <div class="sched-form-group">
         <label class="sched-form-label">商务 BD（负责人）</label>
-        <select id="kf-bd" class="sched-form-control">
-          <option value="">— 未指定 —</option>
-          ${SD.listBds().map(b => `<option value="${escapeAttr(b.id)}" ${f.bd_id===b.id?'selected':''}>${escapeHtml(b.name)}</option>`).join('')}
-        </select>
+        ${(() => {
+          const u = window.currentUser;
+          const personnel = SD.listBdPersonnel();
+          const opts = `<option value="">— 未指定 —</option>` +
+            personnel.map(b => `<option value="${escapeAttr(b.id)}" ${f.bd_id===b.id?'selected':''}>${escapeHtml(b.name)}${b._kind==='supervisor'?' (主管)':''}</option>`).join('');
+          if ((u?.identity === 'bd' || u?.identity === 'supervisor') && f.bd_id) {
+            const cur = personnel.find(b => b.id === f.bd_id);
+            return `<div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:8px">
+              ${cur?.color ? `<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${cur.color};flex-shrink:0"></span>` : ''}
+              <span style="font-weight:500">${escapeHtml(cur?.name||'-')}</span>
+              <span style="margin-left:auto;font-size:.72rem;color:var(--text-muted)">当前账号</span>
+            </div>`;
+          }
+          return `<select id="kf-bd" class="sched-form-control">${opts}</select>`;
+        })()}
       </div>
 
       <div class="sched-form-group">

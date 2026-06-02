@@ -1455,7 +1455,7 @@ function doLogin() {
     if (!sv.password) { errEl.textContent = '该账号尚未设置密码，请联系管理员'; return; }
     if (sv.password !== p) { errEl.textContent = '密码错误'; return; }
     try { localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: 'supervisor', sv_id: sv.id, at: Date.now() })); } catch(e) {}
-    _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.bd_id || null, sv_id: sv.id });
+    _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.id, sv_id: sv.id });
   } else {
     errEl.textContent = '请选择登录身份';
   }
@@ -1491,7 +1491,7 @@ function tryRestoreSession() {
     if (s.identity === 'supervisor' && s.sv_id) {
       const sv = (window.DB?.supervisors || []).find(x => x.id === s.sv_id);
       if (!sv || !sv.password) return false;
-      _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.bd_id || null, sv_id: sv.id });
+      _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.id, sv_id: sv.id });
       return true;
     }
   } catch(e) {}
@@ -3150,10 +3150,10 @@ function openSampleModal(id=null) {
   }
   document.getElementById('sp-schedule-id').innerHTML = window.SchedulePicker ? SchedulePicker.optionsHTML(__currentSchedId) : '<option value="">— 不关联 —</option>';
   // 填充 BD 下拉
-  const bdOpts = (window.ScheduleData ? ScheduleData.listBds() : []);
+  const bdOpts = (window.ScheduleData ? ScheduleData.listBdPersonnel() : []);
   const smContact = document.getElementById('sm-contact');
   smContact.innerHTML = '<option value="">— 不选 —</option>' +
-    bdOpts.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+    bdOpts.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}${b._kind==='supervisor'?' (主管)':''}</option>`).join('');
   smContact.disabled = false;
   if(id){
     const s=DB.samples.find(x=>x.id===id);
@@ -3171,12 +3171,9 @@ function openSampleModal(id=null) {
     renderSampleProductCheckboxes([]);
     const d=new Date();
     document.getElementById('sm-date').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    // 新增时按登录角色自动填入并锁定
+    // 新增时按登录角色自动填入并锁定（BD 和主管统一处理）
     const u = window.currentUser;
-    if (u?.identity === 'bd' && u.bd_id) {
-      smContact.value = u.bd_id;
-      smContact.disabled = true;
-    } else if (u?.identity === 'supervisor' && u.bd_id) {
+    if ((u?.identity === 'bd' || u?.identity === 'supervisor') && u.bd_id) {
       smContact.value = u.bd_id;
       smContact.disabled = true;
     }

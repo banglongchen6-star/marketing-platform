@@ -543,6 +543,14 @@
     rows.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
     return includeInactive ? rows : rows.filter(b => b.is_active !== false);
   }
+  // 返回所有 BD 人员（商务BD + 品宣主管），用于表单选择器
+  function listBdPersonnel() {
+    const bds = listBds().map(b => ({ ...b, _kind: 'bd' }));
+    const svs = (DB.supervisors || []).filter(sv => sv.name).map(sv => ({
+      id: sv.id, name: sv.name, color: '#7c3aed', _kind: 'supervisor',
+    }));
+    return [...bds, ...svs];
+  }
   function findBdByName(name) { return DB.bds.find(b => b.name === name); }
   function findBdById(id) { return DB.bds.find(b => b.id === id); }
   function createOrReactivateBd({ name, color, sort_order }) {
@@ -1870,7 +1878,7 @@
     listTiers, findTierByName, createOrReactivateTier,
     updateTier, deactivateTier, countTierUsage,
     // dict (商务 BD)
-    listBds, findBdByName, findBdById, createOrReactivateBd,
+    listBds, listBdPersonnel, findBdByName, findBdById, createOrReactivateBd,
     updateBd, deactivateBd, deleteBd, countBdUsage,
     // schedules
     listSchedulesInRange, listSchedulesByMonth,
