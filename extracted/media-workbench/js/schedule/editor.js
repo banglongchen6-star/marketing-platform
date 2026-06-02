@@ -1082,7 +1082,8 @@
         created_at: new Date().toISOString(),
       });
     }
-    if (typeof window.saveData === 'function') window.saveData();
+    if (typeof window.saveDataNow === 'function') window.saveDataNow();
+    else if (typeof window.saveData === 'function') window.saveData();
     if (typeof window.renderSamples === 'function') window.renderSamples();
   }
 

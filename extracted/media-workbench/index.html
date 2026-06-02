@@ -1383,6 +1383,16 @@ function saveData() {
     }).catch(() => {/* 离线或本地开发时忽略 */});
   }, 800);
 }
+// 立即写入服务器（不走防抖，用于不能丢的关键写操作）
+function saveDataNow() {
+  localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+  clearTimeout(saveData._t);
+  fetch('/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({...DB, _version:'v11-0509'})
+  }).catch(() => {});
+}
 
 let DB = loadData();
 // 暴露给外部模块（js/schedule/*.js）。`let` 不会自动挂 window，必须显式赋值
