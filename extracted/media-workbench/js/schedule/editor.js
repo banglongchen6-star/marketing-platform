@@ -724,8 +724,8 @@
     if (!k) return;
     state.form.kol_name = k.name;
     state.form.kol_id = k.id;
-    if (k.platform && state.form.platforms.length === 0) {
-      state.form.platforms = k.platform.split(',').map(x => x.trim()).filter(Boolean);
+    if (k.platform && !state.form.platform) {
+      state.form.platform = k.platform.split(',')[0].trim();
     }
     if (k.homepage && !state.form.kol_homepage) state.form.kol_homepage = k.homepage;
     state.kolOpen = false;
