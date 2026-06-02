@@ -29,28 +29,33 @@
     const ym = fmtMonth(state.year, state.month);
     const q = (state.q || '').trim().toLowerCase();
     const contents = (window.DB?.contents || []);
-    const rows = [];
+    // 以内容记录 ID 为单位分组（同一合同所有平台放一起）
+    const groups = [];
 
     contents.forEach(c => {
       const r = SD.resolveContent(c);
       if (state.bd_id && String(r.bd_id) !== String(state.bd_id)) return;
       if (q && !(r.talent || '').toLowerCase().includes(q)) return;
 
-      (c.publications || []).forEach(p => {
-        if (!p.link) return; // 没链接不显示
-        // 按发布日期过滤月份
+      // 筛出该内容中有链接且属于本月的 publications
+      const pubs = (c.publications || []).filter(p => {
+        if (!p.link) return false;
         const pubMonth = (p.date || '').slice(0, 7);
-        if (pubMonth !== ym) return;
-        rows.push({ c, r, p });
+        return pubMonth === ym;
       });
+      if (!pubs.length) return;
+
+      // 主平台日期 = 第一条有链接的 publication 日期（用于排序）
+      const mainDate = pubs[0].date || '';
+      groups.push({ c, r, pubs, mainDate });
     });
 
-    // 按日期升序，日期相同按达人名
-    rows.sort((a, b) => {
-      const d = (a.p.date || '').localeCompare(b.p.date || '');
+    // 按主平台日期升序，相同则按达人名
+    groups.sort((a, b) => {
+      const d = a.mainDate.localeCompare(b.mainDate);
       return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || '');
     });
-    return rows;
+    return groups;
   }
 
   /* ---------- 更新 publication 上的素材状态 ---------- */
@@ -106,8 +111,8 @@
     `;
   }
 
-  function renderTable(rows) {
-    if (!rows.length) {
+  function renderTable(groups) {
+    if (!groups.length) {
       return `<div style="text-align:center;padding:60px 0;color:var(--text-muted)">
         <div style="font-size:2rem;margin-bottom:8px">🗂️</div>
         <div>本月暂无已发布链接的素材</div>
@@ -115,44 +120,52 @@
       </div>`;
     }
 
-    const tbodyRows = rows.map(({ c, r, p }) => {
-      const dl = p.mat_downloaded ? 'checked' : '';
-      const ul = p.mat_uploaded ? 'checked' : '';
-      const note = escapeHtml(p.mat_note || '');
+    const tbodyRows = groups.map(({ c, r, pubs }) => {
+      const total = pubs.length;
       const bdDot = r.bd_color
         ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${r.bd_color};margin-right:4px;vertical-align:middle"></span>`
         : '';
-      return `
-        <tr>
-          <td style="font-weight:500">${bdDot}${escapeHtml(r.talent || '—')}</td>
-          <td><span class="sched-card-chip platform">${escapeHtml(p.platform || '—')}</span></td>
-          <td>${escapeHtml(p.date || '—')}</td>
-          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener"
-               style="color:var(--primary);text-decoration:none;font-size:.82rem"
-               title="${escapeHtml(p.link)}">🔗 ${escapeHtml(p.link.replace(/^https?:\/\//, '').slice(0, 30))}…</a>
-          </td>
-          <td style="text-align:center">
-            <input type="checkbox" ${dl} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
-                   onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_downloaded')">
-          </td>
-          <td style="text-align:center">
-            <input type="checkbox" ${ul} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
-                   onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_uploaded')">
-          </td>
-          <td>
-            <input type="text" value="${note}" placeholder="备注…"
-                   style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:.78rem;outline:none;background:transparent"
-                   onfocus="this.style.borderColor='var(--primary)'"
-                   onblur="this.style.borderColor='var(--border)';MaterialsPage._saveNote('${c.id}','${p.id}',this.value)"
-                   onkeydown="if(event.key==='Enter')this.blur()">
-          </td>
-        </tr>
-      `;
+      return pubs.map((p, i) => {
+        const dl = p.mat_downloaded ? 'checked' : '';
+        const ul = p.mat_uploaded ? 'checked' : '';
+        const note = escapeHtml(p.mat_note || '');
+        const nameCell = i === 0
+          ? `<td rowspan="${total}" style="font-weight:500;vertical-align:middle">${bdDot}${escapeHtml(r.talent || '—')}</td>`
+          : '';
+        return `
+          <tr>
+            ${nameCell}
+            <td><span class="sched-card-chip platform">${escapeHtml(p.platform || '—')}${i === 0 ? '<span style="font-size:.6rem;color:var(--primary);font-weight:700;margin-left:2px">主</span>' : ''}</span></td>
+            <td>${escapeHtml(p.date || '—')}</td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener"
+                 style="color:var(--primary);text-decoration:none;font-size:.82rem"
+                 title="${escapeHtml(p.link)}">🔗 ${escapeHtml(p.link.replace(/^https?:\/\//, '').slice(0, 30))}…</a>
+            </td>
+            <td style="text-align:center">
+              <input type="checkbox" ${dl} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
+                     onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_downloaded')">
+            </td>
+            <td style="text-align:center">
+              <input type="checkbox" ${ul} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
+                     onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_uploaded')">
+            </td>
+            <td>
+              <input type="text" value="${note}" placeholder="备注…"
+                     style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:.78rem;outline:none;background:transparent"
+                     onfocus="this.style.borderColor='var(--primary)'"
+                     onblur="this.style.borderColor='var(--border)';MaterialsPage._saveNote('${c.id}','${p.id}',this.value)"
+                     onkeydown="if(event.key==='Enter')this.blur()">
+            </td>
+          </tr>
+        `;
+      }).join('');
     }).join('');
 
-    const dlCount = rows.filter(x => x.p.mat_downloaded).length;
-    const ulCount = rows.filter(x => x.p.mat_uploaded).length;
+    const allPubs = groups.flatMap(g => g.pubs);
+    const dlCount = allPubs.filter(p => p.mat_downloaded).length;
+    const ulCount = allPubs.filter(p => p.mat_uploaded).length;
+    const total = allPubs.length;
 
     return `
       <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto">
@@ -164,10 +177,10 @@
               <th>发布日期</th>
               <th style="min-width:200px">发布链接</th>
               <th style="text-align:center;min-width:70px">
-                已下载<br><span style="font-size:.68rem;color:var(--text-muted);font-weight:400">${dlCount}/${rows.length}</span>
+                已下载<br><span style="font-size:.68rem;color:var(--text-muted);font-weight:400">${dlCount}/${total}</span>
               </th>
               <th style="text-align:center;min-width:70px">
-                已上传<br><span style="font-size:.68rem;color:var(--text-muted);font-weight:400">${ulCount}/${rows.length}</span>
+                已上传<br><span style="font-size:.68rem;color:var(--text-muted);font-weight:400">${ulCount}/${total}</span>
               </th>
               <th style="min-width:140px">备注</th>
             </tr>
@@ -182,11 +195,12 @@
     initState();
     const page = document.getElementById('page-materials');
     if (!page) return;
-    const rows = getItems();
+    const groups = getItems();
+    const totalPubs = groups.reduce((s, g) => s + g.pubs.length, 0);
     page.innerHTML = `
       <div style="padding:0 24px 24px">
-        ${renderToolbar(rows.length)}
-        ${renderTable(rows)}
+        ${renderToolbar(totalPubs)}
+        ${renderTable(groups)}
       </div>
     `;
   }
