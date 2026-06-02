@@ -1595,7 +1595,8 @@ function navigate(page) {
   if (inlineBar) inlineBar.style.display = 'none';
   currentPage = page;
   closeSidebar();
-  if (page === 'dashboard')   { renderDashboard(); updateReminderBadge(); }
+  if (page === 'dashboard')       { renderDashboard(); updateReminderBadge(); }
+  if (page === 'data-dashboard')  renderDataDashboard();
   if (page === 'schedule')    renderCalendar();
   if (page === 'monthly-plan' && window.MonthlyPlanPage) MonthlyPlanPage.render();
   if (page === 'kols' && window.KolsPage) KolsPage.render();
@@ -2085,6 +2086,269 @@ function renderDashboard() {
   initDashboardMonth();
   renderBrandRoiTable(dashboardYear, dashboardMonth, dashboardBdId);
   requestAnimationFrame(fitRoiCardHeight);
+}
+
+/* ========== 数据看板（page-data-dashboard）========== */
+const _dd = {
+  filter: 'thisMonth',
+  customStart: '',
+  customEnd: '',
+  bdId: '',
+  trendChart: null,
+  pieChart: null,
+};
+
+function _ddDateRange() {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  if (_dd.filter === 'day7') {
+    const from = new Date(now); from.setDate(from.getDate() - 6);
+    return { start: from.toISOString().slice(0, 10), end: today };
+  }
+  if (_dd.filter === 'day15') {
+    const from = new Date(now); from.setDate(from.getDate() - 14);
+    return { start: from.toISOString().slice(0, 10), end: today };
+  }
+  if (_dd.filter === 'day30') {
+    const from = new Date(now); from.setDate(from.getDate() - 29);
+    return { start: from.toISOString().slice(0, 10), end: today };
+  }
+  if (_dd.filter === 'lastMonth') {
+    let y = now.getFullYear(), m = now.getMonth();
+    if (m === 0) { y--; m = 12; } // getMonth() is 0-based, so m=0 means January → go to Dec of prev year
+    const start = `${y}-${String(m).padStart(2, '0')}-01`;
+    const end = new Date(y, m, 0).toISOString().slice(0, 10);
+    return { start, end };
+  }
+  if (_dd.filter === 'custom') {
+    return { start: _dd.customStart || today, end: _dd.customEnd || today };
+  }
+  // default: thisMonth
+  const y = now.getFullYear(), m = now.getMonth() + 1;
+  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const end = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+  return { start, end };
+}
+
+function _ddComputeKPI() {
+  const { start, end } = _ddDateRange();
+  if (!start || !end || start > end) return {
+    contentCount: 0, pubCount: 0,
+    naturalViews: 0, promoViews: 0, totalViews: 0,
+    price: 0, promoCost: 0, totalCost: 0, cpm: 0,
+    perDay: {}, perPlatform: {}, dates: [],
+  };
+
+  const contents = DB.contents || [];
+  const schedules = DB.schedules || [];
+  const douyinPromo = DB.douyin_promo || {};
+
+  // Build date list
+  const dates = [];
+  const perDay = {};
+  let cur = new Date(start + 'T00:00:00');
+  const endD = new Date(end + 'T00:00:00');
+  while (cur <= endD) {
+    const ds = cur.toISOString().slice(0, 10);
+    dates.push(ds);
+    perDay[ds] = { naturalViews: 0, promoViews: 0, price: 0, promoCost: 0 };
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const contentSet = new Set();
+  let naturalViews = 0, price = 0, pubCount = 0;
+  const perPlatform = {};
+
+  contents.forEach(c => {
+    // BD filter
+    if (_dd.bdId) {
+      const s = c.schedule_id ? schedules.find(x => x.id === c.schedule_id) : null;
+      if (!s || String(s.bd_id) !== String(_dd.bdId)) return;
+    }
+
+    const pubs = c.publications || [];
+    const inRange = pubs.filter(p => p.date && p.date >= start && p.date <= end);
+    if (!inRange.length) return;
+
+    // 合作费归到主平台发布日
+    const mainPub = pubs[0];
+    if (mainPub && mainPub.date && mainPub.date >= start && mainPub.date <= end) {
+      const r = (window.ScheduleData && ScheduleData.resolveContent) ? ScheduleData.resolveContent(c) : c;
+      const cPrice = Number(r.price || c.price || 0);
+      price += cPrice;
+      if (perDay[mainPub.date]) perDay[mainPub.date].price += cPrice;
+    }
+
+    inRange.forEach(p => {
+      const v = Number(p.views) || 0;
+      naturalViews += v;
+      pubCount++;
+      const plat = p.platform || '其他';
+      perPlatform[plat] = (perPlatform[plat] || 0) + 1;
+      if (p.date && perDay[p.date]) perDay[p.date].naturalViews += v;
+    });
+
+    contentSet.add(c.id);
+  });
+
+  // 投流数据 from DB.douyin_promo
+  let promoViews = 0, promoCost = 0;
+  dates.forEach(ds => {
+    const d = douyinPromo[ds] || {};
+    const pv = Number(d.plays) || 0;
+    const pc = Number(d.cost) || 0;
+    promoViews += pv;
+    promoCost += pc;
+    perDay[ds].promoViews = pv;
+    perDay[ds].promoCost = pc;
+  });
+
+  const totalViews = naturalViews + promoViews;
+  const totalCost = price + promoCost;
+  const cpm = totalViews > 0 ? Number((totalCost / (totalViews * 10000) * 1000).toFixed(2)) : 0;
+
+  return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, totalCost, cpm, perDay, perPlatform, dates };
+}
+
+function renderDataDashboard() {
+  const page = document.getElementById('page-data-dashboard');
+  if (!page) return;
+
+  const { start, end } = _ddDateRange();
+  const kpi = _ddComputeKPI();
+  const bdList = (window.ScheduleData && ScheduleData.listBds) ? ScheduleData.listBds() : [];
+  const curBd = bdList.find(b => String(b.id) === String(_dd.bdId));
+
+  function fmtWan(v) {
+    if (!v) return '0';
+    if (v >= 10000) return (v / 10000).toFixed(1) + '亿';
+    if (v >= 1000) return (v / 1000).toFixed(1) + '千万';
+    if (v >= 100) return v.toFixed(0) + '万';
+    return v.toFixed(1) + '万';
+  }
+  function fmtMoney(v) {
+    if (!v) return '¥0';
+    return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  const filterDefs = [
+    { key: 'day7', label: '近7天' }, { key: 'day15', label: '近15天' },
+    { key: 'day30', label: '近30天' }, { key: 'thisMonth', label: '本月' },
+    { key: 'lastMonth', label: '上月' }, { key: 'custom', label: '自定义' },
+  ];
+  const filterBtns = filterDefs.map(f => {
+    const active = _dd.filter === f.key;
+    return `<button onclick="_ddSetFilter('${f.key}')" style="padding:5px 13px;border-radius:6px;border:1px solid ${active?'var(--primary)':'var(--border)'};background:${active?'var(--primary)':'var(--bg-panel)'};color:${active?'#fff':'var(--text-secondary)'};font-size:.8rem;cursor:pointer;font-weight:${active?'600':'400'};transition:all .15s">${f.label}</button>`;
+  }).join('');
+
+  const bdSwitcher = bdList.length ? `
+    <select onchange="_ddSetBd(this.value)" style="height:32px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:.82rem;background:var(--bg-panel);cursor:pointer;color:var(--text-primary)">
+      <option value="">全部 BD</option>
+      ${bdList.map(b => `<option value="${b.id}" ${String(_dd.bdId) === String(b.id) ? 'selected' : ''}>${escapeHtml(b.name)}</option>`).join('')}
+    </select>` : '';
+
+  const customPicker = _dd.filter === 'custom' ? `
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="date" value="${_dd.customStart}" onchange="_ddSetCustom('start',this.value)" style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:.8rem;background:var(--bg-panel);color:var(--text-primary)">
+      <span style="font-size:.82rem;color:var(--text-muted)">至</span>
+      <input type="date" value="${_dd.customEnd}" onchange="_ddSetCustom('end',this.value)" style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:.8rem;background:var(--bg-panel);color:var(--text-primary)">
+    </div>` : '';
+
+  const kpiCards = [
+    { label: '总作品数', value: kpi.contentCount, sub: `${kpi.pubCount} 条发布`, color: '#1e40af', bg: '#eff6ff', icon: '📝' },
+    { label: '总播放量', value: fmtWan(kpi.totalViews), sub: `自然 ${fmtWan(kpi.naturalViews)} · 投流 ${fmtWan(kpi.promoViews)}`, color: '#166534', bg: '#f0fdf4', icon: '▶️' },
+    { label: '总花费', value: fmtMoney(kpi.totalCost), sub: `合作 ${fmtMoney(kpi.price)} · 投流 ${fmtMoney(kpi.promoCost)}`, color: '#9a3412', bg: '#fff7ed', icon: '💰' },
+    { label: 'CPM', value: kpi.cpm > 0 ? '¥' + kpi.cpm : '—', sub: '元/千次播放', color: '#6b21a8', bg: '#faf5ff', icon: '📊' },
+  ].map(c => `
+    <div style="flex:1;min-width:150px;background:${c.bg};border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:.78rem;color:${c.color};opacity:.75;font-weight:500">${c.icon} ${c.label}</div>
+      <div style="font-size:1.55rem;font-weight:700;color:${c.color};line-height:1.2">${c.value}</div>
+      <div style="font-size:.72rem;color:${c.color};opacity:.65">${c.sub}</div>
+    </div>`).join('');
+
+  page.innerHTML = `
+    <div style="padding:16px 24px 24px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${filterBtns}</div>
+        ${customPicker}
+        ${bdSwitcher}
+        ${curBd ? `<span style="padding:4px 10px;background:${curBd.color}22;border-radius:12px;font-size:.76rem;color:${curBd.color};font-weight:500">${escapeHtml(curBd.name)}</span>` : ''}
+        <span style="margin-left:auto;font-size:.76rem;color:var(--text-muted)">${start} ~ ${end}</span>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">${kpiCards}</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;min-height:260px">
+        <div style="background:var(--bg-panel);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)">
+          <div style="font-size:.86rem;font-weight:600;margin-bottom:12px;color:var(--text-primary)">📈 每日播放趋势（万次）</div>
+          <div style="position:relative;height:220px"><canvas id="dd-trend-canvas"></canvas></div>
+        </div>
+        <div style="background:var(--bg-panel);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)">
+          <div style="font-size:.86rem;font-weight:600;margin-bottom:12px;color:var(--text-primary)">🧩 平台作品分布</div>
+          <div style="position:relative;height:220px"><canvas id="dd-pie-canvas"></canvas></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:.72rem;color:var(--text-muted)">
+        💡 播放量来源：内容发布填报 · 投流数据来源：品宣ROI表手动填入
+      </div>
+    </div>`;
+
+  requestAnimationFrame(() => _ddRenderCharts(kpi));
+}
+
+function _ddRenderCharts(kpi) {
+  if (_dd.trendChart) { try { _dd.trendChart.destroy(); } catch (e) {} _dd.trendChart = null; }
+  if (_dd.pieChart) { try { _dd.pieChart.destroy(); } catch (e) {} _dd.pieChart = null; }
+  if (!window.Chart) return;
+
+  const tCtx = document.getElementById('dd-trend-canvas');
+  if (tCtx && kpi.dates && kpi.dates.length) {
+    const labels = kpi.dates.map(d => d.slice(5));
+    _dd.trendChart = new Chart(tCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: '自然播放(万)', data: kpi.dates.map(d => kpi.perDay[d]?.naturalViews || 0), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.1)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
+          { label: '投流播放(万)', data: kpi.dates.map(d => kpi.perDay[d]?.promoViews || 0), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { size: 11 }, boxWidth: 12 } } },
+        scales: { x: { ticks: { font: { size: 10 }, maxTicksLimit: 15 } }, y: { ticks: { font: { size: 10 } }, beginAtZero: true } }
+      }
+    });
+  }
+
+  const pCtx = document.getElementById('dd-pie-canvas');
+  const platEntries = Object.entries(kpi.perPlatform);
+  if (pCtx && platEntries.length) {
+    const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+    _dd.pieChart = new Chart(pCtx, {
+      type: 'doughnut',
+      data: {
+        labels: platEntries.map(e => e[0]),
+        datasets: [{ data: platEntries.map(e => e[1]), backgroundColor: COLORS.slice(0, platEntries.length), borderWidth: 1 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10, padding: 6 } } }
+      }
+    });
+  } else if (pCtx) {
+    const ctx2d = pCtx.getContext('2d');
+    ctx2d.fillStyle = 'var(--text-muted)';
+    ctx2d.font = '13px sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText('暂无发布数据', pCtx.width / 2, pCtx.height / 2);
+  }
+}
+
+function _ddSetFilter(f) { _dd.filter = f; renderDataDashboard(); }
+function _ddSetBd(v) { _dd.bdId = v; renderDataDashboard(); }
+function _ddSetCustom(field, v) {
+  if (field === 'start') _dd.customStart = v; else _dd.customEnd = v;
+  if (_dd.customStart && _dd.customEnd) renderDataDashboard();
 }
 
 /* ========== 品宣 ROI · 平台 × 日期 主表 ========== */
