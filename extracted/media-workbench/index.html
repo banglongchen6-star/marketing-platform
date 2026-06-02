@@ -803,11 +803,7 @@
       <button class="modal-close" onclick="closeModal('sample-modal')">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-section" style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:14px">
-        <label class="form-label">🔗 关联排期</label>
-        <select class="form-control" id="sp-schedule-id"></select>
-        <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">寄样不会改变排期状态，仅记录关联</div>
-      </div>
+      <select class="form-control" id="sp-schedule-id" style="display:none"></select>
       <!-- 行1：日期 + 商务BD + 达人名称 -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
         <div class="form-group" style="margin:0">
