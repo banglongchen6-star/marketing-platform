@@ -969,15 +969,18 @@
       ${schedBlock}
       ${mainInfo}
       <div class="sched-form-group">
-        <label class="sched-form-label">粉丝量 &amp; 商务BD</label>
         <div style="display:flex;gap:10px;align-items:flex-start">
-          <div style="flex:0 0 140px">
+          <div style="flex:1">
+            <label class="sched-form-label">粉丝量</label>
             <input id="cf-fans" class="sched-form-control" type="text"
                    placeholder="如 50000 或 5万"
                    value="${escapeAttr(f.fans)}">
             <div class="sched-form-hint">${formatFansHint(f.fans)}</div>
           </div>
-          <div style="flex:1">${_renderContentBdSelector(f.bd_id)}</div>
+          <div style="flex:1">
+            <label class="sched-form-label">商务BD</label>
+            ${_renderContentBdSelector(f.bd_id)}
+          </div>
         </div>
       </div>
 
