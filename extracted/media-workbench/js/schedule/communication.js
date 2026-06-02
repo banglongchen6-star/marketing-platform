@@ -385,12 +385,12 @@
    */
   function renderPubTd(p, colKey, content, r, frozen = false) {
     const ctx = { r, content };
-    // date：内联编辑发布日期
+    // date：主平台锁定，同步平台内联编辑
     if (colKey === 'date') {
-      const chip = p.snapshot_day ? '' : ''; // chip 在 renderPubCell 里，这里简化
-      if (frozen) return `<td style="min-width:110px">${escapeHtml(p.date || '-')}</td>`;
+      const isMain = (content.publications || [])[0]?.id === p.id;
+      if (frozen || isMain) return `<td style="min-width:110px">${escapeHtml(p.date || '-')}</td>`;
       const display = p.date ? escapeHtml(p.date) : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>';
-      return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditDate('${content.id}','${p.id}',this)" title="点击修改发布日期">${display}</td>`;
+      return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditDate('${content.id}','${p.id}',this)" title="点击修改同步平台发布日期">${display}</td>`;
     }
     // link：内联编辑 URL
     if (colKey === 'link') {
@@ -703,14 +703,14 @@
         }
         return `<td>${escapeHtml(r.category || '-')}</td>`;
       }
-      // date：每个平台各自显示发布日期（同步平台可能日期不同），支持内联编辑
+      // date：主平台（i===0）锁定显示，同步平台支持内联编辑
       if (col.key === 'date') {
         const chip = p.snapshot_day && snapMap[p.snapshot_day]
           ? `<span style="margin-left:4px;font-size:.62rem;padding:1px 5px;border-radius:3px;background:${p.snapshot_day==='d7'?'#dcfce7':'#fef3c7'};color:${p.snapshot_day==='d7'?'#15803d':'#92400e'};font-weight:500">${snapMap[p.snapshot_day]}</span>`
           : '';
-        if (allFrozen) return `<td style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
+        if (allFrozen || i === 0) return `<td style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
         const display = p.date ? escapeHtml(p.date) + chip : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>';
-        return `<td style="cursor:pointer;vertical-align:middle" onclick="CommunicationPage._inlineEditDate('${c.id}','${p.id}',this)" title="点击修改发布日期">${display}</td>`;
+        return `<td style="cursor:pointer;vertical-align:middle" onclick="CommunicationPage._inlineEditDate('${c.id}','${p.id}',this)" title="点击修改同步平台发布日期">${display}</td>`;
       }
       // 其余列（含 platform/link/views/inline-edit）统一走 renderPubTd
       return renderPubTd(p, col.key, c, r, allFrozen);
