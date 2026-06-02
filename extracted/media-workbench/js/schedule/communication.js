@@ -75,6 +75,7 @@
       kol_name: '',
       fans: '',
       bd_id: autoBd,
+      price: '',
       main_platform: defPlat,
       sync_platforms: [],
       publications: [defaultPublication(defPlat, '')],
@@ -827,11 +828,13 @@
       state.editor.mode = 'edit';
       state.editor.id = id;
       const pubs = c.publications || [];
+      const linkedSched = c.schedule_id ? (window.DB?.schedules || []).find(x => x.id === c.schedule_id) : null;
       state.editor.form = {
         schedule_id: c.schedule_id || 'none',
         kol_name: c.kol_name || '',
         fans: c.fans != null ? String(c.fans) : '',
         bd_id: c.bd_id || '',
+        price: linkedSched ? String(linkedSched.amount || '') : '',
         main_platform: pubs[0]?.platform || (SD.listPlatforms()[0]?.name || '抖音'),
         sync_platforms: pubs.slice(1).map(p => p.platform).filter(Boolean),
         publications: pubs.map(p => ({ ...p })),
@@ -851,6 +854,7 @@
           state.editor.form.schedule_id   = preScheduleId;
           state.editor.form.main_platform = mp;
           state.editor.form.sync_platforms = sp;
+          state.editor.form.price = String(s.amount || '');
           const schedDate = s.schedule_date || '';
           state.editor.form.publications  = [mp, ...sp].filter(Boolean)
             .map((p, i) => ({ platform: p, date: i === 0 ? schedDate : '', link: '', views: '', likes: '', comments: '' }));
@@ -938,12 +942,33 @@
     }
 
     // 主信息（从排期带）
+    const realSchedIdForPrice = (f.schedule_id && f.schedule_id !== 'none') ? f.schedule_id : null;
+    const hasSettlement = realSchedIdForPrice
+      ? (window.DB?.settlements || []).some(s => s.schedule_id === realSchedIdForPrice)
+      : false;
+    const priceBlock = realSchedIdForPrice ? (() => {
+      if (hasSettlement) {
+        return `<div class="sched-form-group">
+          <label class="sched-form-label">合作价格</label>
+          <div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:6px;cursor:default">
+            <span style="font-weight:500">¥${Number(f.price || 0).toLocaleString()}</span>
+            <span style="font-size:.72rem;color:var(--text-muted);margin-left:auto">🔒 已有结算记录，如需修改请前往达人结算</span>
+          </div>
+        </div>`;
+      }
+      return `<div class="sched-form-group">
+        <label class="sched-form-label">合作价格</label>
+        <input id="cf-price" class="sched-form-control" type="number" min="0" step="1"
+               placeholder="请输入金额"
+               value="${escapeAttr(f.price)}">
+        <div class="sched-form-hint">修改后将同步更新排期金额</div>
+      </div>`;
+    })() : '';
     const mainInfo = r ? `
       <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:.85rem">
         <strong style="color:var(--primary)">主信息（来自关联排期）</strong>
-        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:.82rem">
+        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:.82rem">
           <div><span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(r.talent)}</b></div>
-          <div><span style="color:var(--text-muted)">价格：</span><b>¥${Number(r.price).toLocaleString()}</b></div>
           <div><span style="color:var(--text-muted)">类型：</span><b>${escapeHtml(r.category || '-')}</b></div>
           <div><span style="color:var(--text-muted)">BD：</span><b style="color:${r.bd_color || 'inherit'}">${escapeHtml(r.bd_name || '-')}</b></div>
         </div>
@@ -968,6 +993,7 @@
     return `
       ${schedBlock}
       ${mainInfo}
+      ${priceBlock}
       <div class="sched-form-group">
         <div style="display:flex;gap:10px;align-items:flex-start">
           <div style="flex:1">
@@ -1101,6 +1127,7 @@
         if (sched && sched.platform) {
           f.main_platform = sched.platform;
           f.sync_platforms = Array.isArray(sched.sync_platforms) ? [...sched.sync_platforms] : [];
+          f.price = String(sched.amount || '');
           _rebuildPublications(f);
           // 主平台带入排期日期，同步平台保持空
           if (sched.schedule_date && f.publications.length > 0) {
@@ -1122,6 +1149,8 @@
     });
     const bdSel = document.getElementById('cf-bd-id');
     if (bdSel) bdSel.addEventListener('change', e => { state.editor.form.bd_id = e.target.value; });
+    const priceInput = document.getElementById('cf-price');
+    if (priceInput) priceInput.addEventListener('input', e => { state.editor.form.price = e.target.value; });
   }
 
   function _renderContentBdSelector(currentId) {
@@ -1305,6 +1334,18 @@
           });
         } catch (e) {
           console.warn('[CommunicationPage] quickCreateKol failed', e);
+        }
+      }
+      // 同步排期金额（有关联排期 + 无结算记录 + 价格有变）
+      const schedIdForPrice = data.schedule_id;
+      if (schedIdForPrice && f.price !== '') {
+        const noSettlement = !(window.DB?.settlements || []).some(s => s.schedule_id === schedIdForPrice);
+        if (noSettlement) {
+          const sched = (window.DB?.schedules || []).find(x => x.id === schedIdForPrice);
+          const newAmt = Number(f.price) || 0;
+          if (sched && sched.amount !== newAmt) {
+            SD.updateSchedule(schedIdForPrice, { ...sched, amount: newAmt });
+          }
         }
       }
       if (state.editor.mode === 'edit') {
