@@ -1178,7 +1178,7 @@
       ...c,
       // 不关联排期时直接用内容记录上的 kol_name
       talent: s ? s.kol_name : (c.kol_name || '—'),
-      price: s ? s.amount : 0,
+      price: s ? s.amount : (c.price || 0),
       category: s ? s.category_direction : '',
       tier: s ? s.tier : '',
       bd_id: s ? s.bd_id : null,

@@ -834,7 +834,7 @@
         kol_name: c.kol_name || '',
         fans: c.fans != null ? String(c.fans) : '',
         bd_id: c.bd_id || '',
-        price: linkedSched ? String(linkedSched.amount || '') : '',
+        price: linkedSched ? String(linkedSched.amount || '') : (c.price != null ? String(c.price) : ''),
         main_platform: pubs[0]?.platform || (SD.listPlatforms()[0]?.name || '抖音'),
         sync_platforms: pubs.slice(1).map(p => p.platform).filter(Boolean),
         publications: pubs.map(p => ({ ...p })),
@@ -946,8 +946,8 @@
     const hasSettlement = realSchedIdForPrice
       ? (window.DB?.settlements || []).some(s => s.schedule_id === realSchedIdForPrice)
       : false;
-    const priceBlock = realSchedIdForPrice ? (() => {
-      if (hasSettlement) {
+    const priceBlock = (() => {
+      if (realSchedIdForPrice && hasSettlement) {
         return `
           <label class="sched-form-label">合作价格</label>
           <div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:6px;cursor:default">
@@ -955,13 +955,14 @@
             <span style="font-size:.65rem;color:var(--text-muted);margin-left:auto">🔒 已有结算</span>
           </div>`;
       }
+      const hint = realSchedIdForPrice ? '保存后同步排期' : '';
       return `
         <label class="sched-form-label">合作价格</label>
         <input id="cf-price" class="sched-form-control" type="number" min="0" step="1"
                placeholder="请输入金额"
                value="${escapeAttr(f.price)}">
-        <div class="sched-form-hint">保存后同步排期</div>`;
-    })() : '';
+        ${hint ? `<div class="sched-form-hint">${hint}</div>` : ''}`;
+    })();
     const mainInfo = r ? `
       <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:.85rem">
         <strong style="color:var(--primary)">主信息（来自关联排期）</strong>
@@ -1321,6 +1322,7 @@
         kol_name: f.schedule_id === 'none' ? f.kol_name.trim() : null,
         fans,
         bd_id: f.bd_id || null,
+        price: f.price !== '' ? (Number(f.price) || 0) : null,
         publications: f.publications,
       };
       // 不关联排期时，自动将达人写入达人库（upsert：同名已存在则跳过）
