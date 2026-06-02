@@ -559,7 +559,7 @@
     if (!q) return '';
     const items = state.kolItems;
     let html = items.map(it => `
-      <div class="kol-selector-item" onclick="ScheduleEditor._pickKol('${it.id}')">
+      <div class="kol-selector-item" onmousedown="event.preventDefault();ScheduleEditor._pickKol('${it.id}')">
         <span class="name">${escapeHtml(it.name)}</span>
         ${it.platform ? `<span class="meta">${escapeHtml(it.platform)}</span>` : ''}
       </div>
@@ -568,7 +568,7 @@
     const sampleItems = state.sampleKolItems || [];
     if (sampleItems.length) {
       html += sampleItems.map(name => `
-        <div class="kol-selector-item" onclick="ScheduleEditor._pickSampleKol('${escapeAttr(name)}')"
+        <div class="kol-selector-item" onmousedown="event.preventDefault();ScheduleEditor._pickSampleKol('${escapeAttr(name)}')"
           style="opacity:.85">
           <span class="name">${escapeHtml(name)}</span>
           <span class="meta" style="color:#10b981">样品</span>
@@ -578,7 +578,7 @@
     // 若键入名与现有完全相同 → 不显示"新建"
     const allNames = new Set([...items.map(i => i.name), ...sampleItems]);
     if (!allNames.has(q)) {
-      html += `<div class="kol-selector-create" onclick="ScheduleEditor._createKol()">
+      html += `<div class="kol-selector-create" onmousedown="event.preventDefault();ScheduleEditor._createKol()">
         ＋ 新建「${escapeHtml(q)}」到达人库
       </div>`;
     }
