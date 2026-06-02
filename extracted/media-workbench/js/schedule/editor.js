@@ -994,6 +994,7 @@
         }
 
         SD.updateSchedule(state.id, data);
+        _autoSyncSample(state.id, data);
 
         // 新日期是过去但没有任何内容记录 → 补建一条空记录
         if (dateChanged && data.schedule_date < todayLocal) {
@@ -1015,7 +1016,8 @@
         window.toast && window.toast(toastMsg, 'success');
         afterSave();
       } else {
-        SD.createSchedule(data);
+        const newSched = SD.createSchedule(data);
+        _autoSyncSample(newSched.id, data);
         _syncBdToKol(data);
         const msg = autoCreatedKol
           ? `已新增（顺手把「${autoCreatedKol.name}」存到了达人库）`
@@ -1057,6 +1059,31 @@
       if (!confirm('确认删除此条排期？此操作不可撤销。')) return;
       doDelete();
     }
+  }
+
+  function _autoSyncSample(scheduleId, schedData) {
+    if (!scheduleId || schedData.status === 'draft') return;
+    const samples = window.DB.samples || (window.DB.samples = []);
+    const existing = samples.find(s => s.schedule_id === scheduleId);
+    const fields = {
+      talent:      schedData.kol_name  || '',
+      date:        schedData.schedule_date || '',
+      contact:     schedData.bd_id    || '',
+      schedule_id: scheduleId,
+    };
+    if (existing) {
+      Object.assign(existing, fields);
+    } else {
+      samples.push({
+        id: samples.length ? Math.max(...samples.map(x => x.id)) + 1 : 1,
+        ...fields,
+        product: [], recipient_name: '', phone: '', address: '', note: '',
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      });
+    }
+    if (typeof window.saveData === 'function') window.saveData();
+    if (typeof window.renderSamples === 'function') window.renderSamples();
   }
 
   function afterSave() {
