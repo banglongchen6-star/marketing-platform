@@ -3172,7 +3172,8 @@ function createScheduleFromSample(sampleId) {
 function openSampleModal(id=null) {
   editingSampleId=id;
   document.getElementById('sample-modal-title').textContent=id?'编辑样品':'新增样品';
-  document.getElementById('sample-del-btn').style.display=id?'block':'none';
+  const _canDelete = id && !DB.samples.find(x=>x.id===id)?.schedule_id;
+  document.getElementById('sample-del-btn').style.display=_canDelete?'block':'none';
   let __currentSchedId = id ? (DB.samples.find(x=>x.id===id)?.schedule_id || '') : '';
   if (!id && window.__pendingScheduleLink && window.__pendingScheduleLink.fieldId === 'sp-schedule-id') {
     __currentSchedId = window.__pendingScheduleLink.scheduleId;
