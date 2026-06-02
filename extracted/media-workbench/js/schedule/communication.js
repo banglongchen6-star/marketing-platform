@@ -948,21 +948,19 @@
       : false;
     const priceBlock = realSchedIdForPrice ? (() => {
       if (hasSettlement) {
-        return `<div class="sched-form-group">
+        return `
           <label class="sched-form-label">合作价格</label>
           <div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:6px;cursor:default">
             <span style="font-weight:500">¥${Number(f.price || 0).toLocaleString()}</span>
-            <span style="font-size:.72rem;color:var(--text-muted);margin-left:auto">🔒 已有结算记录，如需修改请前往达人结算</span>
-          </div>
-        </div>`;
+            <span style="font-size:.65rem;color:var(--text-muted);margin-left:auto">🔒 已有结算</span>
+          </div>`;
       }
-      return `<div class="sched-form-group">
+      return `
         <label class="sched-form-label">合作价格</label>
         <input id="cf-price" class="sched-form-control" type="number" min="0" step="1"
                placeholder="请输入金额"
                value="${escapeAttr(f.price)}">
-        <div class="sched-form-hint">修改后将同步更新排期金额</div>
-      </div>`;
+        <div class="sched-form-hint">保存后同步排期</div>`;
     })() : '';
     const mainInfo = r ? `
       <div style="background:var(--primary-light);padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:.85rem">
@@ -993,9 +991,9 @@
     return `
       ${schedBlock}
       ${mainInfo}
-      ${priceBlock}
       <div class="sched-form-group">
         <div style="display:flex;gap:10px;align-items:flex-start">
+          ${priceBlock ? `<div style="flex:1">${priceBlock}</div>` : ''}
           <div style="flex:1">
             <label class="sched-form-label">粉丝量</label>
             <input id="cf-fans" class="sched-form-control" type="text"
