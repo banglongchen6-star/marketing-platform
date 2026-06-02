@@ -732,7 +732,7 @@
     if (!q) return;
     const k = SD.quickCreateKol({
       name: q,
-      platform: state.form.platforms[0] || '',
+      platform: state.form.platform || '',
       homepage: state.form.kol_homepage,
     });
     state.form.kol_id = k.id;
