@@ -591,10 +591,7 @@
       ${isEdit ? `<button class="btn btn-danger btn-sm" onclick="ScheduleEditor._deleteThis()">删除</button>` : ''}
       ${isEdit ? `<button class="btn btn-secondary btn-sm" onclick="ScheduleEditor._cloneToNew()" title="保留当前所有字段值，转为新建（日期会改为今天）">📋 复制为新建</button>` : ''}
       <div class="spacer"></div>
-      ${!isEdit ? `
-        <label class="sched-form-checkbox" title="保存后保留抽屉，清空表单继续添加下一条">
-          <input type="checkbox" id="f-continue" ${state.saveAndContinue?'checked':''}> 保存后继续添加
-        </label>` : ''}
+      ${!isEdit ? `<button class="btn btn-secondary btn-sm" onclick="ScheduleEditor._saveAndContinue()" title="保存后清空表单，继续添加下一条">保存并继续</button>` : ''}
       ${showDraftBtn ? `<button class="btn btn-secondary btn-sm" onclick="ScheduleEditor._saveDraft()" title="暂存草稿，稍后可继续编辑">暂存</button>` : ''}
       <button class="btn btn-secondary btn-sm" onclick="ScheduleEditor.close()">取消</button>
       <button class="btn btn-primary btn-sm" onclick="ScheduleEditor._save()">${isDraft ? '发布' : '保存'}</button>
@@ -628,8 +625,6 @@
     // 日期变化时重渲染以更新状态徽章
     onInput('f-date', v => { f.schedule_date = v; renderAll(); });
     onInput('f-notes', v => f.notes = v);
-    const cont = document.getElementById('f-continue');
-    if (cont) cont.addEventListener('change', e => state.saveAndContinue = e.target.checked);
 
     // KolSelector 特殊处理
     const kolInput = document.getElementById('f-kol-input');
@@ -865,6 +860,11 @@
     if (Object.keys(patch).length) SD.updateKol(kol.id, patch);
   }
 
+  function _saveAndContinue() {
+    state._continueAfterSave = true;
+    _save();
+  }
+
   function _saveDraft() {
     const f = state.form;
     if (!f.kol_name || !f.kol_name.trim()) {
@@ -1021,8 +1021,8 @@
           ? `已新增（顺手把「${autoCreatedKol.name}」存到了达人库）`
           : '已新增';
         window.toast && window.toast(msg, 'success');
-        if (state.saveAndContinue) {
-          // 保留抽屉，清空 form，但保留 schedule_date / status 等高频字段
+        if (state._continueAfterSave) {
+          state._continueAfterSave = false;
           const keepDate = f.schedule_date;
           state.form = defaultForm(keepDate);
           state.errors = {};
@@ -1087,7 +1087,7 @@
   /* ------------------------- 8. 暴露 ------------------------- */
   window.ScheduleEditor = {
     open, close,
-    _save, _saveDraft, _deleteThis, _cloneToNew,
+    _save, _saveAndContinue, _saveDraft, _deleteThis, _cloneToNew,
     _pickKol, _pickSampleKol, _createKol, _unlinkKol, _copyHomepage,
     _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _switchTab, _newLinked, _editLinked,
