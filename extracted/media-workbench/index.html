@@ -3770,9 +3770,9 @@ function _stRender() {
       ` : ''}
     </div>
 
-    <!-- 账户 + 发票 + 备注 -->
-    <div class="form-row" style="margin-top:12px">
-      <div class="form-group">
+    <!-- 账户 + 发票 + 备注（三列同行） -->
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-top:12px">
+      <div class="form-group" style="flex:1;margin:0">
         <label class="form-label" style="display:flex;align-items:center;gap:8px">
           <span>付款账户 <span style="color:var(--danger)">*</span></span>
           <button type="button" onclick="openPayAccountSettings()" style="font-size:.72rem;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);cursor:pointer;color:var(--text-secondary)">⚙️ 设置</button>
@@ -3784,7 +3784,7 @@ function _stRender() {
           ).join('')}
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="flex:1;margin:0">
         <label class="form-label">发票状态 <span style="color:var(--danger)">*</span></label>
         <select class="form-control" onchange="_st.invoice=this.value" style="${!_st.invoice?'border-color:var(--danger)':''}">
           <option value="" ${!_st.invoice?'selected':''}>— 请选择 —</option>
@@ -3793,10 +3793,10 @@ function _stRender() {
           <option value="无需" ${_st.invoice==='无需'?'selected':''}>无需</option>
         </select>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">备注</label>
-      <textarea class="form-control" placeholder="备注信息" oninput="_st.note=this.value" style="width:100%;box-sizing:border-box">${escapeHtml(_st.note)}</textarea>
+      <div class="form-group" style="flex:1;margin:0">
+        <label class="form-label">备注</label>
+        <input class="form-control" type="text" placeholder="备注信息" oninput="_st.note=this.value" value="${escapeHtml(_st.note)}">
+      </div>
     </div>
   `;
   container.scrollTop = scrollTop;
