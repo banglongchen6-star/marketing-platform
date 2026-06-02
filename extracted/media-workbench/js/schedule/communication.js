@@ -385,6 +385,13 @@
    */
   function renderPubTd(p, colKey, content, r, frozen = false) {
     const ctx = { r, content };
+    // date：内联编辑发布日期
+    if (colKey === 'date') {
+      const chip = p.snapshot_day ? '' : ''; // chip 在 renderPubCell 里，这里简化
+      if (frozen) return `<td style="min-width:110px">${escapeHtml(p.date || '-')}</td>`;
+      const display = p.date ? escapeHtml(p.date) : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>';
+      return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditDate('${content.id}','${p.id}',this)" title="点击修改发布日期">${display}</td>`;
+    }
     // link：内联编辑 URL
     if (colKey === 'link') {
       if (frozen) return `<td style="min-width:110px">${p.link ? renderLink(p.link) : '<span style="color:var(--text-muted);font-size:.78rem">-</span>'}</td>`;
@@ -696,12 +703,14 @@
         }
         return `<td>${escapeHtml(r.category || '-')}</td>`;
       }
-      // date：每个平台各自显示发布日期（同步平台可能日期不同）
+      // date：每个平台各自显示发布日期（同步平台可能日期不同），支持内联编辑
       if (col.key === 'date') {
         const chip = p.snapshot_day && snapMap[p.snapshot_day]
           ? `<span style="margin-left:4px;font-size:.62rem;padding:1px 5px;border-radius:3px;background:${p.snapshot_day==='d7'?'#dcfce7':'#fef3c7'};color:${p.snapshot_day==='d7'?'#15803d':'#92400e'};font-weight:500">${snapMap[p.snapshot_day]}</span>`
           : '';
-        return `<td style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
+        if (allFrozen) return `<td style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
+        const display = p.date ? escapeHtml(p.date) + chip : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>';
+        return `<td style="cursor:pointer;vertical-align:middle" onclick="CommunicationPage._inlineEditDate('${c.id}','${p.id}',this)" title="点击修改发布日期">${display}</td>`;
       }
       // 其余列（含 platform/link/views/inline-edit）统一走 renderPubTd
       return renderPubTd(p, col.key, c, r, allFrozen);
@@ -1400,6 +1409,44 @@
     if (current !== '') input.select();
   }
 
+  function _inlineEditDate(contentId, pubId, tdEl) {
+    if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
+    if (tdEl.querySelector('input')) return;
+    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    if (!content) return;
+    const pub = (content.publications || []).find(p => p.id === pubId);
+    const current = pub ? (pub.date || '') : '';
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = current;
+    input.style.cssText = 'width:130px;border:1px solid var(--primary);border-radius:4px;padding:4px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+    let saved = false;
+    const save = () => {
+      if (saved) return;
+      saved = true;
+      const newVal = input.value.trim();
+      if (newVal === current) { render(); return; }
+      try {
+        const newPubs = (content.publications || []).map(p =>
+          p.id === pubId ? { ...p, date: newVal } : p
+        );
+        SD.updateContent(contentId, { publications: newPubs });
+        window.toast && window.toast('发布日期已保存', 'success');
+      } catch(e) {
+        window.toast && window.toast('保存失败: ' + e.message, 'error');
+      }
+      render();
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { e.stopPropagation(); saved = true; render(); }
+    });
+    tdEl.innerHTML = '';
+    tdEl.appendChild(input);
+    input.focus();
+  }
+
   /** 取 publication 的最新一天快照（daily_stats 按日期倒序取第一条） */
   function getLatestStats(p) {
     const stats = p.daily_stats || [];
@@ -1463,7 +1510,7 @@
     _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _addPub, _removePub, _updatePub, _updateSnapshot,
     _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
-    _inlineEditLink, _inlineEditViews, _inlineEditField,
+    _inlineEditLink, _inlineEditViews, _inlineEditField, _inlineEditDate,
     _toggleFreeze,
     _getState: () => ({ year: state.year, month: state.month, mainPlatform: state.mainPlatform, bd_id: state.bd_id }),
   };
