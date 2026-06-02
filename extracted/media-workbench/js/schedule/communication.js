@@ -388,7 +388,7 @@
     // platform：主平台加（主）标记
     if (colKey === 'platform') {
       const isMain = (content.publications || [])[0]?.id === p.id;
-      return `<td><span class="sched-card-chip platform">${escapeHtml(p.platform)}${isMain ? '<span style="font-size:.6rem;color:var(--primary);font-weight:700;margin-left:2px">主</span>' : ''}</span></td>`;
+      return `<td><span class="sched-card-chip platform">${escapeHtml(p.platform)}${isMain ? '<span style="font-size:.6rem;color:var(--primary);font-weight:700;margin-left:2px">（主）</span>' : ''}</span></td>`;
     }
     // date：主平台锁定，同步平台内联编辑
     if (colKey === 'date') {
