@@ -3806,9 +3806,11 @@ function _stSchedInfo(sched) {
   const _mainP = sched.platform || (Array.isArray(sched.platforms) ? sched.platforms[0] : '') || '';
   const _syncP = Array.isArray(sched.sync_platforms) && sched.sync_platforms.length ? sched.sync_platforms : (Array.isArray(sched.platforms) ? sched.platforms.slice(1) : []);
   const plats = _mainP ? (_syncP.length ? `${_mainP}（主）· ${_syncP.join(' · ')}` : `${_mainP}（主）`) : '-';
+  const hasContent = (window.DB?.contents||[]).some(x => x.schedule_id === sched.id);
+  const noContentBadge = hasContent ? '' : `<span style="font-size:.68rem;color:#b45309;background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle">⚠ 暂无发布记录</span>`;
   return `
     <div style="background:var(--bg-secondary);padding:10px 14px;border-radius:6px;margin-bottom:10px;font-size:.82rem;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-      <div><span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(sched.kol_name||'-')}</b></div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(sched.kol_name||'-')}</b>${noContentBadge}</div>
       <div><span style="color:var(--text-muted)">平台：</span><b>${escapeHtml(plats)}</b></div>
       <div><span style="color:var(--text-muted)">发布日期：</span><b>${escapeHtml(sched.schedule_date||'-')}</b></div>
       <div><span style="color:var(--text-muted)">合同价：</span><b style="color:var(--primary)">¥${fmtNum(sched.amount||0)}</b></div>
@@ -3818,7 +3820,7 @@ function _stSchedInfo(sched) {
 
 function _stContentInfo(scheduleId) {
   const c = (window.DB?.contents||[]).find(x => x.schedule_id === scheduleId);
-  if (!c) return `<div style="font-size:.78rem;color:var(--text-muted);padding:6px 10px;background:var(--bg-secondary);border-radius:6px;margin-bottom:10px">⚠ 该排期暂无内容发布记录</div>`;
+  if (!c) return '';
   const pubs = c.publications || [];
   const hasLink = pubs.some(p => p.link);
   const totalViews = pubs.reduce((s, p) => s + (parseFloat(p.views)||0), 0);
