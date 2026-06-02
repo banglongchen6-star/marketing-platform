@@ -1017,7 +1017,7 @@
             ${SD.listPlatforms().map(p => `
               <label class="platform-tag ${f.main_platform===p.name?'active':''}">
                 <input type="radio" name="cf-main-platform" value="${escapeAttr(p.name)}" ${f.main_platform===p.name?'checked':''}
-                       onchange="CommunicationPage._setMainPlatform(this.value)">
+                       onchange="CommunicationPage._setEditorMainPlatform(this.value)">
                 <span>${escapeHtml(p.name)}</span>
               </label>`).join('')}
           </div>
@@ -1198,8 +1198,8 @@
     }
   }
 
-  /* 平台选择器操作 */
-  function _setMainPlatform(name) {
+  /* 平台选择器操作（编辑器内，避免与 tab 切换的 _setMainPlatform 冲突） */
+  function _setEditorMainPlatform(name) {
     const f = state.editor.form;
     // 从同步平台移除（若已勾选）
     const idx = f.sync_platforms.indexOf(name);
@@ -1585,7 +1585,7 @@
     render, openEditor,
     _setMainPlatform, _prevMonth, _nextMonth,
     _save, _delete, _closeEditor: closeEditor, _toSettlement, _schedToSettlement,
-    _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
+    _setEditorMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _addPub, _removePub, _updatePub, _updateSnapshot,
     _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
     _inlineEditLink, _inlineEditViews, _inlineEditField, _inlineEditDate,
