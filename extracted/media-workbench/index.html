@@ -2187,21 +2187,45 @@ function _ddComputeKPI() {
       const plat = p.platform || '其他';
       perPlatform[plat] = (perPlatform[plat] || 0) + 1;
       if (p.date && perDay[p.date]) perDay[p.date].naturalViews += v;
+
+      // 非抖音平台的 promo_views 直接累加（抖音由 douyin_promo 覆盖，稍后处理）
+      if (plat !== '抖音') {
+        const pv = Number(p.promo_views) || 0;
+        const pc = Number(p.promo_cost) || 0;
+        if (p.date && perDay[p.date]) {
+          perDay[p.date].promoViews += pv;
+          perDay[p.date].promoCost += pc;
+        }
+      } else {
+        // 抖音 promo 先按 publication 记录，若当天有 douyin_promo 则后续覆盖
+        if (!douyinPromo[p.date]) {
+          const pv = Number(p.promo_views) || 0;
+          const pc = Number(p.promo_cost) || 0;
+          if (p.date && perDay[p.date]) {
+            perDay[p.date].promoViews += pv;
+            perDay[p.date].promoCost += pc;
+          }
+        }
+      }
     });
 
     contentSet.add(c.id);
   });
 
-  // 投流数据 from DB.douyin_promo
+  // 抖音投流：DB.douyin_promo 有值时覆盖当天（与 ROI 表逻辑一致）
+  dates.forEach(ds => {
+    const d = douyinPromo[ds];
+    if (d && (d.plays != null || d.cost != null)) {
+      perDay[ds].promoViews = Number(d.plays) || 0;  // 覆盖
+      perDay[ds].promoCost  = Number(d.cost)  || 0;
+    }
+  });
+
+  // 汇总投流
   let promoViews = 0, promoCost = 0;
   dates.forEach(ds => {
-    const d = douyinPromo[ds] || {};
-    const pv = Number(d.plays) || 0;
-    const pc = Number(d.cost) || 0;
-    promoViews += pv;
-    promoCost += pc;
-    perDay[ds].promoViews = pv;
-    perDay[ds].promoCost = pc;
+    promoViews += perDay[ds].promoViews;
+    promoCost  += perDay[ds].promoCost;
   });
 
   const totalViews = naturalViews + promoViews;
