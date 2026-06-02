@@ -3515,7 +3515,7 @@ function deleteMaterial() {
 }
 
 /* ==================== Settlement v2 ==================== */
-let settlementRange = 30, editingSettlementId = null;
+let settlementRange = 30, editingSettlementId = null, _stFromContext = false;
 
 /* ---------- 编辑状态 ---------- */
 let _st = {};
@@ -3613,6 +3613,15 @@ function _stRender() {
   container.innerHTML = `
     <!-- 新增时：达人名称 / 平台 / 发布时间 -->
     ${editingSettlementId === null ? (() => {
+      if (_stFromContext) {
+        // 来自排期/内容发布：只读展示，不需要手动输入
+        return _st.kol_name ? `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--primary-light);border-radius:6px;margin-bottom:14px;font-size:.85rem">
+            <span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(_st.kol_name)}</b>
+            ${_st.platform ? `<span style="color:var(--text-muted);margin-left:8px">平台：</span><b>${escapeHtml(_st.platform)}</b>` : ''}
+            ${_st.publish_date ? `<span style="color:var(--text-muted);margin-left:8px">发布时间：</span><b>${escapeHtml(_st.publish_date)}</b>` : ''}
+          </div>` : '';
+      }
       const pfOpts = (window.ScheduleData?.listPlatforms ? ScheduleData.listPlatforms() : [])
         .map(p => `<option value="${escapeHtml(p.name)}" ${_st.platform===p.name?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
       return `
@@ -4509,7 +4518,11 @@ function openSettlementForSchedule(scheduleId) {
   _stInit(null);
   _st.schedule_id = scheduleId;
   const sched = (DB.schedules||[]).find(x => x.id === scheduleId);
-  if (sched?.amount) { _st.contract_amount = sched.amount; _stSyncFullAmount(); }
+  if (sched) {
+    _st.kol_name = sched.kol_name || '';
+    if (sched.amount) { _st.contract_amount = sched.amount; _stSyncFullAmount(); }
+  }
+  _stFromContext = true;
   _stRender();
   openModal('settlement-modal');
 }
@@ -4538,6 +4551,7 @@ function openSettlementForContent(contentId) {
       _st.platform     = (c.publications && c.publications[0]?.platform) || '';
       _st.publish_date = (c.publications && c.publications[0]?.date)     || '';
       _st.content_id   = contentId;
+      _stFromContext   = true;
       _stRender();
       openModal('settlement-modal');
     }
@@ -4546,6 +4560,7 @@ function openSettlementForContent(contentId) {
 
 function openSettlementModal(id = null) {
   editingSettlementId = id;
+  _stFromContext = false;
   document.getElementById('settlement-modal-title').textContent = id ? '编辑结算' : '新增结算';
   document.getElementById('settlement-del-btn').style.display = id ? 'block' : 'none';
   if (id) {
