@@ -1372,6 +1372,7 @@ function loadData() {
 }
 
 function saveData() {
+  DB._saved_at = Date.now();
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
   // 同步到服务器（防抖 800ms）
   clearTimeout(saveData._t);
@@ -1385,6 +1386,7 @@ function saveData() {
 }
 // 立即写入服务器（不走防抖，用于不能丢的关键写操作）
 function saveDataNow() {
+  DB._saved_at = Date.now();
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
   clearTimeout(saveData._t);
   fetch('/api/data', {
@@ -5184,9 +5186,14 @@ function initApp() {
       if (!res.ok) throw new Error('no server');
       const serverData = await res.json();
       if (serverData && Object.keys(serverData).length > 0) {
-        Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
-        window.DB = DB;
-        localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+        // 只在服务器数据更新时才覆盖本地（防止刚写入的本地数据被旧服务器数据覆盖）
+        const localTs  = DB._saved_at  || 0;
+        const serverTs = serverData._saved_at || 0;
+        if (serverTs >= localTs) {
+          Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
+          window.DB = DB;
+          localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+        }
       }
     } catch (e) {
       // 本地开发或离线时直接用 localStorage
