@@ -1054,6 +1054,12 @@
         <input class="form-input" id="sv-name" placeholder="品宣主管姓名" />
       </div>
       <div class="form-group">
+        <label class="form-label">关联商务BD <span style="font-size:.78rem;color:var(--text-muted)">（主管兼任BD时选择）</span></label>
+        <select class="form-control" id="sv-bd-id">
+          <option value="">— 不关联 —</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">登录密码 <span style="color:red">*</span></label>
         <input class="form-input" type="password" id="sv-pass" placeholder="至少4位" />
       </div>
@@ -1449,7 +1455,7 @@ function doLogin() {
     if (!sv.password) { errEl.textContent = '该账号尚未设置密码，请联系管理员'; return; }
     if (sv.password !== p) { errEl.textContent = '密码错误'; return; }
     try { localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: 'supervisor', sv_id: sv.id, at: Date.now() })); } catch(e) {}
-    _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: null, sv_id: sv.id });
+    _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.bd_id || null, sv_id: sv.id });
   } else {
     errEl.textContent = '请选择登录身份';
   }
@@ -1485,7 +1491,7 @@ function tryRestoreSession() {
     if (s.identity === 'supervisor' && s.sv_id) {
       const sv = (window.DB?.supervisors || []).find(x => x.id === s.sv_id);
       if (!sv || !sv.password) return false;
-      _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: null, sv_id: sv.id });
+      _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.bd_id || null, sv_id: sv.id });
       return true;
     }
   } catch(e) {}
@@ -3170,13 +3176,8 @@ function openSampleModal(id=null) {
     if (u?.identity === 'bd' && u.bd_id) {
       smContact.value = u.bd_id;
       smContact.disabled = true;
-    } else if (u?.identity === 'supervisor') {
-      // 主管：临时插入主管名称选项并锁定
-      const svOpt = document.createElement('option');
-      svOpt.value = u.name || '主管';
-      svOpt.textContent = (u.name || '主管') + '（主管）';
-      smContact.insertBefore(svOpt, smContact.firstChild);
-      smContact.value = u.name || '主管';
+    } else if (u?.identity === 'supervisor' && u.bd_id) {
+      smContact.value = u.bd_id;
       smContact.disabled = true;
     }
   }
@@ -4668,6 +4669,7 @@ function renderAdminPanel() {
           <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;margin-bottom:8px">
             <span style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;background:#7c3aed33;display:flex;align-items:center;justify-content:center;font-weight:700;color:#7c3aed">${sv.name[0]}</span>
             <span style="flex:1;font-weight:500;font-size:.9rem">${escapeHtml(sv.name)}</span>
+            ${sv.bd_id ? (() => { const bd = (DB.bds||[]).find(b=>b.id===sv.bd_id); return bd ? `<span style="padding:2px 8px;border-radius:10px;font-size:.72rem;background:${bd.color}22;color:${bd.color};border:1px solid ${bd.color}55">BD: ${escapeHtml(bd.name)}</span>` : ''; })() : ''}
             ${statusTag}
             <button onclick="openAddSupervisorModal('${sv.id}')" class="btn btn-secondary btn-sm">编辑</button>
           </div>
@@ -4813,18 +4815,24 @@ function openAddSupervisorModal(svId) {
   document.getElementById('sv-name').value = sv ? sv.name : '';
   document.getElementById('sv-pass').value = '';
   document.getElementById('sv-del-btn').style.display = sv ? 'inline-flex' : 'none';
+  // 填充 BD 选择器
+  const bdSel = document.getElementById('sv-bd-id');
+  bdSel.innerHTML = '<option value="">— 不关联 —</option>' +
+    (DB.bds||[]).map(b => `<option value="${escapeHtml(b.id)}" ${(sv?.bd_id===b.id)?'selected':''}>${escapeHtml(b.name)}</option>`).join('');
   document.getElementById('supervisor-modal').style.display = 'flex';
 }
 
 function saveSupervisor() {
   const name = document.getElementById('sv-name').value.trim();
   const pass = document.getElementById('sv-pass').value.trim();
+  const bdId = document.getElementById('sv-bd-id').value || null;
   if (!name) { toast('请填写姓名', 'error'); return; }
   if (!DB.supervisors) DB.supervisors = [];
   if (_editingSvId) {
     const sv = DB.supervisors.find(x => x.id === _editingSvId);
     if (!sv) return;
     sv.name = name;
+    sv.bd_id = bdId;
     if (pass) {
       if (pass.length < 4) { toast('密码至少4位', 'error'); return; }
       sv.password = pass;
@@ -4833,7 +4841,7 @@ function saveSupervisor() {
   } else {
     if (!pass) { toast('请设置登录密码', 'error'); return; }
     if (pass.length < 4) { toast('密码至少4位', 'error'); return; }
-    DB.supervisors.push({ id: 'sv_' + Date.now(), name, password: pass });
+    DB.supervisors.push({ id: 'sv_' + Date.now(), name, bd_id: bdId, password: pass });
     toast(`已添加品宣主管「${name}」`, 'success');
   }
   saveData();
