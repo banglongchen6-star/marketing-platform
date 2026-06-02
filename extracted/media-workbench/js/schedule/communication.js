@@ -657,37 +657,29 @@
     const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
     const groupLabel = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '投流':'投流（抖音）', '看后搜':'看后搜数据', '归因':'归因数据' };
 
-    // 展平所有 publication，按日期(主)、达人名(次) 排序（仅真实记录）
-    const allItems = [];
+    // 以内容记录 ID 为 key 分组，保证同一笔合同的所有平台永远在一个 block
     const kolFans = {};
+    const blockMap = new Map();
     realList.forEach(c => {
       const r = SD.resolveContent(c);
       const kolKey = c.kol_id || ('__name__' + r.talent);
       if (c.fans != null && kolFans[kolKey] == null) kolFans[kolKey] = c.fans;
-      (c.publications || []).forEach(p => allItems.push({ p, c, r, kolKey }));
+      const items = (c.publications || []).map(p => ({ p, c, r, kolKey }));
+      blockMap.set(c.id, { key: c.id, r, c, kolKey, fans: kolFans[kolKey] ?? null, items });
     });
-    allItems.sort((a, b) => {
-      const d = (a.p.date || '').localeCompare(b.p.date || '');
+
+    // 按主平台日期（publications[0]）升序排列，日期相同再按达人名排
+    const blocks = [...blockMap.values()].sort((a, b) => {
+      const da = (a.items[0]?.p.date || '');
+      const db = (b.items[0]?.p.date || '');
+      const d = da.localeCompare(db);
       return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || '');
     });
 
-    // 将连续的「同达人 + 同日期」合并为一个 block
-    const blocks = [];
-    allItems.forEach(item => {
-      const key = item.kolKey + '|' + (item.p.date || '');
-      const last = blocks[blocks.length - 1];
-      if (last && last.key === key) {
-        last.items.push(item);
-      } else {
-        blocks.push({ key, r: item.r, fans: kolFans[item.kolKey] ?? null, items: [item] });
-      }
-    });
-
-    // 统计（价格按达人去重避免重复计入）
+    // 统计（每个 block = 一条内容记录 = 一笔合同，价格只计一次）
     let totalViews = 0, totalPrice = 0, totalPubs = 0;
-    const pricedKols = new Set();
     blocks.forEach(bl => {
-      if (!pricedKols.has(bl.r.talent)) { totalPrice += Number(bl.r.price) || 0; pricedKols.add(bl.r.talent); }
+      totalPrice += Number(bl.r.price) || 0;
       bl.items.forEach(({ p }) => { totalViews += Number(p.views) || 0; totalPubs++; });
     });
 
