@@ -3182,11 +3182,12 @@ function openSampleModal(id=null) {
   smContact.innerHTML = '<option value="">— 不选 —</option>' +
     bdOpts.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}${b._kind==='supervisor'?' (主管)':''}</option>`).join('');
   smContact.disabled = false;
+  const _cu = window.currentUser;
   if(id){
     const s=DB.samples.find(x=>x.id===id);
     document.getElementById('sm-talent').value=s.talent||'';
     document.getElementById('sm-date').value=s.date||'';
-    smContact.value=s.contact||'';
+    smContact.value = s.contact || (_cu?.bd_id || '');
     const sel=Array.isArray(s.product)?s.product:(s.product?[s.product]:[]);
     renderSampleProductCheckboxes(sel);
     document.getElementById('sm-name').value=s.recipient_name||'';
@@ -3198,12 +3199,10 @@ function openSampleModal(id=null) {
     renderSampleProductCheckboxes([]);
     const d=new Date();
     document.getElementById('sm-date').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    // 新增时按登录角色自动填入并锁定（BD 和主管统一处理）
-    const u = window.currentUser;
-    if ((u?.identity === 'bd' || u?.identity === 'supervisor') && u.bd_id) {
-      smContact.value = u.bd_id;
-      smContact.disabled = true;
-    }
+    if (_cu?.bd_id) smContact.value = _cu.bd_id;
+  }
+  if ((_cu?.identity === 'bd' || _cu?.identity === 'supervisor') && _cu?.bd_id) {
+    smContact.disabled = true;
   }
   openModal('sample-modal');
 }
