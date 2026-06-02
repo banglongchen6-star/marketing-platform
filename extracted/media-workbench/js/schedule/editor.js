@@ -559,7 +559,7 @@
     if (!q) return '';
     const items = state.kolItems;
     let html = items.map(it => `
-      <div class="kol-selector-item" onmousedown="event.preventDefault();ScheduleEditor._pickKol('${it.id}')">
+      <div class="kol-selector-item" data-kol-id="${escapeAttr(String(it.id))}">
         <span class="name">${escapeHtml(it.name)}</span>
         ${it.platform ? `<span class="meta">${escapeHtml(it.platform)}</span>` : ''}
       </div>
@@ -568,8 +568,7 @@
     const sampleItems = state.sampleKolItems || [];
     if (sampleItems.length) {
       html += sampleItems.map(name => `
-        <div class="kol-selector-item" onmousedown="event.preventDefault();ScheduleEditor._pickSampleKol('${escapeAttr(name)}')"
-          style="opacity:.85">
+        <div class="kol-selector-item" data-kol-name="${escapeAttr(name)}" style="opacity:.85">
           <span class="name">${escapeHtml(name)}</span>
           <span class="meta" style="color:#10b981">样品</span>
         </div>
@@ -578,7 +577,7 @@
     // 若键入名与现有完全相同 → 不显示"新建"
     const allNames = new Set([...items.map(i => i.name), ...sampleItems]);
     if (!allNames.has(q)) {
-      html += `<div class="kol-selector-create" onmousedown="event.preventDefault();ScheduleEditor._createKol()">
+      html += `<div class="kol-selector-create" data-kol-create="1">
         ＋ 新建「${escapeHtml(q)}」到达人库
       </div>`;
     }
@@ -706,12 +705,22 @@
     d.id = 'kol-dropdown';
     d.style.cssText = 'position:absolute;top:100%;left:0;width:100%;z-index:9999';
     d.innerHTML = html;
+    // 事件委托：mousedown + preventDefault 防止 input blur 抢先触发
+    d.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const item = e.target.closest('[data-kol-id]');
+      if (item) { _pickKol(item.dataset.kolId); return; }
+      const sampleItem = e.target.closest('[data-kol-name]');
+      if (sampleItem) { _pickSampleKol(sampleItem.dataset.kolName); return; }
+      const createItem = e.target.closest('[data-kol-create]');
+      if (createItem) { _createKol(); }
+    });
     container.style.position = 'relative';
     container.appendChild(d);
   }
 
   function _pickKol(id) {
-    const k = window.DB.kols.find(x => x.id === id);
+    const k = window.DB.kols.find(x => String(x.id) === String(id));
     if (!k) return;
     state.form.kol_name = k.name;
     state.form.kol_id = k.id;
