@@ -4467,8 +4467,8 @@ function _renderSettledArea() {
         <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(base+bonus)}</div>
         ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtNum(base)} · 奖金¥${fmtNum(bonus)}</div>`:''}
       </td>
+      <td style="vertical-align:middle;font-size:.8rem;color:var(--text-muted)">—</td>
       <td style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[s.payment_type]||'-'}</td>
-      <td style="vertical-align:middle;font-size:.8rem;color:var(--text-muted)">${s.settled_at||'-'}</td>
       <td class="comm-actions" style="vertical-align:middle">
         <button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;cursor:pointer" onclick="rollbackFromSettled(${s.id})">↩ 退回待结算</button>
       </td>
@@ -4482,14 +4482,14 @@ function _renderSettledArea() {
             <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(base+bonus)}</div>
             ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtNum(base)} · 奖金¥${fmtNum(bonus)}</div>`:''}
           </td>
+          <td style="font-size:.8rem">${paidTag}</td>
           <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[s.payment_type]||'-'}</td>
-          <td style="font-size:.8rem">${escapeHtml(p.label||'')} ¥${fmtNum(parseFloat(p.amount)||0)}<br>${paidTag}</td>
           <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
             <button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;cursor:pointer" onclick="rollbackFromSettled(${s.id})">↩ 退回待结算</button>
             <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">结转：${s.settled_at||'-'}</div>
           </td>
         </tr>`;
-      return `<tr class="comm-sub-row"><td style="font-size:.8rem">${escapeHtml(p.label||'')} ¥${fmtNum(parseFloat(p.amount)||0)}<br><span style="color:var(--success);font-size:.78rem">${p.actual_paid_date||''}</span></td></tr>`;
+      return `<tr class="comm-sub-row"><td style="font-size:.8rem"><span style="color:var(--success);font-size:.78rem">${p.actual_paid_date?'已付 · '+p.actual_paid_date:'—'}</span></td></tr>`;
     });
 
     return payRows.join('');
@@ -4505,8 +4505,9 @@ function _renderSettledArea() {
           <tr>
             <th style="min-width:110px">达人昵称</th>
             <th>发布日期</th>
-            <th>结算金额</th><th>付款方式</th>
+            <th>结算金额</th>
             <th>付款明细 / 状态</th>
+            <th>付款方式</th>
             <th>操作</th>
           </tr>
         </thead>
