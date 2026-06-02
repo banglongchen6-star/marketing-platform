@@ -696,13 +696,12 @@
         }
         return `<td>${escapeHtml(r.category || '-')}</td>`;
       }
-      // date：同 block 日期相同，首行 rowspan
+      // date：每个平台各自显示发布日期（同步平台可能日期不同）
       if (col.key === 'date') {
-        if (i > 0) return '';
         const chip = p.snapshot_day && snapMap[p.snapshot_day]
           ? `<span style="margin-left:4px;font-size:.62rem;padding:1px 5px;border-radius:3px;background:${p.snapshot_day==='d7'?'#dcfce7':'#fef3c7'};color:${p.snapshot_day==='d7'?'#15803d':'#92400e'};font-weight:500">${snapMap[p.snapshot_day]}</span>`
           : '';
-        return `<td rowspan="${total}" style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
+        return `<td style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
       }
       // 其余列（含 platform/link/views/inline-edit）统一走 renderPubTd
       return renderPubTd(p, col.key, c, r, allFrozen);
