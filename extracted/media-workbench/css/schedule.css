@@ -274,6 +274,19 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
+.sched-card-draft-badge {
+  flex-shrink: 0;
+  font-size: .65rem;
+  font-weight: 600;
+  color: #9ca3af;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 1.4;
+  letter-spacing: .02em;
+  font-style: italic;
+}
 .sched-card-link {
   flex-shrink: 0;
   font-size: .72rem;
@@ -348,6 +361,7 @@
 .sched-card-more:hover { background: rgba(26,86,219,.15); }
 
 /* status colors (apply to .sched-card-amount) */
+.sched-status-draft     { color: #9ca3af; font-style: italic; }  /* gray-400, italic */
 .sched-status-planned   { color: #6b7280; }   /* gray-500 */
 .sched-status-contacted { color: #b45309; }   /* amber-700 */
 .sched-status-confirmed { color: #1d4ed8; }   /* blue-700 */
@@ -356,6 +370,7 @@
 .sched-status-cancelled { color: #9ca3af; text-decoration: line-through; }
 
 /* left-border accent per status */
+.sched-card[data-status="draft"]     { border-left-color: #d1d5db; border-left-width: 4px; }
 .sched-card[data-status="planned"]   { border-left-color: #9ca3af; }
 .sched-card[data-status="contacted"] { border-left-color: #d97706; }
 .sched-card[data-status="confirmed"] { border-left-color: #2563eb; }

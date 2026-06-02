@@ -585,6 +585,8 @@
 
   function renderFooter() {
     const isEdit = state.mode === 'edit';
+    const isDraft = isEdit && (window.DB?.schedules || []).find(x => x.id === state.id)?.status === 'draft';
+    const showDraftBtn = !isEdit || isDraft;
     return `
       ${isEdit ? `<button class="btn btn-danger btn-sm" onclick="ScheduleEditor._deleteThis()">删除</button>` : ''}
       ${isEdit ? `<button class="btn btn-secondary btn-sm" onclick="ScheduleEditor._cloneToNew()" title="保留当前所有字段值，转为新建（日期会改为今天）">📋 复制为新建</button>` : ''}
@@ -593,8 +595,9 @@
         <label class="sched-form-checkbox" title="保存后保留抽屉，清空表单继续添加下一条">
           <input type="checkbox" id="f-continue" ${state.saveAndContinue?'checked':''}> 保存后继续添加
         </label>` : ''}
+      ${showDraftBtn ? `<button class="btn btn-secondary btn-sm" onclick="ScheduleEditor._saveDraft()" title="暂存草稿，稍后可继续编辑">暂存</button>` : ''}
       <button class="btn btn-secondary btn-sm" onclick="ScheduleEditor.close()">取消</button>
-      <button class="btn btn-primary btn-sm" onclick="ScheduleEditor._save()">${isEdit?'保存':'保存'}</button>
+      <button class="btn btn-primary btn-sm" onclick="ScheduleEditor._save()">${isDraft ? '发布' : '保存'}</button>
     `;
   }
 
@@ -862,6 +865,42 @@
     if (Object.keys(patch).length) SD.updateKol(kol.id, patch);
   }
 
+  function _saveDraft() {
+    const f = state.form;
+    if (!f.kol_name || !f.kol_name.trim()) {
+      window.toast && window.toast('请至少填写达人名称', 'error');
+      return;
+    }
+    const data = {
+      schedule_date: f.schedule_date || todayStr(),
+      kol_name: f.kol_name.trim(),
+      kol_id: f.kol_id || null,
+      kol_homepage: (f.kol_homepage || '').trim(),
+      bd_id: f.bd_id || null,
+      category_direction: f.category_direction || '',
+      tier: f.tier || '',
+      platform: f.platform || '',
+      sync_platforms: f.sync_platforms || [],
+      platforms: f.platform ? [f.platform, ...(f.sync_platforms || [])] : [],
+      amount: Number(f.amount) || 0,
+      status: 'draft',
+      publish_url: f.publish_url || '',
+      publish_date: f.publish_date || null,
+      notes: f.notes || '',
+    };
+    try {
+      if (state.mode === 'edit') {
+        SD.updateSchedule(state.id, data);
+      } else {
+        SD.createSchedule(data);
+      }
+      window.toast && window.toast('已暂存草稿', 'success');
+      afterSave();
+    } catch (e) {
+      window.toast && window.toast('暂存失败：' + e.message, 'error');
+    }
+  }
+
   function _save(_skipImpact) {
     if (!validate()) {
       renderAll();
@@ -1048,7 +1087,7 @@
   /* ------------------------- 8. 暴露 ------------------------- */
   window.ScheduleEditor = {
     open, close,
-    _save, _deleteThis, _cloneToNew,
+    _save, _saveDraft, _deleteThis, _cloneToNew,
     _pickKol, _pickSampleKol, _createKol, _unlinkKol, _copyHomepage,
     _setMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
     _switchTab, _newLinked, _editLinked,

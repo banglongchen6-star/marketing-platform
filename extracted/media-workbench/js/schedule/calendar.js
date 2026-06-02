@@ -19,9 +19,9 @@
 
   const TIERS = ['头部', '中部', '腰部', '尾部', '素人'];
   const STATUS_LABEL = {
-    planned: '计划中', published: '已发布',
+    draft: '草稿', planned: '计划中', published: '已发布',
   };
-  const STATUS_KEYS = Object.keys(STATUS_LABEL);
+  const STATUS_KEYS = Object.keys(STATUS_LABEL).filter(k => k !== 'draft');
 
   function initState() {
     const now = new Date();
@@ -165,7 +165,10 @@
       ? `<a class="sched-card-link" href="${escapeHtml(s.kol_homepage)}" target="_blank" rel="noopener noreferrer"
             onclick="event.stopPropagation()" title="新窗口打开达人主页">🔗</a>`
       : '';
-    const dragAttrs = frozen ? '' : `draggable="true"
+    const isDraft = s.status === 'draft';
+    const draftStyle = isDraft ? 'border-style:dashed;opacity:.75;' : '';
+    const draftBadge = isDraft ? `<span class="sched-card-draft-badge">草稿</span>` : '';
+    const dragAttrs = (frozen || isDraft) ? '' : `draggable="true"
            ondragstart="event.stopPropagation();SchedulePage._onCardDragStart(event,'${s.id}')"
            ondragend="SchedulePage._onCardDragEnd(event)"`;
     const clickHandler = frozen
@@ -173,12 +176,12 @@
       : `onclick="event.stopPropagation();openScheduleEditor('${s.id}')"
            oncontextmenu="event.preventDefault();event.stopPropagation();SchedulePage._openStatusMenu(event,'${s.id}')"`;
     return `
-      <div class="sched-card" data-status="${s.status || 'planned'}" style="${bdStyle}${frozenStyle}"
+      <div class="sched-card" data-status="${s.status || 'planned'}" style="${bdStyle}${frozenStyle}${draftStyle}"
            ${dragAttrs} ${clickHandler}
            title="${escapeHtml(titleAttr)}">
         <div class="sched-card-row1">
           <span class="sched-card-name">${frozen ? '🔒 ' : ''}${escapeHtml(s.kol_name || '未命名')}</span>
-          ${homepageLink}
+          ${draftBadge}${homepageLink}
         </div>
         <div class="sched-card-row2">
           <span class="sched-card-amount ${statusClass(s.status)}">${amountText}</span>
