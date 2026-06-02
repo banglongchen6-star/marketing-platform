@@ -678,8 +678,10 @@
 
     // 统计（每个 block = 一条内容记录 = 一笔合同，价格只计一次）
     let totalViews = 0, totalPrice = 0, totalPubs = 0;
+    const pricedKols = new Set();
     blocks.forEach(bl => {
       totalPrice += Number(bl.r.price) || 0;
+      pricedKols.add(bl.kolKey);
       bl.items.forEach(({ p }) => { totalViews += Number(p.views) || 0; totalPubs++; });
     });
 
