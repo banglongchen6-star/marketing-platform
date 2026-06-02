@@ -3053,11 +3053,12 @@ function renderSamples() {
     </div>`;
 
   document.getElementById('sample-totals').innerHTML=`
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%">
       ${chip('在外样品', activeCount + ' 件', '#1a56db')}
       ${chip('本月寄出', sentThisMonth + ' 件', '#0891b2')}
       ${chip('未排期', noScheduleCount + ' 件', '#d97706')}
       ${chip('本月置换费', '¥' + fmtNum(curMonthCost), '#ec4899')}
+      <button onclick="openSampleProductDict()" style="margin-left:auto;border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">⚙ 管理品类</button>
     </div>
   `;
 
