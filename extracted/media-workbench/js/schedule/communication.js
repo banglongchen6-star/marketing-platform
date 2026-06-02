@@ -68,10 +68,13 @@
 
   function defaultForm() {
     const defPlat = (SD.listPlatforms()[0] || {}).name || '抖音';
+    const user = window.currentUser;
+    const autoBd = (user?.identity === 'bd' || user?.identity === 'supervisor') ? (user.bd_id || user.id || '') : '';
     return {
       schedule_id: '',
       kol_name: '',
       fans: '',
+      bd_id: autoBd,
       main_platform: defPlat,
       sync_platforms: [],
       publications: [defaultPublication(defPlat, '')],
@@ -828,6 +831,7 @@
         schedule_id: c.schedule_id || 'none',
         kol_name: c.kol_name || '',
         fans: c.fans != null ? String(c.fans) : '',
+        bd_id: c.bd_id || '',
         main_platform: pubs[0]?.platform || (SD.listPlatforms()[0]?.name || '抖音'),
         sync_platforms: pubs.slice(1).map(p => p.platform).filter(Boolean),
         publications: pubs.map(p => ({ ...p })),
@@ -965,11 +969,16 @@
       ${schedBlock}
       ${mainInfo}
       <div class="sched-form-group">
-        <label class="sched-form-label">粉丝量（发布时快照，单位：人）</label>
-        <input id="cf-fans" class="sched-form-control" type="text"
-               placeholder="如 50000 或 5万"
-               value="${escapeAttr(f.fans)}">
-        <div class="sched-form-hint">${formatFansHint(f.fans)}</div>
+        <label class="sched-form-label">粉丝量 &amp; 商务BD</label>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="flex:0 0 140px">
+            <input id="cf-fans" class="sched-form-control" type="text"
+                   placeholder="如 50000 或 5万"
+                   value="${escapeAttr(f.fans)}">
+            <div class="sched-form-hint">${formatFansHint(f.fans)}</div>
+          </div>
+          <div style="flex:1">${_renderContentBdSelector(f.bd_id)}</div>
+        </div>
       </div>
 
       <div class="sched-form-group">
@@ -1108,6 +1117,25 @@
       const hint = document.querySelector('#cf-fans + .sched-form-hint');
       if (hint) hint.innerHTML = formatFansHint(e.target.value);
     });
+    const bdSel = document.getElementById('cf-bd-id');
+    if (bdSel) bdSel.addEventListener('change', e => { state.editor.form.bd_id = e.target.value; });
+  }
+
+  function _renderContentBdSelector(currentId) {
+    const personnel = SD.listBdPersonnel();
+    const user = window.currentUser;
+    if (user?.identity === 'bd' || user?.identity === 'supervisor') {
+      const cur = personnel.find(b => String(b.id) === String(currentId));
+      return `<div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:6px;cursor:default">
+        ${cur?.color ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cur.color};flex-shrink:0"></span>` : ''}
+        <span style="font-weight:500">${escapeHtml(cur?.name || '-')}</span>
+        <span style="font-size:.72rem;color:var(--text-muted);margin-left:auto">当前账号</span>
+      </div>`;
+    }
+    return `<select id="cf-bd-id" class="sched-form-control">
+      <option value="">全部BD</option>
+      ${personnel.map(b => `<option value="${b.id}" ${String(currentId) === String(b.id) ? 'selected' : ''}>${escapeHtml(b.name)}</option>`).join('')}
+    </select>`;
   }
 
   function renderEditorFooter() {
@@ -1262,6 +1290,7 @@
         schedule_id: f.schedule_id === 'none' ? null : f.schedule_id,
         kol_name: f.schedule_id === 'none' ? f.kol_name.trim() : null,
         fans,
+        bd_id: f.bd_id || null,
         publications: f.publications,
       };
       // 不关联排期时，自动将达人写入达人库（upsert：同名已存在则跳过）
