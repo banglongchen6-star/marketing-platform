@@ -1005,7 +1005,7 @@
                 ? sched.platforms : (sched && sched.platform ? [sched.platform] : ['']);
               SD.createContent({
                 schedule_id: state.id, fans: null,
-                publications: plats.map(p => ({ platform: p, date: data.schedule_date, link: '' })),
+                publications: plats.map((p, i) => ({ platform: p, date: i === 0 ? data.schedule_date : '', link: '' })),
               });
             } catch(e) { console.warn('[Editor] 补建内容记录失败', e); }
           }

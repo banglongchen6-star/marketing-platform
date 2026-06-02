@@ -834,8 +834,9 @@
           state.editor.form.schedule_id   = preScheduleId;
           state.editor.form.main_platform = mp;
           state.editor.form.sync_platforms = sp;
+          const schedDate = s.schedule_date || '';
           state.editor.form.publications  = [mp, ...sp].filter(Boolean)
-            .map(p => ({ platform: p, date: '', link: '', views: '', likes: '', comments: '' }));
+            .map((p, i) => ({ platform: p, date: i === 0 ? schedDate : '', link: '', views: '', likes: '', comments: '' }));
           state.editor.fromPlaceholder = true;
         }
       }
@@ -1076,6 +1077,10 @@
           f.main_platform = sched.platform;
           f.sync_platforms = Array.isArray(sched.sync_platforms) ? [...sched.sync_platforms] : [];
           _rebuildPublications(f);
+          // 主平台带入排期日期，同步平台保持空
+          if (sched.schedule_date && f.publications.length > 0) {
+            f.publications[0].date = sched.schedule_date;
+          }
         }
       }
       paintEditor();
