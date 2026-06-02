@@ -4195,7 +4195,6 @@ function _renderPendingArea() {
         : `<span style="color:var(--text-muted);font-size:.82rem">— 未设金额 —</span>`;
       return `<tr class="comm-main-row" style="border-left:3px solid #e5e7eb">
         <td><strong>${escapeHtml(talent)}</strong></td>
-        <td>${escapeHtml(plat)}</td>
         <td>${escapeHtml(date)}</td>
         <td>${pubTag}</td>
         <td colspan="5" style="font-size:.82rem">${amtHtml}</td>
@@ -4240,7 +4239,6 @@ function _renderPendingArea() {
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid ${borderColor}">
           <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
-          <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(plat)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${pubTag}</td>
           <td rowspan="${total}" style="vertical-align:middle">
@@ -4276,7 +4274,6 @@ function _renderPendingArea() {
     if (!st) {
       return `<tr class="comm-main-row" style="border-left:3px solid #e5e7eb">
         <td><strong>${escapeHtml(talent)}</strong></td>
-        <td>${escapeHtml(plat)}</td>
         <td>${escapeHtml(date)}</td>
         <td>${pubTag}</td>
         <td colspan="5" style="font-size:.82rem;color:var(--text-muted)">— 未填写结算 —</td>
@@ -4319,7 +4316,6 @@ function _renderPendingArea() {
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid ${borderColor}">
           <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
-          <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(plat)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${pubTag}</td>
           <td rowspan="${total}" style="vertical-align:middle">
@@ -4351,10 +4347,10 @@ function _renderPendingArea() {
         <thead>
           <tr>
             <th style="min-width:110px">达人昵称</th>
-            <th>平台</th><th>发布日期</th><th>发布状态</th>
+            <th>发布日期</th><th>发布状态</th>
             <th style="background:${gb.basic}">结算金额</th>
             <th style="background:${gb.basic}">付款方式</th>
-            <th style="background:${gb.pay}">付款时间</th>
+            <th style="background:${gb.pay}">申请付款时间</th>
             <th>账户</th>
             <th>发票</th>
             <th>操作</th>
@@ -4362,7 +4358,7 @@ function _renderPendingArea() {
           </tr>
         </thead>
         <tbody>${bodyRows}${unscheduledBodyRows}</tbody>
-        <tfoot><tr class="comm-footer-row"><td colspan="11">
+        <tfoot><tr class="comm-footer-row"><td colspan="10">
           共 ${totalCount} 位达人待结算 · 待付 <b style="color:var(--warning)">¥${fmtNum(pendingAmt)}</b> · 已付 <b style="color:var(--success)">¥${fmtNum(paidAmt)}</b>
         </td></tr></tfoot>
       </table>
@@ -4449,7 +4445,6 @@ function _renderSettledArea() {
 
     const payRows = total === 0 ? [`<tr class="comm-main-row" style="border-left:3px solid #10b981">
       <td style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
-      <td style="vertical-align:middle">${escapeHtml(plat)}</td>
       <td style="vertical-align:middle">${escapeHtml(date)}</td>
       <td style="vertical-align:middle">
         <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(base+bonus)}</div>
@@ -4465,7 +4460,6 @@ function _renderSettledArea() {
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid #10b981">
           <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
-          <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(plat)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">
             <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(base+bonus)}</div>
@@ -4493,14 +4487,14 @@ function _renderSettledArea() {
         <thead>
           <tr>
             <th style="min-width:110px">达人昵称</th>
-            <th>平台</th><th>发布日期</th>
+            <th>发布日期</th>
             <th>结算金额</th><th>付款方式</th>
             <th>付款明细 / 状态</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>${bodyRows}</tbody>
-        <tfoot><tr class="comm-footer-row"><td colspan="7">
+        <tfoot><tr class="comm-footer-row"><td colspan="6">
           共 ${list.length} 条已结算 · 总金额 <b style="color:var(--success)">¥${fmtNum(totalAmt)}</b>
         </td></tr></tfoot>
       </table>
