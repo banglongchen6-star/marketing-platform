@@ -509,12 +509,7 @@
           <span style="margin-left:auto;font-size:.72rem;color:var(--text-muted)">当前账号</span>
         </div>`;
       }
-      if (user?.identity === 'supervisor') {
-        return `<div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:8px">
-          <span style="font-weight:500">${escapeHtml(user.name || '主管')}</span>
-          <span style="margin-left:auto;font-size:.72rem;color:var(--text-muted)">主管</span>
-        </div>`;
-      }
+      // 主管也参与 BD 工作，显示下拉框可自选归属 BD
     }
     if (!bds.length) {
       return `<div class="sched-form-control" style="background:var(--bg-base);color:var(--text-muted);font-size:.85rem;padding:9px 12px">
