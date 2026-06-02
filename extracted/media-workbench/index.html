@@ -3114,7 +3114,7 @@ function renderSamples() {
                   ${(Array.isArray(s.product)?s.product:(s.product?[s.product]:[])).map(p=>`<span style="display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:10px;background:var(--primary-light);color:var(--primary);margin:2px 2px 0 0">${escapeHtml(p)}</span>`).join('')}
                 </td>
                 ${s.shipping_needed === false
-                  ? `<td colspan="6" style="text-align:center;color:var(--text-muted);font-size:.82rem;background:var(--bg-secondary)">
+                  ? `<td colspan="8" style="text-align:center;color:var(--text-muted);font-size:.82rem;background:var(--bg-secondary)">
                       <span style="margin-right:10px">无需寄样</span>
                       <button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);cursor:pointer;color:var(--text-secondary)">改为需寄样</button>
                     </td>`
@@ -3132,11 +3132,11 @@ function renderSamples() {
                 </td>
                 <td onclick="inlineEditTracking(this,${s.id})" style="cursor:pointer;color:${s.tracking?'inherit':'var(--text-muted)'}">
                   ${s.tracking ? escapeHtml(s.tracking) : '<span style="font-size:.8rem">点击填写</span>'}
-                </td>`}
+                </td>
                 <td onclick="openStatusModal(${s.id})" style="cursor:pointer" title="点击更新状态">${statusTag}</td>
                 <td style="white-space:nowrap">
                   <button class="btn btn-secondary btn-sm" onclick="editSample(${s.id})">编辑</button>
-                </td>
+                </td>`}
                 <td style="white-space:nowrap">
                   ${s.schedule_id
                     ? `<span style="font-size:.72rem;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;white-space:nowrap">✅ 已排期</span>`
