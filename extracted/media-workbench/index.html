@@ -2256,7 +2256,7 @@ function renderDataDashboard() {
     </div>` : '';
 
   const kpiCards = [
-    { label: '总作品数', value: kpi.contentCount, sub: `${kpi.pubCount} 条发布`, color: '#1e40af', bg: '#eff6ff', icon: '📝' },
+    { label: '总作品数', value: kpi.pubCount, sub: `${kpi.contentCount} 个达人合作`, color: '#1e40af', bg: '#eff6ff', icon: '📝' },
     { label: '总播放量', value: fmtWan(kpi.totalViews), sub: `自然 ${fmtWan(kpi.naturalViews)} · 投流 ${fmtWan(kpi.promoViews)}`, color: '#166534', bg: '#f0fdf4', icon: '▶️' },
     { label: '总花费', value: fmtMoney(kpi.totalCost), sub: `合作 ${fmtMoney(kpi.price)} · 投流 ${fmtMoney(kpi.promoCost)}`, color: '#9a3412', bg: '#fff7ed', icon: '💰' },
     { label: 'CPM', value: kpi.cpm > 0 ? '¥' + kpi.cpm : '—', sub: '元/千次播放', color: '#6b21a8', bg: '#faf5ff', icon: '📊' },
