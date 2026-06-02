@@ -3745,7 +3745,7 @@ function _stRender() {
         return `
         <div style="border:2px solid ${isPaid?'#86efac':'var(--border)'};border-radius:8px;padding:10px 14px;background:${isPaid?'#f0fdf4':'var(--bg-primary)'}">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <span style="font-size:.85rem;font-weight:600;color:${isPaid?'var(--success)':'var(--text-primary)'}">${escapeHtml(p.label)}${isPaid?` <span style="font-weight:400;font-size:.78rem;margin-left:4px">✓ 已付</span>`:''}</span>
+            <span style="font-size:.85rem;font-weight:600;color:${isPaid?'var(--success)':'var(--text-primary)'}">${escapeHtml(p.label)}</span>
             ${_st.payment_type==='installment' && _st.payments.length > 1
               ? `<button type="button" onclick="stRemoveInstallment(${i})" style="font-size:.75rem;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);cursor:pointer;color:var(--text-muted)">✕ 删除</button>`
               : ''}
@@ -4234,7 +4234,7 @@ function _renderPendingArea() {
     return pays.map((p, i) => {
       const isPaid = !!p.paid_date;
       const statusHtml = isPaid
-        ? `<span style="color:var(--success);font-size:.82rem;font-weight:500">✓ ${p.paid_date}</span>`
+        ? `<span style="color:var(--success);font-size:.82rem;font-weight:500">${p.paid_date}</span>`
         : `<span style="color:var(--text-muted);font-size:.82rem">待付款</span>`;
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid ${borderColor}">
@@ -4311,7 +4311,7 @@ function _renderPendingArea() {
     return pays.map((p, i) => {
       const isPaid = !!p.paid_date;
       const statusHtml = isPaid
-        ? `<span style="color:var(--success);font-size:.82rem;font-weight:500">✓ ${p.paid_date}</span>`
+        ? `<span style="color:var(--success);font-size:.82rem;font-weight:500">${p.paid_date}</span>`
         : `<span style="color:var(--text-muted);font-size:.82rem">待付款</span>`;
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid ${borderColor}">
@@ -4456,7 +4456,7 @@ function _renderSettledArea() {
         <button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;cursor:pointer" onclick="rollbackFromSettled(${s.id})">↩ 退回待结算</button>
       </td>
     </tr>`] : pays.map((p, i) => {
-      const paidTag = `<span style="color:var(--success);font-size:.78rem">✓ 已付${p.paid_date?' · '+p.paid_date:''}</span>`;
+      const paidTag = `<span style="color:var(--success);font-size:.78rem">已付${p.paid_date?' · '+p.paid_date:''}</span>`;
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid #10b981">
           <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
@@ -4472,7 +4472,7 @@ function _renderSettledArea() {
             <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">结转：${s.settled_at||'-'}</div>
           </td>
         </tr>`;
-      return `<tr class="comm-sub-row"><td style="font-size:.8rem">${escapeHtml(p.label||'')} ¥${fmtNum(parseFloat(p.amount)||0)}<br><span style="color:var(--success);font-size:.78rem">✓ ${p.paid_date||''}</span></td></tr>`;
+      return `<tr class="comm-sub-row"><td style="font-size:.8rem">${escapeHtml(p.label||'')} ¥${fmtNum(parseFloat(p.amount)||0)}<br><span style="color:var(--success);font-size:.78rem">${p.paid_date||''}</span></td></tr>`;
     });
 
     return payRows.join('');
