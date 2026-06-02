@@ -997,6 +997,10 @@
       day7_recorded_at: p.day7_recorded_at || (p.snapshot_day === 'd7' ? (p.snapshot_at || nowISO()) : null),
       // 7天每日数据快照（自动抓取）：[{ date, likes, comments, fetched_at }, ...]
       daily_stats: Array.isArray(p.daily_stats) ? p.daily_stats : [],
+      // 素材管理状态
+      mat_downloaded: p.mat_downloaded || false,
+      mat_uploaded:   p.mat_uploaded   || false,
+      mat_note:       p.mat_note       || '',
     };
   }
 
