@@ -2230,7 +2230,8 @@ function _ddComputeKPI() {
 
   const totalViews = naturalViews + promoViews;
   const totalCost = price + promoCost;
-  const cpm = totalViews > 0 ? Number((totalCost / (totalViews * 10000) * 1000).toFixed(2)) : 0;
+  // views 单位是个，CPM = 花费 / 播放量 * 1000
+  const cpm = totalViews > 0 ? Number((totalCost / totalViews * 1000).toFixed(2)) : 0;
 
   return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, totalCost, cpm, perDay, perPlatform, dates };
 }
@@ -2245,11 +2246,11 @@ function renderDataDashboard() {
   const curBd = bdList.find(b => String(b.id) === String(_dd.bdId));
 
   function fmtWan(v) {
+    // v 是原始播放数（个）
     if (!v) return '0';
-    if (v >= 10000) return (v / 10000).toFixed(1) + '亿';
-    if (v >= 1000) return (v / 1000).toFixed(1) + '千万';
-    if (v >= 100) return v.toFixed(0) + '万';
-    return v.toFixed(1) + '万';
+    if (v >= 100000000) return (v / 100000000).toFixed(1) + '亿';
+    if (v >= 10000) return (v / 10000).toFixed(1) + '万';
+    return Number(v).toLocaleString();
   }
   function fmtMoney(v) {
     if (!v) return '¥0';
@@ -2303,7 +2304,7 @@ function renderDataDashboard() {
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">${kpiCards}</div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;min-height:260px">
         <div style="background:var(--bg-panel);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)">
-          <div style="font-size:.86rem;font-weight:600;margin-bottom:12px;color:var(--text-primary)">📈 每日播放趋势（万次）</div>
+          <div style="font-size:.86rem;font-weight:600;margin-bottom:12px;color:var(--text-primary)">📈 每日播放趋势</div>
           <div style="position:relative;height:220px"><canvas id="dd-trend-canvas"></canvas></div>
         </div>
         <div style="background:var(--bg-panel);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)">
@@ -2332,8 +2333,8 @@ function _ddRenderCharts(kpi) {
       data: {
         labels,
         datasets: [
-          { label: '自然播放(万)', data: kpi.dates.map(d => kpi.perDay[d]?.naturalViews || 0), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.1)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
-          { label: '投流播放(万)', data: kpi.dates.map(d => kpi.perDay[d]?.promoViews || 0), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
+          { label: '自然播放', data: kpi.dates.map(d => kpi.perDay[d]?.naturalViews || 0), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.1)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
+          { label: '投流播放', data: kpi.dates.map(d => kpi.perDay[d]?.promoViews || 0), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
         ]
       },
       options: {
