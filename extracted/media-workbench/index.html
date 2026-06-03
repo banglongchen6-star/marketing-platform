@@ -3564,6 +3564,10 @@ function saveSample() {
         && (existing.status === 'pending' || !existing.status)) {
       data.status = 'awaiting';
     }
+    // 清空了收件地址且当前是「已寄出待确认」 → 自动回退为「待寄样」
+    if (!data.address && !data.recipient_name && existing.status === 'awaiting') {
+      data.status = 'pending';
+    }
     DB.samples[idx]={...existing,...data};
     toast('样品已更新');
   } else {
