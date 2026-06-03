@@ -2337,6 +2337,11 @@ function _ddRenderCharts(kpi) {
     const labels = kpi.dates.map(d => d.slice(5));
     const totalViews = kpi.dates.map(d => (kpi.perDay[d]?.naturalViews || 0) + (kpi.perDay[d]?.promoViews || 0));
     const totalCost  = kpi.dates.map(d => (kpi.perDay[d]?.price || 0) + (kpi.perDay[d]?.promoCost || 0));
+    // 按 CPM=10 对齐双轴：1元花费 ↔ 100次播放，等高代表 CPM=10
+    const maxViews = Math.max(...totalViews, 0);
+    const maxCost  = Math.max(...totalCost, 0);
+    const yMax  = Math.max(maxViews, maxCost * 100) * 1.15 || 100;
+    const y1Max = yMax / 100;
     _dd.trendChart = new Chart(tCtx, {
       data: {
         labels,
@@ -2347,11 +2352,14 @@ function _ddRenderCharts(kpi) {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { font: { size: 11 }, boxWidth: 12 } } },
+        plugins: {
+          legend: { labels: { font: { size: 11 }, boxWidth: 12 } },
+          tooltip: { callbacks: { afterBody: () => '— CPM=10 基准：等高时刚好1元/100次' } }
+        },
         scales: {
           x:  { ticks: { font: { size: 10 }, maxTicksLimit: 15 } },
-          y:  { position: 'left',  beginAtZero: true, ticks: { font: { size: 10 }, color: '#3b82f6' }, title: { display: true, text: '播放量', font: { size: 9 }, color: '#3b82f6' } },
-          y1: { position: 'right', beginAtZero: true, ticks: { font: { size: 10 }, color: '#d97706' }, title: { display: true, text: '花费(元)', font: { size: 9 }, color: '#d97706' }, grid: { drawOnChartArea: false } },
+          y:  { position: 'left',  min: 0, max: yMax,  ticks: { font: { size: 10 }, color: '#3b82f6' }, title: { display: true, text: '播放量', font: { size: 9 }, color: '#3b82f6' } },
+          y1: { position: 'right', min: 0, max: y1Max, ticks: { font: { size: 10 }, color: '#d97706' }, title: { display: true, text: '花费(元)', font: { size: 9 }, color: '#d97706' }, grid: { drawOnChartArea: false } },
         }
       }
     });
