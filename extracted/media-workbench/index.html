@@ -3617,6 +3617,14 @@ function saveSample() {
     // 清空了收件地址且当前是「已寄出待确认」 → 自动回退为「待寄样」
     if (!data.address && !data.recipient_name && existing.status === 'awaiting') {
       data.status = 'pending';
+      // 若是流转样品，同步恢复原达人状态
+      if (existing.parent_sample_id) {
+        const parentIdx = DB.samples.findIndex(x => x.id === existing.parent_sample_id);
+        if (parentIdx !== -1 && DB.samples[parentIdx].status === 'transferred') {
+          const p = DB.samples[parentIdx];
+          DB.samples[parentIdx].status = (p.address || p.recipient_name) ? 'awaiting' : 'pending';
+        }
+      }
     }
     DB.samples[idx]={...existing,...data};
     toast('样品已更新');
