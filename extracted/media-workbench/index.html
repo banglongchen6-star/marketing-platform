@@ -409,6 +409,7 @@
           style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
           <option value="">全部状态</option>
           <option value="pending">待寄样</option>
+          <option value="awaiting">已寄出待确认</option>
           <option value="keeping">长期留存</option>
           <option value="transferred">已流转</option>
           <option value="returned">已归还</option>
@@ -3225,12 +3226,13 @@ let sampleStatusFilter = '';
 let editingSampleId=null, editingStatusSampleId=null;
 
 const SAMPLE_STATUS = {
-  pending:     { label: '待寄样',   color: '#f59e0b' },
-  sent:        { label: '已寄出',   color: '#3b82f6' }, // 兼容旧数据
-  transferred: { label: '已流转',   color: '#8b5cf6' },
-  keeping:     { label: '长期留存', color: '#10b981' },
-  returned:    { label: '已归还',   color: '#6b7280' },
-  gifted:      { label: '已赠送',   color: '#ec4899' },
+  pending:   { label: '待寄样',      color: '#f59e0b' },
+  awaiting:  { label: '已寄出待确认', color: '#0891b2' },
+  sent:      { label: '已寄出',      color: '#3b82f6' }, // 兼容旧数据
+  transferred:{ label: '已流转',     color: '#8b5cf6' },
+  keeping:   { label: '长期留存',    color: '#10b981' },
+  returned:  { label: '已归还',      color: '#6b7280' },
+  gifted:    { label: '已赠送',      color: '#ec4899' },
 };
 
 function sstToggle() {
@@ -3356,8 +3358,8 @@ function renderSamples() {
   });
   list.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
-  // 在外样品：需寄样 且 已填写收件地址（代表已寄出）
-  const activeCount = list.filter(s => s.shipping_needed !== false && (s.address || s.recipient_name)).length;
+  // 在外样品：已寄出待确认 或 已填写收件地址
+  const activeCount = list.filter(s => s.shipping_needed !== false && (s.status === 'awaiting' || s.address || s.recipient_name)).length;
 
   // 本月寄出（当前筛选月）
   const sentThisMonth = list.filter(s => s.status === 'sent').length;
@@ -3556,10 +3558,16 @@ function saveSample() {
   };
   if(editingSampleId!=null){
     const idx=DB.samples.findIndex(x=>x.id===editingSampleId);
-    DB.samples[idx]={...DB.samples[idx],...data};
+    const existing = DB.samples[idx];
+    // 填写了收件地址且当前是待寄样 → 自动升级为「已寄出待确认」
+    if ((data.address || data.recipient_name) && existing.shipping_needed !== false
+        && (existing.status === 'pending' || !existing.status)) {
+      data.status = 'awaiting';
+    }
+    DB.samples[idx]={...existing,...data};
     toast('样品已更新');
   } else {
-    DB.samples.push({ id:nextId(DB.samples), ...data });
+    DB.samples.push({ id:nextId(DB.samples), ...data, status: 'pending' });
     toast('样品已添加');
   }
   // 样品仅记录关联，不推进排期状态
