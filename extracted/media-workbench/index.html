@@ -408,6 +408,7 @@
         <select id="sample-status-filter-select" onchange="sampleStatusFilter=this.value;renderSamples()"
           style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
           <option value="">全部状态</option>
+          <option value="pending">待寄样</option>
           <option value="sent">已寄出</option>
           <option value="keeping">长期留存</option>
           <option value="transferred">已流转</option>
@@ -3225,6 +3226,7 @@ let sampleStatusFilter = '';
 let editingSampleId=null, editingStatusSampleId=null;
 
 const SAMPLE_STATUS = {
+  pending:     { label: '待寄样',   color: '#f59e0b' },
   sent:        { label: '已寄出',   color: '#3b82f6' },
   transferred: { label: '已流转',   color: '#8b5cf6' },
   keeping:     { label: '长期留存', color: '#10b981' },
@@ -3355,8 +3357,8 @@ function renderSamples() {
   });
   list.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
-  // 在外样品：排除已流转、已归还、已赠送
-  const activeCount = list.filter(s => !['transferred','returned','gifted'].includes(s.status)).length;
+  // 在外样品：已寄出且未流转/归还/赠送（待寄样未出发不算在外）
+  const activeCount = list.filter(s => s.status === 'sent').length;
 
   // 本月寄出（当前筛选月）
   const sentThisMonth = list.filter(s => s.status === 'sent').length;
@@ -5558,7 +5560,7 @@ function initApp() {
         contact:     s.bd_id || '',
         schedule_id: s.id,
         product: [], recipient_name: '', phone: '', address: '', note: '',
-        status: 'keeping',
+        status: 'pending',
         created_at: new Date().toISOString(),
       });
       added++;
