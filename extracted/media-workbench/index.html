@@ -3774,10 +3774,30 @@ function deleteKolTypeItem(id) {
   } catch(e) { toast(e.message, 'error'); }
 }
 
+function _clipboardCopy(text, msg) {
+  const done = () => toast(msg, 'success', 1500);
+  const fail = () => {
+    // 兜底：创建临时 textarea + execCommand
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch(e) { toast('复制失败，请手动复制', 'error'); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fail);
+  } else {
+    fail();
+  }
+}
+
 function copyNote(id) {
   const s = DB.samples.find(x => x.id === id);
   if (!s || !s.note) return;
-  navigator.clipboard.writeText(s.note).then(() => toast('已复制备注', 'success', 1500));
+  _clipboardCopy(s.note, '已复制备注');
 }
 
 function copyShippingInfo(id) {
@@ -3785,17 +3805,15 @@ function copyShippingInfo(id) {
   if (!s) return;
   const line1 = [s.recipient_name, s.phone].filter(Boolean).join(' ');
   const parts = [line1, s.address].filter(Boolean);
-  navigator.clipboard.writeText(parts.join('\n')).then(() => toast('已复制收件信息', 'success', 1500));
+  _clipboardCopy(parts.join('\n'), '已复制收件信息');
 }
 
 function copySampleInfo(id) {
   const s = DB.samples.find(x => x.id === id);
   if (!s) return;
   const products = Array.isArray(s.product) ? s.product : (s.product ? [s.product] : []);
-  const text = products.length
-    ? `${s.talent} - ${products.join('、')}`
-    : s.talent || '';
-  navigator.clipboard.writeText(text).then(() => toast('已复制', 'success', 1500));
+  const text = products.length ? `${s.talent} - ${products.join('、')}` : s.talent || '';
+  _clipboardCopy(text, '已复制');
 }
 
 function deleteSampleConfirm(id) {
