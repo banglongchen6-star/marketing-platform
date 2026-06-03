@@ -5591,6 +5591,11 @@ function initApp() {
         s.status = (s.address || s.recipient_name) ? 'awaiting' : 'pending';
         fixed++;
       }
+      // 已寄出待确认 但地址已被清空 → 回退待寄样
+      if (s.status === 'awaiting' && !s.address && !s.recipient_name) {
+        s.status = 'pending';
+        fixed++;
+      }
     });
     if (fixed > 0) saveDataNow();
   })();
