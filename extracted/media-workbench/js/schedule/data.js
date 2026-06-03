@@ -1213,10 +1213,10 @@
           publicationCount++;
         });
     });
-    const totalExposureWan = totalViews + totalPromoViews;
+    const totalExposureWan = totalViews + totalPromoViews; // 实际是个位数，命名保留兼容
     const totalSpend = totalPrice + totalPromoCost;
-    const totalExposureRaw = totalExposureWan * 10000;
-    const cpm = totalExposureRaw > 0 ? (totalSpend / totalExposureRaw * 1000) : 0;
+    // views 存的是个位数，CPM = 花费 / 播放量 * 1000
+    const cpm = totalExposureWan > 0 ? (totalSpend / totalExposureWan * 1000) : 0;
     return {
       contentCount: list.length,
       publicationCount,
@@ -1348,8 +1348,8 @@
       monthSpend += spend;
     });
     totalExposure = monthExposure;
-    const totalExposureRaw = totalExposure * 10000;
-    const cpm = totalExposureRaw > 0 ? (brandSpendOnly / totalExposureRaw * 1000) : 0;
+    // views 存的是个位数，CPM = 花费 / 播放量 * 1000
+    const cpm = totalExposure > 0 ? (brandSpendOnly / totalExposure * 1000) : 0;
 
     return {
       year, month, daysInMonth, allDays,
