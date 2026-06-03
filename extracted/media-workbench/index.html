@@ -3455,7 +3455,7 @@ function renderSamples() {
                 <td style="text-align:center">
                   ${(s.address || s.recipient_name)
                     ? `<span style="font-size:.75rem;padding:2px 10px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;white-space:nowrap">✅ 已寄样</span>`
-                    : `<button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 10px;border:1px solid #86efac;border-radius:4px;background:#f0fdf4;cursor:pointer;color:#15803d;white-space:nowrap">📦 需寄样</button>`}
+                    : `<button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 10px;border:1px solid #86efac;border-radius:4px;background:#f0fdf4;cursor:pointer;color:#15803d;white-space:nowrap">📦 无需寄样</button>`}
                 </td>
                 <td onclick="inlineEditTracking(this,${s.id})" style="cursor:pointer;color:${s.tracking?'inherit':'var(--text-muted)'}">
                   ${s.tracking ? escapeHtml(s.tracking) : '<span style="font-size:.8rem">点击填写</span>'}
