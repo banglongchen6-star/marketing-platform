@@ -3460,7 +3460,9 @@ function renderSamples() {
                 <td onclick="inlineEditTracking(this,${s.id})" style="cursor:pointer;color:${s.tracking?'inherit':'var(--text-muted)'}">
                   ${s.tracking ? escapeHtml(s.tracking) : '<span style="font-size:.8rem">点击填写</span>'}
                 </td>
-                <td onclick="openStatusModal(${s.id})" style="cursor:pointer" title="点击更新状态">${statusTag}</td>
+                ${(s.address || s.recipient_name)
+                  ? `<td onclick="openStatusModal(${s.id})" style="cursor:pointer" title="点击更新状态">${statusTag}</td>`
+                  : `<td style="cursor:default">${statusTag}</td>`}
                 <td style="white-space:nowrap">
                   <button class="btn btn-secondary btn-sm" onclick="editSample(${s.id})">编辑</button>
                 </td>`}
