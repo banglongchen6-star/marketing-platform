@@ -5577,6 +5577,18 @@ function initApp() {
     if (added > 0) saveDataNow();
   })();
 
+  // 一次性迁移：修复旧数据中以「长期留存」为默认值的样品
+  (function migrateSampleStatus() {
+    let fixed = 0;
+    (DB.samples || []).forEach(s => {
+      if (s.status === 'keeping' && !s.gift_cost && !s.return_date) {
+        s.status = (s.address || s.recipient_name) ? 'awaiting' : 'pending';
+        fixed++;
+      }
+    });
+    if (fixed > 0) saveDataNow();
+  })();
+
   // 自动发布扫描：将过期「计划中」排期升为「已发布」并创建内容发布记录
   (function runAutoPublish() {
     if (!window.ScheduleData || !ScheduleData.autoPublishPastSchedules) return;
