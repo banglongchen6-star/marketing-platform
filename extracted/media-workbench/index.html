@@ -409,7 +409,6 @@
           style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
           <option value="">全部状态</option>
           <option value="pending">待寄样</option>
-          <option value="shipping">已寄样作业中</option>
           <option value="keeping">长期留存</option>
           <option value="transferred">已流转</option>
           <option value="returned">已归还</option>
@@ -908,16 +907,6 @@
     <div class="modal-body">
       <div id="sample-status-info" style="padding:8px 12px;background:var(--bg-secondary);border-radius:6px;margin-bottom:16px;font-size:.85rem;color:var(--text-secondary)"></div>
       <div style="display:flex;flex-direction:column;gap:2px">
-        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:6px;cursor:pointer" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='transparent'">
-          <input type="radio" name="sst" class="sst-radio" value="shipping" onchange="sstToggle()">
-          <span>📮 已寄样作业中（样品已寄出）</span>
-        </label>
-        <div id="sst-shipping-fields" style="display:none;padding:4px 12px 10px 36px">
-          <div class="form-row">
-            <div class="form-group"><label class="form-label">寄出日期</label><input type="date" class="form-control" id="sst-shipping-date"></div>
-            <div class="form-group"><label class="form-label">快递单号</label><input class="form-control" id="sst-shipping-tracking" placeholder="快递单号"></div>
-          </div>
-        </div>
         <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:6px;cursor:pointer" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='transparent'">
           <input type="radio" name="sst" class="sst-radio" value="keeping" onchange="sstToggle()">
           <span>📦 长期留存（继续放在达人处）</span>
@@ -3236,18 +3225,16 @@ let sampleStatusFilter = '';
 let editingSampleId=null, editingStatusSampleId=null;
 
 const SAMPLE_STATUS = {
-  pending:     { label: '待寄样',      color: '#f59e0b' },
-  shipping:    { label: '已寄样作业中', color: '#0891b2' },
-  sent:        { label: '已寄出',      color: '#3b82f6' }, // 兼容旧数据
-  transferred: { label: '已流转',      color: '#8b5cf6' },
-  keeping:     { label: '长期留存',    color: '#10b981' },
-  returned:    { label: '已归还',      color: '#6b7280' },
-  gifted:      { label: '已赠送',      color: '#ec4899' },
+  pending:     { label: '待寄样',   color: '#f59e0b' },
+  sent:        { label: '已寄出',   color: '#3b82f6' }, // 兼容旧数据
+  transferred: { label: '已流转',   color: '#8b5cf6' },
+  keeping:     { label: '长期留存', color: '#10b981' },
+  returned:    { label: '已归还',   color: '#6b7280' },
+  gifted:      { label: '已赠送',   color: '#ec4899' },
 };
 
 function sstToggle() {
   const val = document.querySelector('.sst-radio:checked')?.value;
-  document.getElementById('sst-shipping-fields').style.display = val === 'shipping'    ? 'block' : 'none';
   document.getElementById('sst-return-fields').style.display   = val === 'returned'    ? 'block' : 'none';
   document.getElementById('sst-transfer-fields').style.display = val === 'transferred' ? 'block' : 'none';
   document.getElementById('sst-gift-fields').style.display     = val === 'gifted'      ? 'block' : 'none';
@@ -3296,14 +3283,7 @@ function saveStatusUpdate() {
   const action = document.querySelector('.sst-radio:checked')?.value;
   if (!action) { toast('请选择操作', 'error'); return; }
 
-  if (action === 'shipping') {
-    s.status = 'shipping';
-    const shippingDate     = document.getElementById('sst-shipping-date').value;
-    const shippingTracking = document.getElementById('sst-shipping-tracking').value.trim();
-    if (shippingDate)     s.sent_date = shippingDate;
-    if (shippingTracking) s.tracking  = shippingTracking; // 回填到快递单号列
-    toast('已标记为「已寄样作业中」', 'success');
-  } else if (action === 'shooting') {
+  if (action === 'shooting') {
     s.status = 'shooting';
     toast('已更新为「拍摄中」', 'success');
   } else if (action === 'keeping') {
@@ -3376,8 +3356,8 @@ function renderSamples() {
   });
   list.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
-  // 在外样品：已寄样作业中（含旧 sent 兼容）
-  const activeCount = list.filter(s => s.status === 'shipping' || s.status === 'sent').length;
+  // 在外样品：需寄样 且 已填写收件地址（代表已寄出）
+  const activeCount = list.filter(s => s.shipping_needed !== false && (s.address || s.recipient_name)).length;
 
   // 本月寄出（当前筛选月）
   const sentThisMonth = list.filter(s => s.status === 'sent').length;
@@ -3471,7 +3451,9 @@ function renderSamples() {
                 </td>
                 <td>${s.note?`<div style="display:flex;align-items:center;gap:6px"><span title="${escapeHtml(s.note)}" style="cursor:default">${escapeHtml(s.note.slice(0,15))}${s.note.length>15?'…':''}</span><button onclick="copyNote(${s.id})" title="复制备注" style="flex-shrink:0;border:none;background:none;cursor:pointer;padding:2px 4px;border-radius:8px;color:var(--text-muted);line-height:1" onmouseover="this.style.background='var(--primary-light)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text-muted)'"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>`:'-'}</td>
                 <td style="text-align:center">
-                  <button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 10px;border:1px solid #86efac;border-radius:4px;background:#f0fdf4;cursor:pointer;color:#15803d;white-space:nowrap">📦 需寄样</button>
+                  ${(s.address || s.recipient_name)
+                    ? `<span style="font-size:.75rem;padding:2px 10px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;white-space:nowrap">✅ 已寄样</span>`
+                    : `<button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 10px;border:1px solid #86efac;border-radius:4px;background:#f0fdf4;cursor:pointer;color:#15803d;white-space:nowrap">📦 需寄样</button>`}
                 </td>
                 <td onclick="inlineEditTracking(this,${s.id})" style="cursor:pointer;color:${s.tracking?'inherit':'var(--text-muted)'}">
                   ${s.tracking ? escapeHtml(s.tracking) : '<span style="font-size:.8rem">点击填写</span>'}
