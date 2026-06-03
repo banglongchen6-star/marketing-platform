@@ -2098,26 +2098,32 @@ const _dd = {
   pieChart: null,
 };
 
+// 本地日期格式化，避免 toISOString() 时区偏移问题
+function _ddFmtDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 function _ddDateRange() {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = _ddFmtDate(now);
   if (_dd.filter === 'day7') {
     const from = new Date(now); from.setDate(from.getDate() - 6);
-    return { start: from.toISOString().slice(0, 10), end: today };
+    return { start: _ddFmtDate(from), end: today };
   }
   if (_dd.filter === 'day15') {
     const from = new Date(now); from.setDate(from.getDate() - 14);
-    return { start: from.toISOString().slice(0, 10), end: today };
+    return { start: _ddFmtDate(from), end: today };
   }
   if (_dd.filter === 'day30') {
     const from = new Date(now); from.setDate(from.getDate() - 29);
-    return { start: from.toISOString().slice(0, 10), end: today };
+    return { start: _ddFmtDate(from), end: today };
   }
   if (_dd.filter === 'lastMonth') {
     let y = now.getFullYear(), m = now.getMonth();
-    if (m === 0) { y--; m = 12; } // getMonth() is 0-based, so m=0 means January → go to Dec of prev year
+    if (m === 0) { y--; m = 12; }
     const start = `${y}-${String(m).padStart(2, '0')}-01`;
-    const end = new Date(y, m, 0).toISOString().slice(0, 10);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const end = `${y}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
     return { start, end };
   }
   if (_dd.filter === 'custom') {
@@ -2147,10 +2153,13 @@ function _ddComputeKPI() {
   // Build date list
   const dates = [];
   const perDay = {};
-  let cur = new Date(start + 'T00:00:00');
-  const endD = new Date(end + 'T00:00:00');
+  // 用本地年月日解析，避免 toISOString 时区偏移
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em, ed] = end.split('-').map(Number);
+  let cur = new Date(sy, sm - 1, sd);
+  const endD = new Date(ey, em - 1, ed);
   while (cur <= endD) {
-    const ds = cur.toISOString().slice(0, 10);
+    const ds = _ddFmtDate(cur);
     dates.push(ds);
     perDay[ds] = { naturalViews: 0, promoViews: 0, price: 0, promoCost: 0 };
     cur.setDate(cur.getDate() + 1);
