@@ -2337,11 +2337,11 @@ function _ddRenderCharts(kpi) {
     const labels = kpi.dates.map(d => d.slice(5));
     const totalViews = kpi.dates.map(d => (kpi.perDay[d]?.naturalViews || 0) + (kpi.perDay[d]?.promoViews || 0));
     const totalCost  = kpi.dates.map(d => (kpi.perDay[d]?.price || 0) + (kpi.perDay[d]?.promoCost || 0));
-    // 按 CPM=10 对齐双轴：1元花费 ↔ 100次播放，等高代表 CPM=10
+    // 按 CPM=10 对齐双轴：1万次播放 ↔ 100元花费，等高代表 CPM=10
     const maxViews = Math.max(...totalViews, 0);
     const maxCost  = Math.max(...totalCost, 0);
-    const yMax  = Math.max(maxViews, maxCost * 100) * 1.15 || 100;
-    const y1Max = yMax / 100;
+    const yMax  = Math.max(maxViews, maxCost / 100) * 1.15 || 10;
+    const y1Max = yMax * 100;
     _dd.trendChart = new Chart(tCtx, {
       data: {
         labels,
