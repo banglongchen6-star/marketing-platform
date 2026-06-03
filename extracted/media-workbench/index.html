@@ -5679,6 +5679,16 @@ function initApp() {
         fixed++;
       }
     });
+    // 流转子样品地址已清空（pending）→ 原达人状态也应恢复
+    (DB.samples || []).forEach(s => {
+      if (s.parent_sample_id && s.status === 'pending' && !s.address && !s.recipient_name) {
+        const parent = DB.samples.find(x => x.id === s.parent_sample_id);
+        if (parent && parent.status === 'transferred') {
+          parent.status = (parent.address || parent.recipient_name) ? 'awaiting' : 'pending';
+          fixed++;
+        }
+      }
+    });
     if (fixed > 0) saveDataNow();
   })();
 
