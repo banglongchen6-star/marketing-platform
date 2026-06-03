@@ -2183,7 +2183,7 @@ function _ddComputeKPI() {
     }
 
     inRange.forEach(p => {
-      const v = Number(p.views) || 0;
+      const v = (Number(p.views) || 0) / 10000; // 个→万
       naturalViews += v;
       pubCount++;
       const plat = p.platform || '其他';
@@ -2236,8 +2236,8 @@ function _ddComputeKPI() {
 
   const totalViews = naturalViews + promoViews;
   const totalCost = price + promoCost;
-  // views 单位是个，CPM = 花费 / 播放量 * 1000
-  const cpm = totalViews > 0 ? Number((totalCost / totalViews * 1000).toFixed(2)) : 0;
+  // totalViews 单位是万，CPM = 花费 / (播放量万 * 10000) * 1000
+  const cpm = totalViews > 0 ? Number((totalCost / (totalViews * 10000) * 1000).toFixed(2)) : 0;
 
   return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, totalCost, cpm, perDay, perPlatform, dates, details };
 }
@@ -2252,11 +2252,11 @@ function renderDataDashboard() {
   const curBd = bdList.find(b => String(b.id) === String(_dd.bdId));
 
   function fmtWan(v) {
-    // v 是原始播放数（个）
+    // v 单位是万
     if (!v) return '0';
-    if (v >= 100000000) return (v / 100000000).toFixed(1) + '亿';
-    if (v >= 10000) return (v / 10000).toFixed(1) + '万';
-    return Number(v).toLocaleString();
+    if (v >= 10000) return (v / 10000).toFixed(1) + '亿';  // 10000万=1亿
+    if (v >= 1) return v.toFixed(1) + '万';
+    return (v * 10000).toLocaleString() + '次'; // 不足1万显示原始数
   }
   function fmtMoney(v) {
     if (!v) return '¥0';
@@ -2498,7 +2498,7 @@ function renderBrandRoiTable(year, month, bdId) {
         </div>
         <div class="roi-kpi-chip" style="background:#f0fdf4">
           <span style="color:#166534;font-weight:500">总曝光量</span>
-          <span style="color:#166534;font-weight:700;margin-left:8px;font-size:1.05rem">${kpi.totalExposure > 0 ? (kpi.totalExposure/10000).toFixed(2)+'万' : '0.00'}</span>
+          <span style="color:#166534;font-weight:700;margin-left:8px;font-size:1.05rem">${kpi.totalExposure > 0 ? kpi.totalExposure.toFixed(2)+'万' : '0.00'}</span>
         </div>
         <div class="roi-kpi-chip" style="background:#fff7ed">
           <span style="color:#9a3412;font-weight:500">品宣费</span>
@@ -2636,12 +2636,12 @@ function fmtCell2(v) {
   if (!Number.isFinite(n)) return '-';
   return n.toFixed(2);
 }
-// 播放/曝光类数值：存的是个位数，显示时转为万
+// 播放/曝光类数值：data.js 已统一成万，直接显示
 function fmtCellWan(v) {
   if (v == null || v === '' || Math.abs(Number(v)) < 1e-9) return '-';
   const n = Number(v);
   if (!Number.isFinite(n)) return '-';
-  return (n / 10000).toFixed(2) + '万';
+  return n.toFixed(2) + '万';
 }
 function fmtCellInt(v) {
   if (v == null || v === '' || Math.abs(Number(v)) < 1e-9) return '-';

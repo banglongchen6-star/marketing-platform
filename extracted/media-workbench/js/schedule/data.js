@@ -1207,16 +1207,15 @@
       (c.publications || [])
         .filter(p => !mainPlatform || mainPlatform === '全部' || p.platform === mainPlatform)
         .forEach(p => {
-          totalViews += Number(p.views) || 0;
-          totalPromoViews += Number(p.promo_views) || 0;
-          totalPromoCost += Number(p.promo_cost) || 0;
+          totalViews      += (Number(p.views)       || 0) / 10000; // 个→万
+          totalPromoViews += Number(p.promo_views)  || 0;          // 已是万
+          totalPromoCost  += Number(p.promo_cost)   || 0;
           publicationCount++;
         });
     });
-    const totalExposureWan = totalViews + totalPromoViews; // 实际是个位数，命名保留兼容
+    const totalExposureWan = totalViews + totalPromoViews; // 均已是万
     const totalSpend = totalPrice + totalPromoCost;
-    // views 存的是个位数，CPM = 花费 / 播放量 * 1000
-    const cpm = totalExposureWan > 0 ? (totalSpend / totalExposureWan * 1000) : 0;
+    const cpm = totalExposureWan > 0 ? (totalSpend / (totalExposureWan * 10000) * 1000) : 0;
     return {
       contentCount: list.length,
       publicationCount,
@@ -1288,7 +1287,7 @@
         const day = (p.date || '').slice(8, 10);
         if (!day || !platforms[p.platform].perDay[day]) return;
         platforms[p.platform].perDay[day].count += 1;
-        platforms[p.platform].perDay[day].views += Number(p.views) || 0;
+        platforms[p.platform].perDay[day].views += (Number(p.views) || 0) / 10000; // 个→万
         // 投流（每个 publication 单独存）
         const promoP = Number(p.promo_views) || 0;
         const promoC = Number(p.promo_cost) || 0;
@@ -1347,9 +1346,8 @@
       monthExposure += exposure;
       monthSpend += spend;
     });
-    totalExposure = monthExposure;
-    // views 存的是个位数，CPM = 花费 / 播放量 * 1000
-    const cpm = totalExposure > 0 ? (brandSpendOnly / totalExposure * 1000) : 0;
+    totalExposure = monthExposure; // 单位：万
+    const cpm = totalExposure > 0 ? (brandSpendOnly / (totalExposure * 10000) * 1000) : 0;
 
     return {
       year, month, daysInMonth, allDays,
