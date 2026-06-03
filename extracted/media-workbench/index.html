@@ -927,8 +927,23 @@
           <span>🔄 流转给其他达人</span>
         </label>
         <div id="sst-transfer-fields" style="display:none;padding:4px 12px 10px 36px">
+          <div style="display:flex;gap:16px;margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem">
+              <input type="radio" name="sst-transfer-type" value="scheduled" onchange="sstTransferTypeToggle()" checked> 已排期达人
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem">
+              <input type="radio" name="sst-transfer-type" value="new" onchange="sstTransferTypeToggle()"> 新达人
+            </label>
+          </div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">目标达人名称 *</label><input class="form-control" id="sst-transfer-talent" placeholder="达人昵称"></div>
+            <div class="form-group" id="sst-transfer-schedule-wrap">
+              <label class="form-label">选择排期达人 *</label>
+              <select class="form-control" id="sst-transfer-schedule-id" style="width:100%"><option value="">— 选择排期 —</option></select>
+            </div>
+            <div class="form-group" id="sst-transfer-new-wrap" style="display:none">
+              <label class="form-label">达人昵称 *</label>
+              <input class="form-control" id="sst-transfer-talent" placeholder="达人昵称">
+            </div>
             <div class="form-group"><label class="form-label">流转日期</label><input type="date" class="form-control" id="sst-transfer-date"></div>
           </div>
           <div class="form-row">
@@ -3256,6 +3271,12 @@ function sstToggle() {
   }
 }
 
+function sstTransferTypeToggle() {
+  const type = document.querySelector('input[name="sst-transfer-type"]:checked')?.value;
+  document.getElementById('sst-transfer-schedule-wrap').style.display = type === 'scheduled' ? '' : 'none';
+  document.getElementById('sst-transfer-new-wrap').style.display      = type === 'new'       ? '' : 'none';
+}
+
 function openStatusModal(id) {
   editingStatusSampleId = id;
   const s = DB.samples.find(x => x.id === id);
@@ -3275,6 +3296,14 @@ function openStatusModal(id) {
   ['sst-transfer-talent','sst-transfer-name','sst-transfer-phone','sst-transfer-address','sst-transfer-tracking','sst-return-tracking','sst-gift-cost'].forEach(fid => {
     const el = document.getElementById(fid); if(el) el.value = '';
   });
+  // 填充排期下拉
+  const schedSel = document.getElementById('sst-transfer-schedule-id');
+  const activeScheds = (DB.schedules || []).filter(sc => !sc.deleted_at && sc.status !== 'draft');
+  schedSel.innerHTML = '<option value="">— 选择排期 —</option>' +
+    activeScheds.map(sc => `<option value="${sc.id}">${escapeHtml(sc.kol_name||'')}（${sc.schedule_date||''}）</option>`).join('');
+  // 重置切换为「已排期达人」
+  document.querySelectorAll('input[name="sst-transfer-type"]').forEach(r => { r.checked = r.value === 'scheduled'; });
+  sstTransferTypeToggle();
   openModal('sample-status-modal');
 }
 
@@ -3307,23 +3336,35 @@ function saveStatusUpdate() {
     s.gift_cost = giftCost;
     toast(`已标记为「已赠送」，成本 ¥${giftCost}`, 'success');
   } else if (action === 'transferred') {
-    const toTalent = document.getElementById('sst-transfer-talent').value.trim();
-    if (!toTalent) { toast('请填写目标达人名称', 'error'); return; }
+    const transferType = document.querySelector('input[name="sst-transfer-type"]:checked')?.value;
+    let toTalent = '', scheduleId = null;
+    if (transferType === 'scheduled') {
+      const schedId = parseInt(document.getElementById('sst-transfer-schedule-id').value);
+      if (!schedId) { toast('请选择目标排期达人', 'error'); return; }
+      const sched = (DB.schedules || []).find(x => x.id === schedId);
+      toTalent = sched?.kol_name || '';
+      scheduleId = schedId;
+    } else {
+      toTalent = document.getElementById('sst-transfer-talent').value.trim();
+      if (!toTalent) { toast('请填写目标达人名称', 'error'); return; }
+    }
+    const transferAddr = document.getElementById('sst-transfer-address').value.trim();
+    const transferName = document.getElementById('sst-transfer-name').value.trim();
     s.status = 'transferred';
-    const newId = nextId(DB.samples);
     DB.samples.push({
-      id: newId,
+      id: nextId(DB.samples),
       talent: toTalent,
       date: document.getElementById('sst-transfer-date').value,
       contact: s.contact,
       product: s.product,
-      recipient_name: document.getElementById('sst-transfer-name').value.trim(),
+      recipient_name: transferName,
       phone: document.getElementById('sst-transfer-phone').value.trim(),
-      address: document.getElementById('sst-transfer-address').value.trim(),
+      address: transferAddr,
       tracking: document.getElementById('sst-transfer-tracking').value.trim(),
       note: `流转自：${s.talent}`,
       parent_sample_id: id,
-      status: 'sent',
+      schedule_id: scheduleId,
+      status: (transferAddr || transferName) ? 'awaiting' : 'pending',
     });
     toast(`已流转，已为「${toTalent}」创建新样品记录`, 'success');
   }
