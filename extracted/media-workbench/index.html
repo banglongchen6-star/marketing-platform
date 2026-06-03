@@ -3671,10 +3671,17 @@ function renderSampleProductCheckboxes(selected=[]) {
   const wrap = document.getElementById('sm-product-wrap');
   if (!wrap) return;
   const products = window.ScheduleData ? ScheduleData.listSampleProducts() : [];
-  wrap.innerHTML = products.map(p =>
-    `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem">
-      <input type="checkbox" class="sm-product-cb" value="${escapeHtml(p.name)}" style="accent-color:var(--primary);flex-shrink:0"${selected.includes(p.name)?' checked':''}>
-      ${escapeHtml(p.name)}
+  const dictNames = products.map(p => p.name);
+  // 孤儿品类：已选但不在当前字典中，仍需展示并保持勾选
+  const orphans = selected.filter(name => !dictNames.includes(name));
+  const allItems = [
+    ...products.map(p => ({ name: p.name, orphan: false })),
+    ...orphans.map(name => ({ name, orphan: true })),
+  ];
+  wrap.innerHTML = allItems.map(({ name, orphan }) =>
+    `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem${orphan?';opacity:.7':''}">
+      <input type="checkbox" class="sm-product-cb" value="${escapeHtml(name)}" style="accent-color:var(--primary);flex-shrink:0"${selected.includes(name)?' checked':''}>
+      ${escapeHtml(name)}${orphan?' <span style="font-size:.7rem;color:var(--text-muted)">(已停用)</span>':''}
     </label>`
   ).join('');
 }
