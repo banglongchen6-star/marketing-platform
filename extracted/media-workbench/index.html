@@ -3404,9 +3404,7 @@ function renderSamples() {
               <th style="width:90px">日期</th>
               <th style="width:80px">商务 BD</th>
               <th>达人 - 发货品类</th>
-              <th style="width:80px">收件人</th>
-              <th style="width:110px">电话</th>
-              <th>地址</th>
+              <th style="min-width:200px">寄件信息</th>
               <th style="width:130px">快递单号</th>
               <th style="width:120px">备注</th>
               <th style="width:90px">是否寄样</th>
@@ -3439,17 +3437,17 @@ function renderSamples() {
                   ${(Array.isArray(s.product)?s.product:(s.product?[s.product]:[])).map(p=>`<span style="display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:10px;background:var(--primary-light);color:var(--primary);margin:2px 2px 0 0">${escapeHtml(p)}</span>`).join('')}
                 </td>
                 ${s.shipping_needed === false
-                  ? `<td colspan="8" style="text-align:center;color:var(--text-muted);font-size:.82rem;background:var(--bg-secondary)">
+                  ? `<td colspan="6" style="text-align:center;color:var(--text-muted);font-size:.82rem;background:var(--bg-secondary)">
                       <span style="margin-right:10px">无需寄样</span>
                       <button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);cursor:pointer;color:var(--text-secondary)">改为需寄样</button>
                     </td>`
-                  : `<td>${escapeHtml(s.recipient_name||'-')}</td>
-                <td style="white-space:nowrap">${escapeHtml(s.phone||'-')}</td>
-                <td style="max-width:180px;white-space:normal;word-break:break-all">
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <span>${escapeHtml(s.address||'-')}</span>
-                    <button onclick="copyShippingInfo(${s.id})" title="复制收件人+电话+地址" style="flex-shrink:0;border:none;background:none;cursor:pointer;padding:2px 4px;border-radius:8px;color:var(--text-muted);line-height:1" onmouseover="this.style.background='var(--primary-light)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text-muted)'"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                  : `<td style="white-space:normal;min-width:200px">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap">
+                    <span style="font-weight:500">${escapeHtml(s.recipient_name||'-')}</span>
+                    <span style="color:var(--text-muted);font-size:.82rem">${escapeHtml(s.phone||'')}</span>
+                    <button onclick="copyShippingInfo(${s.id})" title="复制寄件信息" style="flex-shrink:0;border:none;background:none;cursor:pointer;padding:2px 4px;border-radius:8px;color:var(--text-muted);line-height:1" onmouseover="this.style.background='var(--primary-light)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text-muted)'"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2v1"></path></svg></button>
                   </div>
+                  ${s.address ? `<div style="font-size:.8rem;color:var(--text-secondary);margin-top:3px;word-break:break-all">${escapeHtml(s.address)}</div>` : ''}
                 </td>
                 <td onclick="inlineEditTracking(this,${s.id})" style="cursor:pointer;color:${s.tracking?'inherit':'var(--text-muted)'}">
                   ${s.tracking ? escapeHtml(s.tracking) : '<span style="font-size:.8rem">点击填写</span>'}
