@@ -2159,6 +2159,7 @@ function _ddComputeKPI() {
   const contentSet = new Set();
   let naturalViews = 0, price = 0, pubCount = 0;
   const perPlatform = {};
+  const details = []; // 明细：每条 publication
 
   contents.forEach(c => {
     // BD filter
@@ -2171,10 +2172,11 @@ function _ddComputeKPI() {
     const inRange = pubs.filter(p => p.date && p.date >= start && p.date <= end);
     if (!inRange.length) return;
 
+    const r = (window.ScheduleData && ScheduleData.resolveContent) ? ScheduleData.resolveContent(c) : c;
+
     // 合作费归到主平台发布日
     const mainPub = pubs[0];
     if (mainPub && mainPub.date && mainPub.date >= start && mainPub.date <= end) {
-      const r = (window.ScheduleData && ScheduleData.resolveContent) ? ScheduleData.resolveContent(c) : c;
       const cPrice = Number(r.price || c.price || 0);
       price += cPrice;
       if (perDay[mainPub.date]) perDay[mainPub.date].price += cPrice;
@@ -2187,6 +2189,8 @@ function _ddComputeKPI() {
       const plat = p.platform || '其他';
       perPlatform[plat] = (perPlatform[plat] || 0) + 1;
       if (p.date && perDay[p.date]) perDay[p.date].naturalViews += v;
+
+      details.push({ talent: r.talent || c.kol_name || '—', platform: plat, date: p.date, views: v, link: p.link || '' });
 
       // 非抖音平台的 promo_views 直接累加（抖音由 douyin_promo 覆盖，稍后处理）
       if (plat !== '抖音') {
@@ -2211,6 +2215,8 @@ function _ddComputeKPI() {
 
     contentSet.add(c.id);
   });
+  // 明细按日期排序
+  details.sort((a, b) => a.date.localeCompare(b.date));
 
   // 抖音投流：DB.douyin_promo 有值时覆盖当天（与 ROI 表逻辑一致）
   dates.forEach(ds => {
@@ -2233,7 +2239,7 @@ function _ddComputeKPI() {
   // views 单位是个，CPM = 花费 / 播放量 * 1000
   const cpm = totalViews > 0 ? Number((totalCost / totalViews * 1000).toFixed(2)) : 0;
 
-  return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, totalCost, cpm, perDay, perPlatform, dates };
+  return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, totalCost, cpm, perDay, perPlatform, dates, details };
 }
 
 function renderDataDashboard() {
@@ -2314,6 +2320,47 @@ function renderDataDashboard() {
       </div>
       <div style="margin-top:10px;font-size:.72rem;color:var(--text-muted)">
         💡 播放量来源：内容发布填报 · 投流数据来源：品宣ROI表手动填入
+      </div>
+
+      <!-- 明细校对表 -->
+      <div style="margin-top:16px;background:var(--bg-panel);border-radius:12px;padding:14px 18px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.dd-arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'">
+          <span style="font-size:.86rem;font-weight:600;color:var(--text-primary)">📋 发布明细（与内容发布校对）</span>
+          <span class="dd-arrow" style="font-size:.72rem;color:var(--text-muted)">▼</span>
+          <span style="margin-left:auto;font-size:.76rem;color:var(--text-muted)">共 ${kpi.details.length} 条 · 自然播放合计 ${fmtWan(kpi.naturalViews)}</span>
+        </div>
+        <div>
+          ${kpi.details.length === 0
+            ? `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem">该时间段无发布数据</div>`
+            : `<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+                <thead>
+                  <tr style="background:var(--bg-secondary)">
+                    <th style="padding:6px 10px;text-align:left;font-weight:500;color:var(--text-muted)">达人</th>
+                    <th style="padding:6px 10px;text-align:left;font-weight:500;color:var(--text-muted)">平台</th>
+                    <th style="padding:6px 10px;text-align:left;font-weight:500;color:var(--text-muted)">发布日期</th>
+                    <th style="padding:6px 10px;text-align:right;font-weight:500;color:var(--text-muted)">播放量</th>
+                    <th style="padding:6px 10px;text-align:left;font-weight:500;color:var(--text-muted)">链接</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${kpi.details.map((d, i) => `
+                    <tr style="border-top:1px solid var(--border);background:${i%2===0?'transparent':'var(--bg-secondary)'}">
+                      <td style="padding:6px 10px">${escapeHtml(d.talent)}</td>
+                      <td style="padding:6px 10px"><span class="sched-card-chip platform">${escapeHtml(d.platform)}</span></td>
+                      <td style="padding:6px 10px;color:var(--text-muted)">${d.date}</td>
+                      <td style="padding:6px 10px;text-align:right;font-weight:600;color:${d.views>0?'var(--primary)':'var(--text-muted)'}">${d.views > 0 ? fmtWan(d.views) : '—'}</td>
+                      <td style="padding:6px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        ${d.link ? `<a href="${escapeHtml(d.link)}" target="_blank" rel="noopener" style="color:var(--primary);font-size:.76rem;text-decoration:none">🔗 ${escapeHtml(d.link.replace(/^https?:\/\//,'').slice(0,30))}…</a>` : '<span style="color:var(--text-muted)">—</span>'}
+                      </td>
+                    </tr>`).join('')}
+                  <tr style="border-top:2px solid var(--border);font-weight:600;background:var(--bg-secondary)">
+                    <td colspan="3" style="padding:7px 10px;color:var(--text-muted)">合计</td>
+                    <td style="padding:7px 10px;text-align:right;color:var(--primary)">${fmtWan(kpi.naturalViews)}</td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>`}
+        </div>
       </div>
     </div>`;
 
