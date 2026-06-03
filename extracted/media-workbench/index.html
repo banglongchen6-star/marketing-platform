@@ -5692,6 +5692,16 @@ function initApp() {
         }
       }
     });
+    // 兜底：transferred 但子样品已全部删除或不存在 → 直接恢复
+    (DB.samples || []).forEach(s => {
+      if (s.status === 'transferred') {
+        const hasChild = (DB.samples || []).some(c => c.parent_sample_id === s.id);
+        if (!hasChild) {
+          s.status = (s.address || s.recipient_name) ? 'awaiting' : 'pending';
+          fixed++;
+        }
+      }
+    });
     if (fixed > 0) saveDataNow();
   })();
 
