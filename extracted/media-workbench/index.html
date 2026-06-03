@@ -3776,7 +3776,8 @@ function copyNote(id) {
 function copyShippingInfo(id) {
   const s = DB.samples.find(x => x.id === id);
   if (!s) return;
-  const parts = [s.recipient_name, s.phone, s.address].filter(Boolean);
+  const line1 = [s.recipient_name, s.phone].filter(Boolean).join(' ');
+  const parts = [line1, s.address].filter(Boolean);
   navigator.clipboard.writeText(parts.join('\n')).then(() => toast('已复制收件信息', 'success', 1500));
 }
 
