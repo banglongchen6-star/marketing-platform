@@ -484,7 +484,7 @@
   // 渲染单个 publication 的某一列单元格
   function renderPubCell(p, colKey, ctx) {
     switch (colKey) {
-      case 'price': return ctx.r.price ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
+      case 'price': return ctx.r.price != null && ctx.r.price !== '' ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
       case 'fans':  return ctx.content.fans != null ? formatFans(ctx.content.fans) : '-';
       case 'category': return escapeHtml(ctx.r.category || '-');
       case 'platform': return `<span class="sched-card-chip platform">${escapeHtml(p.platform)}</span>`;
