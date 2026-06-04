@@ -209,8 +209,8 @@
         <div style="margin-left:auto;display:flex;gap:6px;position:relative">
           <button id="__bulk-del-btn__" class="btn btn-danger btn-sm"
             onclick="CommunicationPage._deleteSelected()"
-            style="${state.selectedIds.size > 0 ? '' : 'display:none'}">
-            🗑 删除选中 (${state.selectedIds.size})
+            ${state.selectedIds.size === 0 ? 'disabled' : ''}>
+            🗑 删除选中${state.selectedIds.size > 0 ? ` (${state.selectedIds.size})` : ''}
           </button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._toggleColPop(event)">⚙ 自定义列</button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.openImport()" title="从 Excel 导入">📥 导入</button>
@@ -348,12 +348,8 @@
     // 局部刷新：只更新删除按钮和全选框，不重渲染整张表
     const btn = document.getElementById('__bulk-del-btn__');
     if (btn) {
-      if (state.selectedIds.size > 0) {
-        btn.textContent = `🗑 删除选中 (${state.selectedIds.size})`;
-        btn.style.display = '';
-      } else {
-        btn.style.display = 'none';
-      }
+      btn.textContent = state.selectedIds.size > 0 ? `🗑 删除选中 (${state.selectedIds.size})` : '🗑 删除选中';
+      btn.disabled = state.selectedIds.size === 0;
     }
     const allCb = document.getElementById('__comm-sel-all__');
     if (allCb) {
