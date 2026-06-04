@@ -4698,7 +4698,7 @@ function _renderPendingArea() {
     if (!st) {
       // 无结算信息：显示排期预算金额
       const schedAmt = Number(sched.amount) || 0;
-      const amtHtml = schedAmt > 0
+      const amtHtml = sched.amount != null
         ? `<span style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(schedAmt)}</span><span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">排期预算</span>`
         : `<span style="color:var(--text-muted);font-size:.82rem">— 未设金额 —</span>`;
       return `<tr class="comm-main-row" style="border-left:3px solid #e5e7eb">
