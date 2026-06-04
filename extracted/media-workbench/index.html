@@ -3474,7 +3474,7 @@ function renderSamples() {
               const bd = bdMap[s.contact];
               const bdCell = bd
                 ? `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:.78rem;background:${bd.color}22;color:${bd.color};font-weight:600">${escapeHtml(bd.name)}</span>`
-                : (s.contact ? escapeHtml(s.contact) : '-');
+                : '-';
               const parent = s.parent_sample_id ? DB.samples.find(x=>x.id===s.parent_sample_id) : null;
               const st = SAMPLE_STATUS[s.status];
               const statusTag = st
