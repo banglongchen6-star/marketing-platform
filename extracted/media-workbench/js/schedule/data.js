@@ -1274,15 +1274,6 @@
 
     // 列出本月发布 publications（从 contents.publications 展开）
     const contents = listContents({ year, month, bd_id });
-    // [调试] 打印21号相关内容记录，帮助排查数据来源
-    const debugDay = '21';
-    const debugDateStr = `${year}-${String(month).padStart(2,'0')}-${debugDay}`;
-    const debug21 = contents.filter(c => (c.publications||[]).some(p => (p.date||'').endsWith('-21')));
-    if (debug21.length) console.warn('[ROI-DEBUG] 21号内容记录:', JSON.stringify(debug21.map(c => ({ id: c.id, auto: c.auto_created, pubs: c.publications }))));
-    const debugPromo = DB.douyin_promo && DB.douyin_promo[debugDateStr];
-    if (debugPromo) console.warn('[ROI-DEBUG] 21号投流数据:', debugPromo);
-    const debugRepl = (DB.replacements||[]).filter(r => (r.date||'').endsWith('-21') && (r.date||'').startsWith(`${year}-${String(month).padStart(2,'0')}`));
-    if (debugRepl.length) console.warn('[ROI-DEBUG] 21号置换成本:', JSON.stringify(debugRepl));
     // 平台来源：字典里全部 active 平台 + 数据中出现的额外平台（保证 6 大平台总是显示）
     const platformSet = new Set();
     listPlatforms().forEach(p => platformSet.add(p.name));
