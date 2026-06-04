@@ -58,6 +58,8 @@
     // 自定义列
     visibleCols: loadVisible(),
     colPopOpen: false,
+    // 多选删除
+    selectedIds: new Set(),
     // 编辑器
     editor: {
       open: false, mode: 'create', id: null,
@@ -128,6 +130,14 @@
       ${renderList()}
     `;
     bindToolbar();
+    // 全选框 indeterminate 状态（HTML 属性无法表达，需 JS 设置）
+    setTimeout(() => {
+      const allCb = document.getElementById('__comm-sel-all__');
+      if (!allCb) return;
+      const allIds = _getAllVisibleContentIds();
+      const selCount = allIds.filter(id => state.selectedIds.has(id)).length;
+      allCb.indeterminate = selCount > 0 && selCount < allIds.length;
+    }, 0);
   }
 
   /* 顶部 tab：按主平台切分 */
@@ -197,6 +207,11 @@
         </div>
 
         <div style="margin-left:auto;display:flex;gap:6px;position:relative">
+          <button id="__bulk-del-btn__" class="btn btn-danger btn-sm"
+            onclick="CommunicationPage._deleteSelected()"
+            style="${state.selectedIds.size > 0 ? '' : 'display:none'}">
+            🗑 删除选中 (${state.selectedIds.size})
+          </button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._toggleColPop(event)">⚙ 自定义列</button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.openImport()" title="从 Excel 导入">📥 导入</button>
           <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.doExport()" title="导出当前筛选数据到 Excel">📤 导出</button>
@@ -306,13 +321,75 @@
     if (b) b.addEventListener('change', e => { state.bd_id = e.target.value; render(); });
   }
 
-  function _setMainPlatform(p) { state.mainPlatform = p; render(); }
+  function _setMainPlatform(p) { state.mainPlatform = p; state.selectedIds.clear(); render(); }
   function _prevMonth() {
     if (state.month === 1) { state.year--; state.month = 12; } else state.month--;
-    render();
+    state.selectedIds.clear(); render();
   }
   function _nextMonth() {
     if (state.month === 12) { state.year++; state.month = 1; } else state.month++;
+    state.selectedIds.clear(); render();
+  }
+
+  /* ------------------------- 多选删除 ------------------------- */
+  function _getAllVisibleContentIds() {
+    const list = SD.listContents({
+      year: state.year, month: state.month,
+      bd_id: state.bd_id || undefined,
+      q: state.q || undefined,
+    });
+    return list.filter(c => !c._placeholder && c.id).map(c => String(c.id));
+  }
+
+  function _toggleSelect(id) {
+    const sid = String(id);
+    if (state.selectedIds.has(sid)) state.selectedIds.delete(sid);
+    else state.selectedIds.add(sid);
+    // 局部刷新：只更新删除按钮和全选框，不重渲染整张表
+    const btn = document.getElementById('__bulk-del-btn__');
+    if (btn) {
+      if (state.selectedIds.size > 0) {
+        btn.textContent = `🗑 删除选中 (${state.selectedIds.size})`;
+        btn.style.display = '';
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+    const allCb = document.getElementById('__comm-sel-all__');
+    if (allCb) {
+      const allIds = _getAllVisibleContentIds();
+      const selCount = allIds.filter(id => state.selectedIds.has(id)).length;
+      allCb.checked = selCount === allIds.length && allIds.length > 0;
+      allCb.indeterminate = selCount > 0 && selCount < allIds.length;
+    }
+  }
+
+  function _selectAll(checked) {
+    const allIds = _getAllVisibleContentIds();
+    if (checked) allIds.forEach(id => state.selectedIds.add(id));
+    else state.selectedIds.clear();
+    render();
+  }
+
+  function _deleteSelected() {
+    if (state.selectedIds.size === 0) return;
+    if (SD.isMonthFrozen(state.year, state.month)) {
+      window.toast && window.toast('该月已冻结，请先解冻再删除', 'error');
+      return;
+    }
+    const count = state.selectedIds.size;
+    if (!confirm(`确认删除选中的 ${count} 条内容发布记录？操作不可恢复。`)) return;
+    let deleted = 0, settlements = 0;
+    [...state.selectedIds].forEach(id => {
+      try {
+        const res = SD.deleteContent(id);
+        deleted++;
+        settlements += res.deletedSettlements || 0;
+      } catch(e) {}
+    });
+    state.selectedIds.clear();
+    const msg = settlements > 0 ? `已删除 ${deleted} 条（含 ${settlements} 条结算记录）` : `已删除 ${deleted} 条`;
+    window.toast && window.toast(msg, 'info');
     render();
   }
 
@@ -452,6 +529,10 @@
         <table class="comm-table">
           <thead>
             <tr class="comm-group-header">
+              <th rowspan="2" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
+                <input type="checkbox" id="__comm-sel-all__" title="全选/取消全选"
+                  onchange="CommunicationPage._selectAll(this.checked)">
+              </th>
               <th rowspan="2" style="background:#fafbfd;min-width:120px">${state.mainPlatform}昵称</th>
               ${groupOrder.map(g => {
                 const gLabel = g === '基本' ? '基本信息'
@@ -474,7 +555,7 @@
             ).join('')}
           </tbody>
           <tfoot>
-            ${renderListFooter(realList, activeCols.length, false)}
+            ${renderListFooter(realList, activeCols.length + 1, false)}
           </tfoot>
         </table>
       </div>
@@ -543,6 +624,7 @@
       : '';
     const phStBtn = _payStatusTag(s.id, null);
     return `<tr class="comm-main-row" style="background:#fafbff;opacity:.85">
+      <td style="width:36px;background:#f0f4ff;padding:4px"></td>
       <td style="background:#f0f4ff">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <strong>${escapeHtml(r.talent)}</strong>
@@ -586,6 +668,10 @@
     // 主行
     let html = `
       <tr class="comm-main-row" data-id="${content.id}" style="${rowStyle}">
+        <td rowspan="${total}" style="width:36px;text-align:center;background:#fafbfd;vertical-align:middle;padding:4px">
+          <input type="checkbox" onchange="CommunicationPage._toggleSelect('${content.id}')"
+            ${state.selectedIds.has(String(content.id)) ? 'checked' : ''}>
+        </td>
         <td rowspan="${total}" style="font-weight:600;background:#fafbfd"><strong>${escapeHtml(r.talent)}</strong>
           ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
         </td>
@@ -745,6 +831,10 @@
           : '';
         if (i === 0) {
           return `<tr class="comm-main-row" data-id="${c.id}" style="${allFrozen ? 'opacity:.6' : ''}">
+            <td rowspan="${total}" style="width:36px;text-align:center;background:#fafbfd;vertical-align:middle;padding:4px">
+              <input type="checkbox" onchange="CommunicationPage._toggleSelect('${c.id}')"
+                ${state.selectedIds.has(String(c.id)) ? 'checked' : ''}>
+            </td>
             <td rowspan="${total}" style="font-weight:600;background:#fafbfd;vertical-align:middle">
               <strong>${escapeHtml(r.talent)}</strong>
               ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
@@ -761,6 +851,10 @@
         <table class="comm-table">
           <thead>
             <tr class="comm-group-header">
+              <th rowspan="2" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
+                <input type="checkbox" id="__comm-sel-all__" title="全选/取消全选"
+                  onchange="CommunicationPage._selectAll(this.checked)">
+              </th>
               <th rowspan="2" style="background:#fafbfd;min-width:130px">达人昵称</th>
               ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
               <th rowspan="2" colspan="3" style="text-align:center">操作</th>
@@ -775,7 +869,7 @@
           </tbody>
           <tfoot>
             <tr class="comm-footer-row">
-              <td colspan="${activeCols.length + 4}">
+              <td colspan="${activeCols.length + 5}">
                 <span style="color:var(--text-secondary)">合计 ${pricedKols.size} 位达人 · ${totalPubs} 条发布 ·
                 价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
                 播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
@@ -1584,6 +1678,7 @@
     _toggleColPop, _toggleCol, _showAllCols, _resetCols, _saveColPop,
     _inlineEditLink, _inlineEditViews, _inlineEditField, _inlineEditDate,
     _toggleFreeze,
+    _toggleSelect, _selectAll, _deleteSelected,
     _getState: () => ({ year: state.year, month: state.month, mainPlatform: state.mainPlatform, bd_id: state.bd_id }),
   };
   console.log('[CommunicationPage] 已就绪');
