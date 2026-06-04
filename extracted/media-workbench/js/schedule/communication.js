@@ -692,7 +692,7 @@
       // price / fans：主行 rowspan，子行跳过
       if (col.key === 'price') {
         if (i > 0) return '';
-        return `<td rowspan="${total}" style="background:#fafbfd;vertical-align:middle">${r.price ? '¥'+Number(r.price).toLocaleString() : '-'}</td>`;
+        return `<td rowspan="${total}" style="background:#fafbfd;vertical-align:middle">${r.price != null && r.price !== '' ? '¥'+Number(r.price).toLocaleString() : '-'}</td>`;
       }
       if (col.key === 'fans') {
         if (i > 0) return '';
