@@ -211,6 +211,15 @@
         s.sync_platforms = s.platforms.slice(1);
         mutated = true;
       }
+      // 迁移：category_direction 误填了层级值 → 挪到 tier，清空 category_direction
+      if (s.category_direction) {
+        const tierNames = new Set((DB.tiers || []).map(t => t.name));
+        if (tierNames.has(s.category_direction)) {
+          if (!s.tier) s.tier = s.category_direction;
+          s.category_direction = '';
+          mutated = true;
+        }
+      }
     });
   }
 
