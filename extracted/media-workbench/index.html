@@ -1601,8 +1601,11 @@ function injectPageHeader(page) {
 }
 
 function navigate(page) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.remove('active');
+    const oc = el.getAttribute('onclick') || '';
+    if (oc.includes(`'${page}'`)) el.classList.add('active');
+  });
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
   document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
