@@ -1298,6 +1298,8 @@
     });
 
     contents.forEach(c => {
+      // 跳过纯空占位记录（auto_created 且没有任何链接/播放量）
+      if (c.auto_created && (c.publications || []).every(p => !p.link && p.views == null)) return;
       const r = resolveContent(c);
       const pubs = c.publications || [];
       if (!pubs.length) return;
