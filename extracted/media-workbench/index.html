@@ -1611,6 +1611,7 @@ function navigate(page) {
   const inlineBar = document.getElementById('page-inline-bar');
   if (inlineBar) inlineBar.style.display = 'none';
   currentPage = page;
+  try { localStorage.setItem('_last_page', page); } catch(e) {}
   closeSidebar();
   if (page === 'dashboard')       { renderDashboard(); updateReminderBadge(); }
   if (page === 'data-dashboard')  renderDataDashboard();
@@ -5591,6 +5592,14 @@ function initApp() {
   }
   renderDashboard();
   updateReminderBadge();
+  // 恢复上次停留的页面
+  try {
+    const lastPage = localStorage.getItem('_last_page');
+    const validPages = ['dashboard','data-dashboard','schedule','monthly-plan','kols','contents','samples','materials','replacements','candidates','settlement'];
+    if (lastPage && validPages.includes(lastPage) && lastPage !== 'dashboard') {
+      setTimeout(() => navigate(lastPage), 0);
+    }
+  } catch(e) {}
 }
 
 // （tryRestoreSession 已移到末尾外部 schedule script 加载完之后调用）
