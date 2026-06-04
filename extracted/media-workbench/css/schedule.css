@@ -893,7 +893,7 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-bottom: 24px;
-  overflow: hidden;
+  overflow: visible;
 }
 .sched-budget-header {
   padding: 12px 18px;
