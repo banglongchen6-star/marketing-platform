@@ -813,17 +813,18 @@
     return DB.schedule_budgets.filter((b) => b.year === year && b.month === month);
   }
 
-  function upsertBudget({ year, month, category, ...rest }) {
+  function upsertBudget({ year, month, category, tier = '', ...rest }) {
     if (!year || !month || !category) throw new Error('year/month/category 必填');
+    const tierKey = tier || '';
     let row = DB.schedule_budgets.find(
-      (b) => b.year === year && b.month === month && b.category === category
+      (b) => b.year === year && b.month === month && b.category === category && (b.tier || '') === tierKey
     );
     if (row) {
       Object.assign(row, rest, { updated_at: nowISO() });
     } else {
       row = {
         id: uid(),
-        year, month, category,
+        year, month, category, tier: tierKey,
         budget_amount: 0,
         target_count: null,
         product_line: '',
@@ -841,13 +842,29 @@
     return row;
   }
 
+  function updateBudgetById(id, patch) {
+    const row = DB.schedule_budgets.find(b => b.id === id);
+    if (!row) throw new Error('预算行不存在');
+    Object.assign(row, patch, { updated_at: nowISO() });
+    saveData();
+    return row;
+  }
+
+  function deleteBudget(id) {
+    const idx = DB.schedule_budgets.findIndex(b => b.id === id);
+    if (idx < 0) throw new Error('预算行不存在');
+    DB.schedule_budgets.splice(idx, 1);
+    saveData();
+  }
+
   function copyBudgetsFromLastMonth(year, month) {
     const { year: py, month: pm } = prevMonth(year, month);
     const source = listBudgetsByMonth(py, pm);
     let copied = 0;
     source.forEach((src) => {
+      const tierKey = src.tier || '';
       const exists = DB.schedule_budgets.some(
-        (b) => b.year === year && b.month === month && b.category === src.category
+        (b) => b.year === year && b.month === month && b.category === src.category && (b.tier || '') === tierKey
       );
       if (exists) return;
       DB.schedule_budgets.push({
@@ -1674,63 +1691,50 @@
    * 字典里没有但排期有的 → 作为"孤儿行"加到底部（categoryId=null）。
    */
   function getMonthlyBudgetRows(year, month) {
-    const activeDirs = listDirections();
     const budgets = listBudgetsByMonth(year, month);
-    const budgetByName = {};
-    budgets.forEach((b) => { budgetByName[b.category] = b; });
 
+    // 实际排期数据：按 (category_direction, tier) 双键聚合
     const schedules = listSchedulesByMonth(year, month);
-    const actualByDir = {};
+    const actualByKey = {};
     schedules.forEach((s) => {
       if (s.status === 'cancelled') return;
-      const k = s.category_direction || '';
-      if (!actualByDir[k]) actualByDir[k] = { spent: 0, count: 0 };
-      actualByDir[k].spent += Number(s.amount) || 0;
-      actualByDir[k].count += 1;
+      const cat  = s.category_direction || '';
+      const tier = s.tier || '';
+      const k = cat + '\x00' + tier;
+      if (!actualByKey[k]) actualByKey[k] = { spent: 0, count: 0 };
+      actualByKey[k].spent += Number(s.amount) || 0;
+      actualByKey[k].count += 1;
+    });
+    // 同类型所有层级的合计（用于显示在类型行）
+    const actualByDir = {};
+    Object.entries(actualByKey).forEach(([k, v]) => {
+      const cat = k.split('\x00')[0];
+      if (!actualByDir[cat]) actualByDir[cat] = { spent: 0, count: 0 };
+      actualByDir[cat].spent += v.spent;
+      actualByDir[cat].count += v.count;
     });
 
-    const rows = activeDirs.map((d) => {
-      const b = budgetByName[d.name];
-      const actual = actualByDir[d.name] || { spent: 0, count: 0 };
-      const budgetAmount = b ? Number(b.budget_amount) || 0 : 0;
+    // 只展示本月已明确添加的预算行（每月默认空）
+    const rows = budgets.map((b) => {
+      const tierKey = b.tier || '';
+      const k = b.category + '\x00' + tierKey;
+      const actual = actualByKey[k] || { spent: 0, count: 0 };
+      const budgetAmount = Number(b.budget_amount) || 0;
       return {
-        categoryId: d.id,
-        category: d.name,
-        shortName: d.name,
+        id: b.id,
+        category: b.category,
+        tier: tierKey,
+        shortName: b.category,
         budgetAmount,
-        targetCount: b ? b.target_count : null,
-        productLine: b ? b.product_line || '' : '',
-        platform: b ? b.platform || '' : '',
-        functionDisplay: b ? b.function_display || '' : '',
-        requirements: b ? b.requirements || '' : '',
+        targetCount: b.target_count,
+        productLine: b.product_line || '',
+        platform: b.platform || '',
+        functionDisplay: b.function_display || '',
+        requirements: b.requirements || '',
         actualSpent: actual.spent,
         actualCount: actual.count,
         gap: budgetAmount - actual.spent,
-        hasBudgetRecord: !!b,
-        isOrphan: false,
       };
-    });
-
-    // 孤儿行：字典里没有但排期里有
-    Object.entries(actualByDir).forEach(([name, actual]) => {
-      if (!name) return; // 空 category_direction 不算孤儿
-      if (activeDirs.some((d) => d.name === name)) return;
-      rows.push({
-        categoryId: null,
-        category: name,
-        shortName: name,
-        budgetAmount: 0,
-        targetCount: null,
-        productLine: '',
-        platform: '',
-        functionDisplay: '',
-        requirements: '',
-        actualSpent: actual.spent,
-        actualCount: actual.count,
-        gap: -actual.spent,
-        hasBudgetRecord: false,
-        isOrphan: true,
-      });
     });
 
     const total = rows.reduce(
@@ -1927,7 +1931,7 @@
     listDeletedSchedules, restoreSchedule, permanentlyDeleteSchedule,
     emptyRecycleBin, cleanupExpiredRecycleBin,
     // budgets
-    listBudgetsByMonth, upsertBudget, copyBudgetsFromLastMonth,
+    listBudgetsByMonth, upsertBudget, updateBudgetById, deleteBudget, copyBudgetsFromLastMonth,
     // kols
     searchKols, quickCreateKol, listKols, getKolStats,
     createKol, updateKol, deleteKol, batchImportKols,

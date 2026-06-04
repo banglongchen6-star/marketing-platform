@@ -1073,6 +1073,26 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
 }
 .sched-budget-del:hover { opacity: 1; background: rgba(220, 38, 38, .08); }
 
+/* 「+ 添加层级」行 */
+.sched-add-tier-row td {
+  background: #f8fafc;
+  border-bottom: 2px solid var(--border);
+}
+.sched-add-tier-btn {
+  background: none;
+  border: 1px dashed var(--border-lit);
+  color: var(--text-muted);
+  font-size: .78rem;
+  padding: 3px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sched-add-tier-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
 /* 「+ 添加达人类型」浮层 */
 .sched-add-dir-row td {
   padding: 8px 12px;
