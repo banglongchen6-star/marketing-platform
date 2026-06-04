@@ -5732,7 +5732,7 @@ function initApp() {
 
   // ========== 自动同步：轮询服务器数据，同事更新后本端自动刷新 ==========
   (function startAutoSync() {
-    const INTERVAL = 30000; // 30秒一次
+    const INTERVAL = 10000; // 10秒一次
     let _polling = false;
 
     async function pollServerData() {
