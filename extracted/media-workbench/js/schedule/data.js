@@ -961,6 +961,28 @@
       }
     });
 
+    // 清理：同一 schedule_id 有多条记录时，保留有内容的，删除空的 auto_created 占位
+    const scheduleContentMap = new Map();
+    DB.contents.forEach(c => {
+      if (!c.schedule_id) return;
+      if (!scheduleContentMap.has(c.schedule_id)) scheduleContentMap.set(c.schedule_id, []);
+      scheduleContentMap.get(c.schedule_id).push(c);
+    });
+    scheduleContentMap.forEach((items) => {
+      if (items.length <= 1) return;
+      const hasReal = items.some(c => !c.auto_created);
+      if (hasReal) {
+        // 删除所有空的 auto_created 占位
+        const toDelete = items.filter(c => c.auto_created &&
+          (c.publications || []).every(p => !p.link && p.views == null));
+        if (toDelete.length) {
+          const delIds = new Set(toDelete.map(c => c.id));
+          DB.contents = DB.contents.filter(c => !delIds.has(c.id));
+          mutated = true;
+        }
+      }
+    });
+
     if (mutated) saveData();
     return processed;
   }
