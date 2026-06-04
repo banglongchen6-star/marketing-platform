@@ -3463,6 +3463,7 @@ function renderSamples() {
               <th style="width:130px">快递单号</th>
               <th style="width:120px">备注</th>
               <th style="width:90px">是否寄样</th>
+              <th style="width:100px">是否收货</th>
               <th style="width:80px">状态</th>
               <th style="width:60px">操作</th>
               <th style="width:90px">是否排期</th>
@@ -3492,7 +3493,7 @@ function renderSamples() {
                   ${(Array.isArray(s.product)?s.product:(s.product?[s.product]:[])).map(p=>`<span style="display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:10px;background:var(--primary-light);color:var(--primary);margin:2px 2px 0 0">${escapeHtml(p)}</span>`).join('')}
                 </td>
                 ${s.shipping_needed === false
-                  ? `<td colspan="6" style="text-align:center;color:var(--text-muted);font-size:.82rem;background:var(--bg-secondary)">
+                  ? `<td colspan="7" style="text-align:center;color:var(--text-muted);font-size:.82rem;background:var(--bg-secondary)">
                       <span style="margin-right:10px">无需寄样</span>
                       <button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);cursor:pointer;color:var(--text-secondary)">改为需寄样</button>
                     </td>`
@@ -3512,6 +3513,13 @@ function renderSamples() {
                   ${(s.address || s.recipient_name)
                     ? `<span style="font-size:.75rem;padding:2px 10px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;white-space:nowrap">✅ 已寄样</span>`
                     : `<button onclick="toggleSampleShipping(${s.id})" style="font-size:.72rem;padding:2px 10px;border:1px solid #86efac;border-radius:4px;background:#f0fdf4;cursor:pointer;color:#15803d;white-space:nowrap">📦 无需寄样</button>`}
+                </td>
+                <td style="text-align:center">
+                  ${(s.address || s.recipient_name || s.tracking)
+                    ? (s.is_received
+                        ? `<button onclick="toggleSampleReceived(${s.id})" style="font-size:.75rem;padding:2px 10px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;border:1px solid #86efac;cursor:pointer;white-space:nowrap">✅ 收到货</button>`
+                        : `<button onclick="toggleSampleReceived(${s.id})" style="font-size:.75rem;padding:2px 10px;border-radius:4px;background:#fef3c7;color:#b45309;font-weight:600;border:1px solid #fcd34d;cursor:pointer;white-space:nowrap">📬 未收到货</button>`)
+                    : `<span style="color:var(--text-muted);font-size:.8rem">—</span>`}
                 </td>
                 ${(s.address || s.recipient_name)
                   ? `<td onclick="openStatusModal(${s.id})" style="cursor:pointer" title="点击更新状态">${statusTag}</td>`
@@ -3538,6 +3546,14 @@ function toggleSampleShipping(id) {
   const s = DB.samples.find(x => x.id === id);
   if (!s) return;
   s.shipping_needed = s.shipping_needed === false ? true : false;
+  saveData();
+  renderSamples();
+}
+
+function toggleSampleReceived(id) {
+  const s = DB.samples.find(x => x.id === id);
+  if (!s) return;
+  s.is_received = !s.is_received;
   saveData();
   renderSamples();
 }
