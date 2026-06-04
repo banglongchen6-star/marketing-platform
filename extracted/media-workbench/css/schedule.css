@@ -1152,6 +1152,12 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
 .sched-add-dir-pop-item:hover { background: var(--bg-hover); }
 .sched-add-dir-pop-item .status-in   { color: var(--success); font-size: .72rem; }
 .sched-add-dir-pop-item .status-off  { color: var(--text-muted); font-size: .72rem; }
+.sched-add-dir-pop-item--added {
+  cursor: default;
+  opacity: .55;
+  background: #f8fafc;
+}
+.sched-add-dir-pop-item--added:hover { background: #f8fafc; }
 .sched-add-dir-pop-create {
   padding: 8px 12px;
   background: var(--primary-light);

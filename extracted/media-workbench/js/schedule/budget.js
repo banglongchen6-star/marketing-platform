@@ -510,12 +510,25 @@
 
     let html = filtered.map(d => {
       const added = thisMonth.has(d.name);
+      if (added) {
+        /* 已添加：✓ 标记 + 置灰 + 不可点击 */
+        return `
+          <div class="sched-add-dir-pop-item sched-add-dir-pop-item--added">
+            <span style="display:flex;align-items:center;gap:6px">
+              <span style="color:var(--success);font-size:.85rem">✓</span>
+              ${escapeHtml(d.name)}
+            </span>
+            <span class="status-in">本月已有</span>
+          </div>
+        `;
+      }
       return `
         <div class="sched-add-dir-pop-item" onclick="BudgetTable._pickDir('${escapeAttr(d.name)}')">
-          <span>${escapeHtml(d.name)}</span>
-          <span class="${added ? 'status-in' : ''}" style="${added ? '' : 'color:var(--text-muted);font-size:.7rem'}">
-            ${added ? '本月已有' : (d.is_active === false ? '已停用' : '')}
+          <span style="display:flex;align-items:center;gap:6px">
+            <span style="color:transparent;font-size:.85rem">✓</span>
+            ${escapeHtml(d.name)}
           </span>
+          <span style="color:var(--text-muted);font-size:.7rem">${d.is_active === false ? '已停用' : ''}</span>
         </div>
       `;
     }).join('');
@@ -526,7 +539,7 @@
                  ＋ 新建「${escapeHtml(q)}」
                </div>`;
     }
-    if (!filtered.length && !q) html = '<div class="kol-selector-empty">字典里还没有任何条目</div>';
+    if (!filtered.length && !q) html = '<div class="kol-selector-empty" style="padding:16px;text-align:center;color:var(--text-muted)">字典里还没有任何条目</div>';
     return html;
   }
 
