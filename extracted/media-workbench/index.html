@@ -5729,6 +5729,51 @@ function initApp() {
   })();
 
   window.addEventListener('resize', fitRoiCardHeight);
+
+  // ========== 自动同步：轮询服务器数据，同事更新后本端自动刷新 ==========
+  (function startAutoSync() {
+    const INTERVAL = 30000; // 30秒一次
+    let _polling = false;
+
+    async function pollServerData() {
+      if (_polling) return;
+      _polling = true;
+      try {
+        const res = await fetch('/api/data');
+        if (!res.ok) return;
+        const serverData = await res.json();
+        if (!serverData || !serverData._saved_at) return;
+        const serverTs = serverData._saved_at || 0;
+        const localTs  = DB._saved_at  || 0;
+        // 只在服务器数据比本地更新时才刷新（严格大于，避免覆盖自己刚写的数据）
+        if (serverTs > localTs) {
+          Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
+          window.DB = DB;
+          localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+          // 重渲染当前页面
+          const p = currentPage;
+          if (p === 'dashboard')      { try { renderDashboard(); updateReminderBadge(); } catch(e){} }
+          if (p === 'data-dashboard') { try { renderDataDashboard(); } catch(e){} }
+          if (p === 'schedule')       { try { renderCalendar(); } catch(e){} }
+          if (p === 'monthly-plan' && window.MonthlyPlanPage)  { try { MonthlyPlanPage.render(); } catch(e){} }
+          if (p === 'kols' && window.KolsPage)                 { try { KolsPage.render(); } catch(e){} }
+          if (p === 'contents' && window.CommunicationPage)    { try { CommunicationPage.render(); } catch(e){} }
+          if (p === 'replacements' && window.ReplacementsPage) { try { ReplacementsPage.render(); } catch(e){} }
+          if (p === 'candidates')  { try { renderCandidates(); } catch(e){} }
+          if (p === 'samples')     { try { renderSamples(); } catch(e){} }
+          if (p === 'materials')   { try { renderMaterials(); } catch(e){} }
+          if (p === 'settlement')  { try { renderSettlement(); } catch(e){} }
+          window.toast && window.toast('🔄 数据已更新', 'info', 2000);
+        }
+      } catch(e) {
+        // 离线或服务器不可达时静默忽略
+      } finally {
+        _polling = false;
+      }
+    }
+
+    setInterval(pollServerData, INTERVAL);
+  })();
 </script>
 </body>
 </html>
