@@ -828,7 +828,7 @@
         kol_name: c.kol_name || '',
         fans: c.fans != null ? String(c.fans) : '',
         bd_id: c.bd_id || '',
-        price: linkedSched ? String(linkedSched.amount || '') : (c.price != null ? String(c.price) : ''),
+        price: linkedSched ? (linkedSched.amount != null ? String(linkedSched.amount) : '') : (c.price != null ? String(c.price) : ''),
         main_platform: pubs[0]?.platform || (SD.listPlatforms()[0]?.name || '抖音'),
         sync_platforms: pubs.slice(1).map(p => p.platform).filter(Boolean),
         publications: pubs.map(p => ({ ...p })),
@@ -1120,7 +1120,7 @@
         if (sched && sched.platform) {
           f.main_platform = sched.platform;
           f.sync_platforms = Array.isArray(sched.sync_platforms) ? [...sched.sync_platforms] : [];
-          f.price = String(sched.amount || '');
+          f.price = sched.amount != null ? String(sched.amount) : '';
           _rebuildPublications(f);
           // 主平台带入排期日期，同步平台保持空
           if (sched.schedule_date && f.publications.length > 0) {
