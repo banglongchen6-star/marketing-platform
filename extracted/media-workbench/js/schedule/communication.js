@@ -530,8 +530,13 @@
           <thead>
             <tr class="comm-group-header">
               <th rowspan="2" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
-                <input type="checkbox" id="__comm-sel-all__" title="全选/取消全选"
-                  onchange="CommunicationPage._selectAll(this.checked)">
+                ${(function(){
+                  const _ids = _getAllVisibleContentIds();
+                  const _sel = _ids.filter(id => state.selectedIds.has(id)).length;
+                  const _chk = _ids.length > 0 && _sel === _ids.length ? 'checked' : '';
+                  return `<input type="checkbox" id="__comm-sel-all__" title="全选/取消全选"
+                    ${_chk} onchange="CommunicationPage._selectAll(this.checked)">`;
+                })()}
               </th>
               <th rowspan="2" style="background:#fafbfd;min-width:120px">${state.mainPlatform}昵称</th>
               ${groupOrder.map(g => {
@@ -852,8 +857,13 @@
           <thead>
             <tr class="comm-group-header">
               <th rowspan="2" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
-                <input type="checkbox" id="__comm-sel-all__" title="全选/取消全选"
-                  onchange="CommunicationPage._selectAll(this.checked)">
+                ${(function(){
+                  const _ids = _getAllVisibleContentIds();
+                  const _sel = _ids.filter(id => state.selectedIds.has(id)).length;
+                  const _chk = _ids.length > 0 && _sel === _ids.length ? 'checked' : '';
+                  return `<input type="checkbox" id="__comm-sel-all__" title="全选/取消全选"
+                    ${_chk} onchange="CommunicationPage._selectAll(this.checked)">`;
+                })()}
               </th>
               <th rowspan="2" style="background:#fafbfd;min-width:130px">达人昵称</th>
               ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
