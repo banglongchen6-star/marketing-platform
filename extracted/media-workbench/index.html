@@ -409,7 +409,7 @@
           style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
           <option value="">全部状态</option>
           <option value="pending">待寄样</option>
-          <option value="awaiting">已寄出待确认</option>
+          <option value="awaiting">作业中</option>
           <option value="keeping">长期留存</option>
           <option value="transferred">已流转</option>
           <option value="returned">已归还</option>
@@ -3247,7 +3247,7 @@ let editingSampleId=null, editingStatusSampleId=null;
 
 const SAMPLE_STATUS = {
   pending:   { label: '待寄样',      color: '#f59e0b' },
-  awaiting:  { label: '已寄出待确认', color: '#0891b2' },
+  awaiting:  { label: '作业中', color: '#0891b2' },
   sent:      { label: '已寄出',      color: '#3b82f6' }, // 兼容旧数据
   transferred:{ label: '已流转',     color: '#8b5cf6' },
   keeping:   { label: '长期留存',    color: '#10b981' },
