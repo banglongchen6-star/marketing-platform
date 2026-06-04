@@ -1374,13 +1374,20 @@
 
     // 置换成本（按日聚合）
     const replacementsPerDay = {};
-    allDays.forEach(d => replacementsPerDay[d] = 0);
-    listReplacements({ year, month }).forEach(rep => {
-      const day = (rep.date || '').slice(8, 10);
-      if (day && replacementsPerDay[day] != null) {
-        replacementsPerDay[day] += Number(rep.total_cost) || 0;
-      }
+    const manualRep = DB.roi_replacement_manual || {};
+    allDays.forEach(d => {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${d}`;
+      replacementsPerDay[d] = manualRep[dateStr] != null ? Number(manualRep[dateStr]) : 0;
     });
+    if (!Object.values(manualRep).some(v => v > 0)) {
+      // 无任何手动值时，保留自动汇总作为初始显示
+      listReplacements({ year, month }).forEach(rep => {
+        const day = (rep.date || '').slice(8, 10);
+        if (day && replacementsPerDay[day] != null) {
+          replacementsPerDay[day] += Number(rep.total_cost) || 0;
+        }
+      });
+    }
 
     // 合计每天（数量 / 曝光（自然 + 投流，万）/ 费用（合作 + 投流 + 置换））
     const totalsPerDay = {};

@@ -2476,14 +2476,17 @@ function renderBrandRoiTable(year, month, bdId) {
       ` : ''}
     `;
   }).join('');
-  // 置换成本行
+  // 置换成本行（手动填列）
   let totalReplacement = 0;
   allDays.forEach(d => totalReplacement += replacementsPerDay[d] || 0);
   const replacementRow = `
     <tr class="roi-replacement-row">
       <th class="roi-platform-name">置换成本</th>
-      <th class="roi-metric">数量×成本</th>
-      ${allDays.map(d => `<td>${fmtCell2(replacementsPerDay[d])}</td>`).join('')}
+      <th class="roi-metric">手动填列</th>
+      ${allDays.map(d => {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${d}`;
+        return `<td style="cursor:pointer" class="roi-promo-edit" title="点击编辑" onclick="roiEditReplacement('${dateStr}',this)">${fmtCell2(replacementsPerDay[d])}</td>`;
+      }).join('')}
       <td class="roi-total">${fmtCell2(totalReplacement)}</td>
     </tr>
   `;
@@ -2594,6 +2597,31 @@ function sumDays(perDay, key) {
 }
 
 // 投流数据内联编辑（按日存储在 DB.douyin_promo）
+function roiEditReplacement(dateStr, td) {
+  if (td.querySelector('input')) return;
+  if (!DB.roi_replacement_manual) DB.roi_replacement_manual = {};
+  const current = Number(DB.roi_replacement_manual[dateStr]) || 0;
+  const inp = document.createElement('input');
+  inp.type = 'number'; inp.min = '0'; inp.step = 'any';
+  inp.value = current || '';
+  inp.style.cssText = 'width:100%;box-sizing:border-box;font-size:.75rem;padding:2px 4px;border:1px solid var(--primary);border-radius:3px;text-align:right;background:#fff';
+  td.innerHTML = '';
+  td.appendChild(inp);
+  inp.focus(); inp.select();
+  function save() {
+    const val = parseFloat(inp.value) || 0;
+    DB.roi_replacement_manual[dateStr] = val;
+    window.DB = DB;
+    saveData();
+    renderDashboard();
+  }
+  inp.addEventListener('blur', save);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') renderDashboard();
+  });
+}
+
 function roiEditPromo(dateStr, field, td) {
   if (td.querySelector('input')) return;
   if (!DB.douyin_promo) DB.douyin_promo = {};
@@ -5626,7 +5654,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=78"></script>
+<script src="js/schedule/data.js?v=79"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=61"></script>
 <script src="js/schedule/editor.js?v=78"></script>
