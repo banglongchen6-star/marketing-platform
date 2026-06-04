@@ -2482,7 +2482,7 @@ function renderBrandRoiTable(year, month, bdId) {
   const replacementRow = `
     <tr class="roi-replacement-row">
       <th class="roi-platform-name">置换成本</th>
-      <th class="roi-metric">手动填列</th>
+      <th class="roi-metric" style="color:#2563eb">手动填列</th>
       ${allDays.map(d => {
         const dateStr = `${year}-${String(month).padStart(2,'0')}-${d}`;
         return `<td style="cursor:pointer" class="roi-promo-edit" title="点击编辑" onclick="roiEditReplacement('${dateStr}',this)">${fmtCell2(replacementsPerDay[d])}</td>`;
