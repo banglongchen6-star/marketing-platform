@@ -1178,11 +1178,20 @@
           <div><label>互动率(%)</label><input type="text" value="${escapeAttr(p.interaction)}" onchange="CommunicationPage._updatePub(${idx},'interaction',this.value)"></div>
         </div>
         ${isDouyin ? `
-          <div class="comm-pub-subgroup">
-            <div class="comm-pub-subgroup-title">🔍 看后搜（抖音）</div>
-            <div class="comm-pub-grid">
-              <div><label>看后搜量</label><input type="number" min="0" value="${escapeAttr(p.search_views)}" onchange="CommunicationPage._updatePub(${idx},'search_views',this.value)"></div>
-              <div><label>看后搜率(%)</label><input type="text" value="${escapeAttr(p.search_rate)}" onchange="CommunicationPage._updatePub(${idx},'search_rate',this.value)"></div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div class="comm-pub-subgroup" style="flex:1">
+              <div class="comm-pub-subgroup-title">🔍 看后搜（抖音）</div>
+              <div class="comm-pub-grid">
+                <div><label>看后搜量</label><input type="number" min="0" value="${escapeAttr(p.search_views)}" onchange="CommunicationPage._updatePub(${idx},'search_views',this.value)"></div>
+                <div><label>看后搜率(%)</label><input type="text" value="${escapeAttr(p.search_rate)}" onchange="CommunicationPage._updatePub(${idx},'search_rate',this.value)"></div>
+              </div>
+            </div>
+            <div class="comm-pub-subgroup" style="flex:1">
+              <div class="comm-pub-subgroup-title">🚀 投流数据（抖音）</div>
+              <div class="comm-pub-grid">
+                <div><label>投流播放量(万)</label><input type="text" value="${escapeAttr(p.promo_views)}" onchange="CommunicationPage._updatePub(${idx},'promo_views',this.value)"></div>
+                <div><label>投流费(元)</label><input type="text" value="${escapeAttr(p.promo_cost)}" onchange="CommunicationPage._updatePub(${idx},'promo_cost',this.value)"></div>
+              </div>
             </div>
           </div>
           <div class="comm-pub-subgroup">
@@ -1194,13 +1203,6 @@
               <div><label>人群获取</label><input type="number" min="0" value="${escapeAttr(p.attr_audience)}" onchange="CommunicationPage._updatePub(${idx},'attr_audience',this.value)"></div>
               <div><label>店铺表现</label><input type="text" value="${escapeAttr(p.attr_store)}" onchange="CommunicationPage._updatePub(${idx},'attr_store',this.value)"></div>
               <div><label>CPA3</label><input type="text" value="${escapeAttr(p.cpa3)}" onchange="CommunicationPage._updatePub(${idx},'cpa3',this.value)"></div>
-            </div>
-          </div>
-          <div class="comm-pub-subgroup">
-            <div class="comm-pub-subgroup-title">🚀 投流数据（抖音）</div>
-            <div class="comm-pub-grid" style="grid-template-columns:repeat(2,1fr)">
-              <div><label>投流播放量(万)</label><input type="text" value="${escapeAttr(p.promo_views)}" onchange="CommunicationPage._updatePub(${idx},'promo_views',this.value)"></div>
-              <div><label>投流费(元)</label><input type="text" value="${escapeAttr(p.promo_cost)}" onchange="CommunicationPage._updatePub(${idx},'promo_cost',this.value)"></div>
             </div>
           </div>
         ` : ''}
