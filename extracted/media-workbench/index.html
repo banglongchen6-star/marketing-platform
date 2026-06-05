@@ -5857,23 +5857,44 @@ function initApp() {
   (function startAutoSync() {
     const INTERVAL = 10000; // 10秒一次
     let _polling = false;
+    let _serverOffline = false;
+
+    /* 断线横幅 */
+    function showOfflineBanner() {
+      if (document.getElementById('__server-offline-banner__')) return;
+      const el = document.createElement('div');
+      el.id = '__server-offline-banner__';
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;text-align:center;padding:8px 16px;font-size:.85rem;font-weight:500;letter-spacing:.3px';
+      el.innerHTML = '⚠️ 服务器连接断开，数据无法保存！请检查服务器是否正常运行。';
+      document.body.prepend(el);
+    }
+    function hideOfflineBanner() {
+      const el = document.getElementById('__server-offline-banner__');
+      if (el) el.remove();
+    }
 
     async function pollServerData() {
       if (_polling) return;
       _polling = true;
       try {
         const res = await fetch('/api/data');
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('服务器响应异常');
         const serverData = await res.json();
+
+        // 服务器恢复
+        if (_serverOffline) {
+          _serverOffline = false;
+          hideOfflineBanner();
+          window.toast && window.toast('✅ 服务器已恢复连接', 'success', 3000);
+        }
+
         if (!serverData || !serverData._saved_at) return;
         const serverTs = serverData._saved_at || 0;
         const localTs  = DB._saved_at  || 0;
-        // 只在服务器数据比本地更新时才刷新（严格大于，避免覆盖自己刚写的数据）
         if (serverTs > localTs) {
           Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
           window.DB = DB;
           localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
-          // 重渲染当前页面
           const p = currentPage;
           if (p === 'dashboard')      { try { renderDashboard(); updateReminderBadge(); } catch(e){} }
           if (p === 'data-dashboard') { try { renderDataDashboard(); } catch(e){} }
@@ -5889,7 +5910,11 @@ function initApp() {
           window.toast && window.toast('🔄 数据已更新', 'info', 2000);
         }
       } catch(e) {
-        // 离线或服务器不可达时静默忽略
+        // 服务器不可达
+        if (!_serverOffline) {
+          _serverOffline = true;
+          showOfflineBanner();
+        }
       } finally {
         _polling = false;
       }
