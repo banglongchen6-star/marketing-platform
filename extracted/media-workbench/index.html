@@ -301,22 +301,14 @@
     <div class="nav-item" onclick="navigate('materials')"><span class="icon">🗂️</span> 素材管理</div>
     <div class="nav-item" onclick="navigate('kols')"><span class="icon">📚</span> 达人库</div>
     <div class="nav-item" id="nav-admin-panel" onclick="navigate('admin-panel')" style="display:none"><span class="icon">⚙️</span> 账号管理</div>
-    <div style="padding:6px 10px;display:flex;gap:6px;border-top:1px solid var(--border)">
-      <button onclick="exportBackup()" title="导出完整数据备份到本地"
-        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
-        📥 导出备份
-      </button>
-      <button onclick="openBackupPanel()" title="查看服务器自动备份"
-        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
-        🗄 历史备份
-      </button>
-    </div>
     <div class="sidebar-footer">
       <div class="avatar" id="user-avatar">A</div>
       <div class="user-info">
         <div class="user-name" id="user-name-display">Admin</div>
         <div class="user-role" id="user-role-display">管理员</div>
       </div>
+      <button onclick="exportBackup()" title="导出数据备份" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:4px;color:var(--text-muted)" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">📥</button>
+      <button onclick="openBackupPanel()" title="历史备份" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:4px;color:var(--text-muted)" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">🗄</button>
       <button class="btn-logout" onclick="doLogout()" title="退出">⏻</button>
     </div>
   </aside>
