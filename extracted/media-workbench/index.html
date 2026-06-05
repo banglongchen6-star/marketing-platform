@@ -301,6 +301,16 @@
     <div class="nav-item" onclick="navigate('materials')"><span class="icon">🗂️</span> 素材管理</div>
     <div class="nav-item" onclick="navigate('kols')"><span class="icon">📚</span> 达人库</div>
     <div class="nav-item" id="nav-admin-panel" onclick="navigate('admin-panel')" style="display:none"><span class="icon">⚙️</span> 账号管理</div>
+    <div style="padding:6px 10px;display:flex;gap:6px;border-top:1px solid var(--border)">
+      <button onclick="exportBackup()" title="导出完整数据备份到本地"
+        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
+        📥 导出备份
+      </button>
+      <button onclick="openBackupPanel()" title="查看服务器自动备份"
+        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
+        🗄 历史备份
+      </button>
+    </div>
     <div class="sidebar-footer">
       <div class="avatar" id="user-avatar">A</div>
       <div class="user-info">
@@ -1484,6 +1494,63 @@ function doLogin() {
     _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.id, sv_id: sv.id });
   } else {
     errEl.textContent = '请选择登录身份';
+  }
+}
+
+/* ========== 备份功能 ========== */
+function exportBackup() {
+  try {
+    const data = JSON.stringify(DB, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    a.href = url;
+    a.download = `品宣数据备份_${ts}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    window.toast && window.toast('备份已导出到本地', 'success');
+  } catch(e) {
+    window.toast && window.toast('导出失败: ' + e.message, 'error');
+  }
+}
+
+async function openBackupPanel() {
+  try {
+    const res = await fetch('/api/backups');
+    const list = await res.json();
+    const rows = list.length
+      ? list.map(b => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500;font-size:.88rem">${b.date}</div>
+              <div style="font-size:.75rem;color:var(--text-muted)">${(b.size/1024).toFixed(1)} KB</div>
+            </div>
+            <a href="/api/backups/${b.filename}" download="${b.filename}"
+               style="font-size:.78rem;padding:4px 12px;border:1px solid var(--primary);border-radius:4px;color:var(--primary);text-decoration:none">
+              下载
+            </a>
+          </div>`).join('')
+      : '<div style="padding:24px;text-align:center;color:var(--text-muted)">暂无服务器备份<br><small>每天首次保存后自动创建</small></div>';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = `
+      <div style="background:var(--bg-panel);border-radius:10px;width:360px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;font-size:.95rem">🗄 服务器历史备份（最近7天）</span>
+          <button onclick="this.closest('[style*=fixed]').remove()" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted)">×</button>
+        </div>
+        <div style="overflow-y:auto;flex:1">${rows}</div>
+        <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:.75rem;color:var(--text-muted)">
+          💡 下载后可通过「导入数据」功能恢复
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  } catch(e) {
+    window.toast && window.toast('获取备份列表失败', 'error');
   }
 }
 
