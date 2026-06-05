@@ -1324,13 +1324,12 @@
     });
 
     contents.forEach(c => {
-      // 跳过纯空占位记录（auto_created 且没有任何有效数据）
-      if (c.auto_created) {
-        const hasRealData = (c.publications || []).some(p =>
-          p.link || (p.views != null && p.views > 0) || (p.promo_views != null && p.promo_views > 0)
-        );
-        if (!hasRealData) return;
-      }
+      // 跳过纯空占位记录：无论是否 auto_created，只要没有任何实际数据就跳过
+      const hasRealData = (c.publications || []).some(p =>
+        p.link || (p.views != null && p.views > 0) || (p.promo_views != null && p.promo_views > 0)
+          || (p.likes != null && p.likes > 0) || (p.comments != null && p.comments > 0)
+      );
+      if (!hasRealData) return;
       const r = resolveContent(c);
       const pubs = c.publications || [];
       if (!pubs.length) return;
