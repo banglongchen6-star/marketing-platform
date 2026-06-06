@@ -5747,36 +5747,18 @@ function initApp() {
       const res = await fetch('/api/data');
       if (!res.ok) throw new Error('no server');
       const serverData = await res.json();
+      // 服务器是唯一数据源，直接用服务器数据，不做任何本地与服务器的合并比较
       if (serverData && Object.keys(serverData).length > 0) {
-        const localTs  = DB._saved_at  || 0;
-        const serverTs = serverData._saved_at || 0;
-
-        // 安全检查：统计双方有效数据量（关键表条数之和）
-        const countData = d => (d.schedules?.length||0) + (d.kols?.length||0)
-          + (d.contents?.length||0) + (d.samples?.length||0) + (d.settlements?.length||0);
-        const serverCount = countData(serverData);
-        const localCount  = countData(DB);
-
-        if (serverCount === 0 && localCount > 0) {
-          // 服务器是空的，本地有数据 → 把本地数据推回服务器，不覆盖本地
-          console.warn('[sync] 服务器数据为空但本地有数据，推送本地数据到服务器');
-          fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({...DB, _version:'v11-0509'})
-          }).catch(()=>{});
-        } else if (serverTs > localTs) {
-          // 服务器更新且有数据 → 正常覆盖本地
-          Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
-          window.DB = DB;
-          localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
-        }
+        Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
+        window.DB = DB;
+        localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
       }
     } catch (e) {
-      // 本地开发或离线时直接用 localStorage
+      // 服务器不可达时才降级用本地缓存（离线模式）
+      console.warn('[sync] 服务器不可达，使用本地缓存');
     }
     if (!tryRestoreSession()) {
-      populateLoginIdentities(); // 服务器数据加载后刷新登录下拉
+      populateLoginIdentities();
     }
   })();
 
