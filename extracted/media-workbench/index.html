@@ -300,25 +300,7 @@
     <div class="nav-item" onclick="navigate('settlement')"><span class="icon">💰</span> 达人结算</div>
     <div class="nav-item" onclick="navigate('materials')"><span class="icon">🗂️</span> 素材管理</div>
     <div class="nav-item" onclick="navigate('kols')"><span class="icon">📚</span> 达人库</div>
-    <div class="nav-item" id="nav-admin-panel" onclick="navigate('admin-panel')" style="display:none"><span class="icon">⚙️</span> 账号管理</div>
-    <div style="padding:6px 10px;display:flex;gap:6px;border-top:1px solid var(--border)">
-      <button onclick="exportBackup()" title="导出完整数据备份到本地"
-        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
-        📥 导出备份
-      </button>
-      <button onclick="importBackup()" title="从JSON备份文件恢复数据"
-        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
-        📤 导入备份
-      </button>
-      <button onclick="openBackupPanel()" title="查看服务器自动备份"
-        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
-        🗄 历史备份
-      </button>
-      <button onclick="openEmailConfig()" title="配置每日邮件备份"
-        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
-        📧 邮件配置
-      </button>
-    </div>
+    <div class="nav-item" id="nav-admin-panel" onclick="navigate('admin-panel')" style="display:none"><span class="icon">⚙️</span> 系统设置</div>
     <div class="sidebar-footer">
       <div class="avatar" id="user-avatar">A</div>
       <div class="user-info">
@@ -511,10 +493,21 @@
     <!-- Admin Panel -->
     <div class="page" id="page-admin-panel">
       <div class="filter-bar">
-        <span style="font-size:1rem;font-weight:600;color:var(--text-primary)">⚙️ 账号管理</span>
+        <span style="font-size:1rem;font-weight:600;color:var(--text-primary)">⚙️ 系统设置</span>
+      </div>
+      <!-- 数据管理 -->
+      <div class="card" style="margin-bottom:16px;max-width:680px">
+        <div class="card-title"><span>💾 数据管理</span></div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 14px">数据备份与恢复。建议定期导出备份，或配置每日邮件自动备份。</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <button class="btn btn-secondary btn-sm" onclick="exportBackup()">📥 导出备份</button>
+          <button class="btn btn-secondary btn-sm" onclick="importBackup()">📤 导入备份</button>
+          <button class="btn btn-secondary btn-sm" onclick="openBackupPanel()">🗄 历史备份</button>
+          <button class="btn btn-secondary btn-sm" onclick="openEmailConfig()">📧 邮件配置</button>
+        </div>
       </div>
       <!-- 商务BD -->
-      <div class="card" style="margin-bottom:16px;max-width:680px">
+      <div class="card" id="admin-bd-card" style="margin-bottom:16px;max-width:680px">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
           <span>👤 商务BD 登录账号</span>
           <button class="btn btn-primary btn-sm" onclick="openAddBdModal()">＋ 添加</button>
@@ -523,7 +516,7 @@
         <div id="admin-bd-list"></div>
       </div>
       <!-- 品宣主管 -->
-      <div class="card" style="margin-bottom:16px;max-width:680px">
+      <div class="card" id="admin-sv-card" style="margin-bottom:16px;max-width:680px">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
           <span>🎯 品宣主管 登录账号</span>
           <button class="btn btn-primary btn-sm" onclick="openAddSupervisorModal()">＋ 添加</button>
@@ -1469,9 +1462,16 @@ function _applyLogin(userInfo) {
   document.getElementById('user-avatar').textContent = userInfo.name[0];
   document.getElementById('user-name-display').textContent = userInfo.name;
   document.getElementById('user-role-display').textContent = userInfo.role;
-  // 管理员才显示账号管理入口
+  // 管理员 + 品宣主管 可见系统设置入口
   const adminNav = document.getElementById('nav-admin-panel');
-  if (adminNav) adminNav.style.display = userInfo.identity === 'admin' ? 'flex' : 'none';
+  const canSeeSettings = userInfo.identity === 'admin' || userInfo.identity === 'supervisor';
+  if (adminNav) adminNav.style.display = canSeeSettings ? 'flex' : 'none';
+  // 仅管理员能管理登录账号；主管只能用数据管理
+  const isAdmin = userInfo.identity === 'admin';
+  const bdCard = document.getElementById('admin-bd-card');
+  const svCard = document.getElementById('admin-sv-card');
+  if (bdCard) bdCard.style.display = isAdmin ? '' : 'none';
+  if (svCard) svCard.style.display = isAdmin ? '' : 'none';
   initApp();
 }
 
@@ -1739,7 +1739,7 @@ const PAGE_TITLES = {
   materials:     '素材管理',
   replacements:  '置换成本',
   settlement:    '达人结算',
-  'admin-panel': '账号管理',
+  'admin-panel': '系统设置',
 };
 let currentPage = 'dashboard';
 
