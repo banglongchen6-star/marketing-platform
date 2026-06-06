@@ -314,6 +314,10 @@
         style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
         🗄 历史备份
       </button>
+      <button onclick="openEmailConfig()" title="配置每日邮件备份"
+        style="flex:1;font-size:.72rem;padding:5px 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-base);cursor:pointer;color:var(--text-secondary)">
+        📧 邮件配置
+      </button>
     </div>
     <div class="sidebar-footer">
       <div class="avatar" id="user-avatar">A</div>
@@ -1502,6 +1506,89 @@ function doLogin() {
 }
 
 /* ========== 备份功能 ========== */
+async function openEmailConfig() {
+  // 读取现有配置
+  let cfg = {};
+  try { const r = await fetch('/api/email-config'); cfg = await r.json(); } catch(e) {}
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border-radius:10px;width:440px;box-shadow:0 8px 32px rgba(0,0,0,.2);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <span style="font-weight:600;font-size:.95rem">📧 每日邮件备份配置</span>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted)">×</button>
+      </div>
+      <div style="padding:18px;display:flex;flex-direction:column;gap:12px">
+        <label style="font-size:.8rem;color:var(--text-secondary)">发件邮箱（阿里企业邮）</label>
+        <input id="_em_sender" class="form-control" placeholder="例：backup@poputar.com" value="${cfg.senderEmail||''}">
+
+        <label style="font-size:.8rem;color:var(--text-secondary)">SMTP 授权码 / 密码</label>
+        <input id="_em_pass" class="form-control" type="password" placeholder="邮箱授权码" value="${cfg.senderPass||''}">
+
+        <label style="font-size:.8rem;color:var(--text-secondary)">收件邮箱（多个用逗号分隔）</label>
+        <input id="_em_to" class="form-control" placeholder="例：a@poputar.com, b@poputar.com" value="${Array.isArray(cfg.recipients)?cfg.recipients.join(', '):(cfg.recipients||'')}">
+
+        <label style="font-size:.8rem;color:var(--text-secondary)">每天发送时间（24小时制）</label>
+        <input id="_em_time" class="form-control" placeholder="22:00" value="${cfg.sendTime||'22:00'}" style="width:100px">
+
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <input type="checkbox" id="_em_enabled" ${cfg.enabled ? 'checked' : ''}>
+          <label for="_em_enabled" style="font-size:.85rem;cursor:pointer">启用每日自动发送</label>
+        </div>
+
+        <div style="font-size:.75rem;color:var(--text-muted);background:#f0f9ff;border-radius:6px;padding:8px 12px;line-height:1.6">
+          💡 阿里企业邮 SMTP 设置：<br>
+          服务器：smtp.qiye.aliyun.com &nbsp; 端口：465（SSL）<br>
+          授权码在邮箱「设置 → 客户端授权」里生成
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+          <button onclick="testEmail()" class="btn btn-secondary btn-sm">📨 发送测试邮件</button>
+          <button onclick="saveEmailConfig()" class="btn btn-primary btn-sm">保存配置</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function saveEmailConfig() {
+  const cfg = {
+    senderEmail: document.getElementById('_em_sender').value.trim(),
+    senderPass:  document.getElementById('_em_pass').value,
+    recipients:  document.getElementById('_em_to').value.split(',').map(s => s.trim()).filter(Boolean),
+    sendTime:    document.getElementById('_em_time').value.trim() || '22:00',
+    smtpHost:    'smtp.qiye.aliyun.com',
+    smtpPort:    465,
+    enabled:     document.getElementById('_em_enabled').checked,
+  };
+  if (!cfg.senderEmail || !cfg.senderPass || !cfg.recipients.length) {
+    window.toast && window.toast('请填写发件邮箱、授权码和收件邮箱', 'error'); return;
+  }
+  try {
+    const r = await fetch('/api/email-config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    });
+    if (!r.ok) throw new Error('保存失败');
+    window.toast && window.toast('✅ 邮件配置已保存', 'success');
+    document.querySelector('[style*=fixed]')?.remove();
+  } catch(e) { window.toast && window.toast('保存失败: ' + e.message, 'error'); }
+}
+
+async function testEmail() {
+  // 先保存当前填写的内容
+  await saveEmailConfig();
+  try {
+    window.toast && window.toast('正在发送测试邮件…', 'info', 3000);
+    const r = await fetch('/api/email-test', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '发送失败');
+    window.toast && window.toast('✅ 测试邮件已发送，请查收', 'success', 4000);
+  } catch(e) { window.toast && window.toast('❌ 发送失败：' + e.message, 'error', 5000); }
+}
+
 function importBackup() {
   const input = document.createElement('input');
   input.type = 'file';
