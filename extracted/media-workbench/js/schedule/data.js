@@ -92,18 +92,7 @@
     mutated = true;
   }
 
-  // 字典首次为空时种 12 条
-  if (DB.schedule_directions.length === 0) {
-    const now = new Date().toISOString();
-    DB.schedule_directions = SEED_DIRECTIONS.map((d, i) => ({
-      id: uid(),
-      name: d.name,
-      sort_order: d.sort_order,
-      is_active: true,
-      created_at: now,
-    }));
-    mutated = true;
-  }
+  // 不再自动种入默认达人类型；达人类型全部由用户在「字典管理」中自行添加
 
   // 产品线字典种子（首次为空时种 2 条：键盘 / 鼓锤）
   if (DB.product_lines.length === 0) {
