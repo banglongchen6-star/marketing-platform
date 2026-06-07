@@ -4807,8 +4807,16 @@ function _renderPendingArea() {
 
   // 所有未软删排期，过滤掉已结算的
   const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => s.schedule_id).filter(Boolean));
+  // 只显示「主平台链接已填」或「已手动建结算记录(兜底)」的排期
+  const _schedHasMainLink = (sid) => (DB.contents||[]).some(c => {
+    if (c.schedule_id !== sid) return false;
+    const mp = (c.publications||[])[0];
+    return mp && mp.link && mp.link.trim();
+  });
+  const _schedHasSettle = (sid) => (DB.settlements||[]).some(s => s.schedule_id === sid);
   let scheds = (DB.schedules||[])
     .filter(s => !s.deleted_at && !settledIds.has(s.id))
+    .filter(s => _schedHasMainLink(s.id) || _schedHasSettle(s.id))
     .filter(s => !search || (s.kol_name||s.talent||'').toLowerCase().includes(search))
     .filter(s => !dateStart || (s.schedule_date && s.schedule_date >= dateStart))
     .filter(s => !dateEnd   || (s.schedule_date && s.schedule_date <= dateEnd))
@@ -4818,6 +4826,12 @@ function _renderPendingArea() {
   const settledContentIds = new Set((DB.settlements||[]).filter(s => s.settled && s.content_id).map(s => s.content_id));
   let unscheduledContents = (DB.contents||[])
     .filter(c => !c.schedule_id && !settledContentIds.has(c.id))
+    .filter(c => {
+      const mp = (c.publications||[])[0];
+      const hasLink = mp && mp.link && mp.link.trim();
+      const hasSettle = (DB.settlements||[]).some(s => s.content_id === c.id);
+      return hasLink || hasSettle;
+    })
     .filter(c => !search || (c.kol_name||'').toLowerCase().includes(search))
     .filter(c => {
       const dateRef = (c.publications||[])[0]?.date || (c.created_at||'').slice(0,10);
