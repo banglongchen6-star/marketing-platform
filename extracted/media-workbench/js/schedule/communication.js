@@ -525,7 +525,7 @@
         <table class="comm-table">
           <thead>
             <tr class="comm-group-header">
-              <th rowspan="2" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
+              <th rowspan="2" class="comm-fz1" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
                 ${(function(){
                   const _ids = _getAllVisibleContentIds();
                   const _sel = _ids.filter(id => state.selectedIds.has(id)).length;
@@ -534,7 +534,7 @@
                     ${_chk} onchange="CommunicationPage._selectAll(this.checked)">`;
                 })()}
               </th>
-              <th rowspan="2" style="background:#fafbfd;min-width:120px">${state.mainPlatform}昵称</th>
+              <th rowspan="2" class="comm-fz2" style="background:#fafbfd;min-width:120px">${state.mainPlatform}昵称</th>
               ${groupOrder.map(g => {
                 const gLabel = g === '基本' ? '基本信息'
                   : g === '发布' ? '发布信息'
@@ -669,11 +669,11 @@
     // 主行
     let html = `
       <tr class="comm-main-row" data-id="${content.id}" style="${rowStyle}">
-        <td rowspan="${total}" style="width:36px;text-align:center;background:#fafbfd;vertical-align:middle;padding:4px">
+        <td rowspan="${total}" class="comm-fz1" style="width:36px;text-align:center;background:#fafbfd;vertical-align:middle;padding:4px">
           <input type="checkbox" onchange="CommunicationPage._toggleSelect('${content.id}')"
             ${state.selectedIds.has(String(content.id)) ? 'checked' : ''}>
         </td>
-        <td rowspan="${total}" style="font-weight:600;background:#fafbfd"><strong>${escapeHtml(r.talent)}</strong>
+        <td rowspan="${total}" class="comm-fz2" style="font-weight:600;background:#fafbfd"><strong>${escapeHtml(r.talent)}</strong>
           ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
         </td>
         ${activeCols.map(c => {
@@ -832,11 +832,11 @@
           : '';
         if (i === 0) {
           return `<tr class="comm-main-row" data-id="${c.id}" style="${allFrozen ? 'opacity:.6' : ''}">
-            <td rowspan="${total}" style="width:36px;text-align:center;background:#fafbfd;vertical-align:middle;padding:4px">
+            <td rowspan="${total}" class="comm-fz1" style="width:36px;text-align:center;background:#fafbfd;vertical-align:middle;padding:4px">
               <input type="checkbox" onchange="CommunicationPage._toggleSelect('${c.id}')"
                 ${state.selectedIds.has(String(c.id)) ? 'checked' : ''}>
             </td>
-            <td rowspan="${total}" style="font-weight:600;background:#fafbfd;vertical-align:middle">
+            <td rowspan="${total}" class="comm-fz2" style="font-weight:600;background:#fafbfd;vertical-align:middle">
               <strong>${escapeHtml(r.talent)}</strong>
               ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
             </td>
@@ -852,7 +852,7 @@
         <table class="comm-table">
           <thead>
             <tr class="comm-group-header">
-              <th rowspan="2" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
+              <th rowspan="2" class="comm-fz1" style="width:36px;text-align:center;background:#fafbfd;padding:4px">
                 ${(function(){
                   const _ids = _getAllVisibleContentIds();
                   const _sel = _ids.filter(id => state.selectedIds.has(id)).length;
@@ -861,7 +861,7 @@
                     ${_chk} onchange="CommunicationPage._selectAll(this.checked)">`;
                 })()}
               </th>
-              <th rowspan="2" style="background:#fafbfd;min-width:130px">达人昵称</th>
+              <th rowspan="2" class="comm-fz2" style="background:#fafbfd;min-width:130px">达人昵称</th>
               ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
               <th rowspan="2" colspan="3" style="text-align:center">操作</th>
             </tr>
