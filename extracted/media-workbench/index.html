@@ -3192,6 +3192,12 @@ function _schedImpactWarning(scheduleId, action, opts, onConfirm) {
       dangers.push(`🗑️ ${allContents.length} 条内容发布记录将同步删除`);
     if (settlements.length)
       dangers.push(`⚠️ ${settlements.length} 笔结算记录将失去排期关联`);
+    const linkedSamples = (DB.samples||[]).filter(sp => sp.schedule_id === scheduleId);
+    const autoSamples = linkedSamples.filter(sp => !sp.recipient_name && !sp.address && !sp.tracking && !sp.return_tracking);
+    if (autoSamples.length)
+      dangers.push(`🗑️ ${autoSamples.length} 条关联样品将同步删除`);
+    if (linkedSamples.length - autoSamples.length > 0)
+      impacts.push(`📦 ${linkedSamples.length - autoSamples.length} 条已填寄件数据的样品将保留`);
   }
 
   // 无任何影响 → 直接执行
@@ -5857,7 +5863,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=83"></script>
+<script src="js/schedule/data.js?v=84"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=62"></script>
 <script src="js/schedule/editor.js?v=78"></script>

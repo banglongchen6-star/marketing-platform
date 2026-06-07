@@ -768,8 +768,15 @@
     // 联动删除关联内容发布记录
     const linkedCount = (DB.contents || []).filter(c => c.schedule_id === id).length;
     DB.contents = (DB.contents || []).filter(c => c.schedule_id !== id);
+    // 联动删除关联样品：自动生成的空样品直接删；有寄件数据的（地址/收件人/快递单号）保留，避免误删已寄出记录
+    const sampleDelIds = new Set(
+      (DB.samples || [])
+        .filter(sp => sp.schedule_id === id && !sp.recipient_name && !sp.address && !sp.tracking && !sp.return_tracking)
+        .map(sp => sp.id)
+    );
+    DB.samples = (DB.samples || []).filter(sp => !sampleDelIds.has(sp.id));
     saveData();
-    return { ok: true, deletedContents: linkedCount };
+    return { ok: true, deletedContents: linkedCount, deletedSamples: sampleDelIds.size };
   }
 
   /* 回收站操作 */
