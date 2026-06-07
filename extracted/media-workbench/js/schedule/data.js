@@ -562,6 +562,15 @@
   }
   function findBdByName(name) { return DB.bds.find(b => b.name === name); }
   function findBdById(id) { return DB.bds.find(b => b.id === id); }
+  // 按 id 查 BD 人员（商务BD + 品宣主管），用于展示名字/颜色
+  function findBdPersonById(id) {
+    if (!id) return null;
+    const bd = DB.bds.find(b => b.id === id);
+    if (bd) return { id: bd.id, name: bd.name, color: bd.color, _kind: 'bd' };
+    const sv = (DB.supervisors || []).find(s => s.id === id);
+    if (sv) return { id: sv.id, name: sv.name, color: '#7c3aed', _kind: 'supervisor' };
+    return null;
+  }
   function createOrReactivateBd({ name, color, sort_order }) {
     name = String(name || '').trim();
     if (!name) throw new Error('BD 名不能为空');
@@ -1225,7 +1234,7 @@
   function resolveContent(c) {
     if (!c) return null;
     const s = c.schedule_id ? DB.schedules.find(x => x.id === c.schedule_id) : null;
-    const bd = s && s.bd_id ? DB.bds.find(b => b.id === s.bd_id) : null;
+    const bd = s && s.bd_id ? findBdPersonById(s.bd_id) : null;
     return {
       ...c,
       // 不关联排期时直接用内容记录上的 kol_name
@@ -1928,7 +1937,7 @@
     listTiers, findTierByName, createOrReactivateTier,
     updateTier, deactivateTier, countTierUsage,
     // dict (商务 BD)
-    listBds, listBdPersonnel, findBdByName, findBdById, createOrReactivateBd,
+    listBds, listBdPersonnel, findBdByName, findBdById, findBdPersonById, createOrReactivateBd,
     updateBd, deactivateBd, deleteBd, countBdUsage,
     // schedules
     listSchedulesInRange, listSchedulesByMonth,

@@ -149,7 +149,7 @@
       mainPlat ? `<span class="sched-card-chip platform" title="主平台">${escapeHtml(mainPlat)}<sup style="font-size:.6rem;color:var(--primary);font-weight:600;margin-left:1px;vertical-align:super">主</sup></span>` : '',
       ...syncPlats.map(p => `<span class="sched-card-chip platform" title="同步平台">${escapeHtml(p)}</span>`),
     ].filter(Boolean).join('');
-    const bd = s.bd_id ? SD.listBds({ includeInactive: true }).find(b => b.id === s.bd_id) : null;
+    const bd = s.bd_id ? SD.findBdPersonById(s.bd_id) : null;
     const bdStyle = bd ? `border-left-color:${bd.color};border-left-width:4px;` : '';
     const frozenStyle = frozen ? 'opacity:.55;filter:grayscale(0.4);cursor:not-allowed;' : '';
     const bdChip = bd ? `<span class="sched-card-chip" style="background:${bd.color}20;color:${bd.color};font-weight:500" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>` : '';
