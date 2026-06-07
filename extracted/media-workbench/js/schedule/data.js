@@ -282,6 +282,13 @@
     rows.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
     return includeInactive ? rows : rows.filter((d) => d.is_active !== false);
   }
+  // 清空全部达人类型字典（排期里已填的 category_direction 值保留，不受影响）
+  function clearAllDirections() {
+    const n = (DB.schedule_directions || []).length;
+    DB.schedule_directions = [];
+    saveData();
+    return n;
+  }
 
   function findDirectionByName(name) {
     return DB.schedule_directions.find((d) => d.name === name);
@@ -1926,7 +1933,7 @@
     detectPlatformFromLink, addDays, fetchPlatformStats, checkAndUpdateDailyStats,
     // dict (达人类型)
     listDirections, findDirectionByName, createOrReactivateDirection,
-    updateDirection, deactivateDirectionCascade, countDirectionUsage,
+    updateDirection, deactivateDirectionCascade, countDirectionUsage, clearAllDirections,
     // dict (产品线)
     listProductLines, findProductLineByName, createOrReactivateProductLine,
     updateProductLine, deactivateProductLine, countProductLineUsage,

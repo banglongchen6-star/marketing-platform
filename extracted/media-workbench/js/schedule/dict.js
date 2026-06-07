@@ -236,11 +236,15 @@
   }
 
   function renderCreateRow(cfg) {
+    const clearBtn = state.tab === 'direction'
+      ? `<button class="btn btn-sm" style="background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;cursor:pointer;margin-left:8px" onclick="DictManager._clearAllDirections()">🗑 清空全部</button>`
+      : '';
     return `
       <div class="sched-dict-create-row">
         <input id="__dict-new-name__" placeholder="${escapeAttr(cfg.placeholder)}"
                onkeydown="if(event.key==='Enter')DictManager._create()">
         <button class="btn btn-primary btn-sm" onclick="DictManager._create()">＋ 新建</button>
+        ${clearBtn}
       </div>
     `;
   }
@@ -440,6 +444,17 @@
     paint();
   }
 
+  function _clearAllDirections() {
+    const cnt = SD.listDirections({ includeInactive: true }).length;
+    if (!cnt) { window.toast && window.toast('达人类型已经是空的了', 'info'); return; }
+    if (!confirm(`确认清空全部 ${cnt} 个达人类型？\n\n• 字典选项将全部删除，之后需自己重新添加\n• 排期里已填的达人类型值会保留，不受影响\n\n此操作不可恢复。`)) return;
+    SD.clearAllDirections();
+    window.toast && window.toast(`已清空全部达人类型（共 ${cnt} 个）`, 'success');
+    paint();
+    if (window.SchedulePage) SchedulePage.render();
+    if (window.BudgetTable) BudgetTable.refresh();
+  }
+
   function _move(id, dir) {
     const cfg = TAB_CONFIG[state.tab];
     const all = cfg.list();
@@ -469,7 +484,7 @@
   window.DictManager = {
     open, close,
     _create, _toggle, _delete, _move, _switchTab, _updateBdColor,
-    _editName, _saveName, _nameKey,
+    _editName, _saveName, _nameKey, _clearAllDirections,
   };
   console.log('[DictManager] 已就绪（含产品线）');
 })();
