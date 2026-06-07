@@ -3676,6 +3676,8 @@ function renderSamples() {
 
   const bdMap = {};
   (window.ScheduleData ? ScheduleData.listBds({includeInactive:true}) : []).forEach(b=>bdMap[b.id]=b);
+  // 品宣主管也作为负责人纳入（与排期/内容发布一致）
+  (window.DB?.supervisors || []).forEach(sv=>{ if(sv.name) bdMap[sv.id]={id:sv.id,name:sv.name,color:'#7c3aed'}; });
   container.innerHTML=`
     <div class="card">
       <div class="table-wrap">
