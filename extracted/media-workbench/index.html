@@ -166,6 +166,9 @@
 
     /* ---- Table ---- */
     .table-wrap{overflow-x:auto;}
+    /* 样品管理：表头固定，向下滚动不动 */
+    .sample-sticky{max-height:calc(100vh - 250px);overflow-y:auto;}
+    .sample-sticky thead th{position:sticky;top:0;z-index:2;background:#f9fafb;}
     table{width:100%;border-collapse:collapse;font-size:.88rem;}
     thead th{text-align:left;padding:10px 14px;color:var(--text-muted);font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap;}
     tbody tr{border-bottom:1px solid var(--border);transition:background var(--transition);}
@@ -3680,7 +3683,7 @@ function renderSamples() {
   (window.DB?.supervisors || []).forEach(sv=>{ if(sv.name) bdMap[sv.id]={id:sv.id,name:sv.name,color:'#7c3aed'}; });
   container.innerHTML=`
     <div class="card">
-      <div class="table-wrap">
+      <div class="table-wrap sample-sticky">
         <table>
           <thead>
             <tr>
