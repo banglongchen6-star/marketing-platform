@@ -37,17 +37,13 @@
       if (state.bd_id && String(r.bd_id) !== String(state.bd_id)) return;
       if (q && !(r.talent || '').toLowerCase().includes(q)) return;
 
-      // 筛出该内容中有链接且属于本月的 publications
-      const pubs = (c.publications || []).filter(p => {
-        if (!p.link) return false;
-        const pubMonth = (p.date || '').slice(0, 7);
-        return pubMonth === ym;
-      });
-      if (!pubs.length) return;
+      // 只取主平台（publications[0]）那一条，同步平台不显示
+      const mainPub = (c.publications || [])[0];
+      if (!mainPub || !mainPub.link) return;
+      const pubMonth = (mainPub.date || '').slice(0, 7);
+      if (pubMonth !== ym) return;
 
-      // 主平台日期 = 第一条有链接的 publication 日期（用于排序）
-      const mainDate = pubs[0].date || '';
-      groups.push({ c, r, pubs, mainDate });
+      groups.push({ c, r, pub: mainPub, mainDate: mainPub.date || '' });
     });
 
     // 按主平台日期升序，相同则按达人名
@@ -120,49 +116,43 @@
       </div>`;
     }
 
-    const tbodyRows = groups.map(({ c, r, pubs }) => {
-      const total = pubs.length;
+    const tbodyRows = groups.map(({ c, r, pub: p }) => {
       const bdDot = r.bd_color
         ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${r.bd_color};margin-right:4px;vertical-align:middle"></span>`
         : '';
-      return pubs.map((p, i) => {
-        const dl = p.mat_downloaded ? 'checked' : '';
-        const ul = p.mat_uploaded ? 'checked' : '';
-        const note = escapeHtml(p.mat_note || '');
-        const nameCell = i === 0
-          ? `<td rowspan="${total}" style="font-weight:500;vertical-align:middle">${bdDot}${escapeHtml(r.talent || '—')}</td>`
-          : '';
-        return `
-          <tr>
-            ${nameCell}
-            <td><span class="sched-card-chip platform">${escapeHtml(p.platform || '—')}${i === 0 ? '<span style="font-size:.6rem;color:var(--primary);font-weight:700;margin-left:2px">主</span>' : ''}</span></td>
-            <td>${escapeHtml(p.date || '—')}</td>
-            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-              <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener"
-                 style="color:var(--primary);text-decoration:none;font-size:.82rem"
-                 title="${escapeHtml(p.link)}">🔗 ${escapeHtml(p.link.replace(/^https?:\/\//, '').slice(0, 30))}…</a>
-            </td>
-            <td style="text-align:center">
-              <input type="checkbox" ${dl} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
-                     onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_downloaded')">
-            </td>
-            <td style="text-align:center">
-              <input type="checkbox" ${ul} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
-                     onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_uploaded')">
-            </td>
-            <td>
-              <input type="text" value="${note}" placeholder="备注…"
-                     style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:.78rem;outline:none;background:transparent"
-                     onfocus="this.style.borderColor='var(--primary)'"
-                     onblur="this.style.borderColor='var(--border)';MaterialsPage._saveNote('${c.id}','${p.id}',this.value)"
-                     onkeydown="if(event.key==='Enter')this.blur()">
-            </td>
-          </tr>
-        `;
-      }).join('');
+      const dl = p.mat_downloaded ? 'checked' : '';
+      const ul = p.mat_uploaded ? 'checked' : '';
+      const note = escapeHtml(p.mat_note || '');
+      return `
+        <tr>
+          <td style="font-weight:500;vertical-align:middle">${bdDot}${escapeHtml(r.talent || '—')}</td>
+          <td><span class="sched-card-chip platform">${escapeHtml(p.platform || '—')}</span></td>
+          <td>${escapeHtml(p.date || '—')}</td>
+          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener"
+               style="color:var(--primary);text-decoration:none;font-size:.82rem"
+               title="${escapeHtml(p.link)}">🔗 ${escapeHtml(p.link.replace(/^https?:\/\//, '').slice(0, 30))}…</a>
+          </td>
+          <td style="text-align:center">
+            <input type="checkbox" ${dl} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
+                   onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_downloaded')">
+          </td>
+          <td style="text-align:center">
+            <input type="checkbox" ${ul} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
+                   onchange="MaterialsPage._toggle('${c.id}','${p.id}','mat_uploaded')">
+          </td>
+          <td>
+            <input type="text" value="${note}" placeholder="备注…"
+                   style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:.78rem;outline:none;background:transparent"
+                   onfocus="this.style.borderColor='var(--primary)'"
+                   onblur="this.style.borderColor='var(--border)';MaterialsPage._saveNote('${c.id}','${p.id}',this.value)"
+                   onkeydown="if(event.key==='Enter')this.blur()">
+          </td>
+        </tr>
+      `;
     }).join('');
 
-    const allPubs = groups.flatMap(g => g.pubs);
+    const allPubs = groups.map(g => g.pub);
     const dlCount = allPubs.filter(p => p.mat_downloaded).length;
     const ulCount = allPubs.filter(p => p.mat_uploaded).length;
     const total = allPubs.length;
@@ -196,7 +186,7 @@
     const page = document.getElementById('page-materials');
     if (!page) return;
     const groups = getItems();
-    const totalPubs = groups.reduce((s, g) => s + g.pubs.length, 0);
+    const totalPubs = groups.length;
     page.innerHTML = `
       <div style="padding:0 24px 24px">
         ${renderToolbar(totalPubs)}
