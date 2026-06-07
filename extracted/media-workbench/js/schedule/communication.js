@@ -133,11 +133,23 @@
     // 全选框 indeterminate 状态（HTML 属性无法表达，需 JS 设置）
     setTimeout(() => {
       const allCb = document.getElementById('__comm-sel-all__');
-      if (!allCb) return;
-      const allIds = _getAllVisibleContentIds();
-      const selCount = allIds.filter(id => state.selectedIds.has(id)).length;
-      allCb.indeterminate = selCount > 0 && selCount < allIds.length;
+      if (allCb) {
+        const allIds = _getAllVisibleContentIds();
+        const selCount = allIds.filter(id => state.selectedIds.has(id)).length;
+        allCb.indeterminate = selCount > 0 && selCount < allIds.length;
+      }
+      _alignFrozenCols();
     }, 0);
+  }
+
+  /* 冻结列对齐：测量选择框列真实宽度，让达人昵称列紧贴其右侧，消除白缝 */
+  function _alignFrozenCols() {
+    const table = document.querySelector('#page-contents .comm-table');
+    if (!table) return;
+    const fz1 = table.querySelector('.comm-fz1');
+    if (!fz1) return;
+    const w = fz1.getBoundingClientRect().width;
+    table.querySelectorAll('.comm-fz2').forEach(el => { el.style.left = w + 'px'; });
   }
 
   /* 顶部 tab：按主平台切分 */
