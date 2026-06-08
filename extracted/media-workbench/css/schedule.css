@@ -649,16 +649,16 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   vertical-align: middle;
   white-space: nowrap;
 }
-.comm-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
+/* 表头：每个格子单独 sticky（支持双行表头 + 冻结列，避免 thead 整体 sticky 冲突） */
 .comm-table thead th {
   background: #f9fafb;
   font-weight: 500;
   color: var(--text-secondary);
+  position: sticky;
+  z-index: 2;
 }
+.comm-table thead tr:first-child th { top: 0; }
+.comm-table thead tr:nth-child(2) th { top: 36px; } /* 第一行高度，JS 会精确校准 */
 .comm-table .comm-group {
   text-align: center;
   font-weight: 600;
@@ -680,8 +680,9 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   left: 45px;
   box-shadow: 1px 0 0 var(--border), 4px 0 6px -3px rgba(0,0,0,.12);
 }
+/* 表头冻结列：横纵都固定，层级最高 */
 .comm-table thead .comm-fz1,
-.comm-table thead .comm-fz2 { z-index: 4; top: 0; }
+.comm-table thead .comm-fz2 { z-index: 5; top: 0; }
 
 .comm-table tbody tr:hover { background: var(--bg-hover); }
 .comm-table .comm-sub-row td { background: #fafbfd; color: var(--text-secondary); }

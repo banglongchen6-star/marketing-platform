@@ -150,6 +150,13 @@
     if (!fz1) return;
     const w = fz1.getBoundingClientRect().width;
     table.querySelectorAll('.comm-fz2').forEach(el => { el.style.left = w + 'px'; });
+    // 双行表头：第二行 th 的 top = 第一行实际高度，避免上下滚动时两行表头重叠
+    const firstRow = table.querySelector('thead tr:first-child');
+    const secondRowThs = table.querySelectorAll('thead tr:nth-child(2) th');
+    if (firstRow && secondRowThs.length) {
+      const h = firstRow.getBoundingClientRect().height;
+      secondRowThs.forEach(th => { th.style.top = h + 'px'; });
+    }
   }
 
   /* 顶部 tab：按主平台切分 */
