@@ -15,7 +15,6 @@
   const ALL_COLUMNS = [
     { key: 'price',        label: '价格',     group: '基本' },
     { key: 'fans',         label: '粉丝量',   group: '基本' },
-    { key: 'category',     label: '达人类型', group: '基本' },
     { key: 'work_type',    label: '作品类型', group: '基本' },
     { key: 'platform',     label: '平台',     group: '发布' },
     { key: 'date',         label: '发布时间', group: '发布' },
