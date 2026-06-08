@@ -3656,10 +3656,17 @@ function renderSamples() {
   let list = DB.samples.filter(c => {
     if (!(c.date||'').startsWith(monthStr)) return false;
     if (sampleStatusFilter && c.status !== sampleStatusFilter) return false;
-    if (search && !(c.talent||'').toLowerCase().includes(search) &&
-        !(c.product||'').toLowerCase().includes(search) &&
-        !(c.contact||'').toLowerCase().includes(search) &&
-        !(c.recipient_name||'').toLowerCase().includes(search)) return false;
+    if (search) {
+      // product 可能是数组（多个产品），拼成字符串再搜
+      const prod = Array.isArray(c.product) ? c.product.join(' ') : (c.product || '');
+      // contact 存的是 bd_id，解析成 BD 名字再搜
+      const bd = window.ScheduleData?.findBdPersonById?.(c.contact);
+      const bdName = bd ? bd.name : '';
+      if (!(c.talent||'').toLowerCase().includes(search) &&
+          !prod.toLowerCase().includes(search) &&
+          !bdName.toLowerCase().includes(search) &&
+          !(c.recipient_name||'').toLowerCase().includes(search)) return false;
+    }
     return true;
   });
   list.sort((a,b)=>new Date(b.date)-new Date(a.date));
