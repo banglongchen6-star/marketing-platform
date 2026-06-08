@@ -1204,7 +1204,8 @@
       });
     }
     if (mainPlatform && mainPlatform !== '全部') {
-      rows = rows.filter(c => (c.publications||[]).some(p => p.platform === mainPlatform));
+      // 只按「主链接（第一条 publication）」所在平台归属，同步平台不在其它 tab 重复出现
+      rows = rows.filter(c => ((c.publications||[])[0]?.platform) === mainPlatform);
     }
     if (bd_id) {
       rows = rows.filter(c => {
@@ -1232,10 +1233,8 @@
         scheds = scheds.filter(s => s.schedule_date && s.schedule_date.startsWith(monthStr));
       }
       if (mainPlatform && mainPlatform !== '全部') {
-        scheds = scheds.filter(s => {
-          const plats = Array.isArray(s.platforms) ? s.platforms : [];
-          return s.platform === mainPlatform || plats.includes(mainPlatform);
-        });
+        // 占位行同样只按排期主平台归属
+        scheds = scheds.filter(s => (s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '')) === mainPlatform);
       }
       if (bd_id) scheds = scheds.filter(s => s.bd_id === bd_id);
       if (q) {
