@@ -75,6 +75,8 @@
     return {
       schedule_id: '',
       kol_name: '',
+      category_direction: '',
+      work_type: '',
       fans: '',
       bd_id: autoBd,
       price: '',
@@ -951,6 +953,8 @@
       state.editor.form = {
         schedule_id: c.schedule_id || 'none',
         kol_name: c.kol_name || '',
+        category_direction: c.category_direction || '',
+        work_type: c.work_type || '',
         fans: c.fans != null ? String(c.fans) : '',
         bd_id: c.bd_id || '',
         price: linkedSched ? (linkedSched.amount != null ? String(linkedSched.amount) : '') : (c.price != null ? String(c.price) : ''),
@@ -1098,6 +1102,22 @@
         <input id="cf-kol-name" class="sched-form-control ${err.kol_name?'error':''}" type="text"
                placeholder="请输入达人昵称（必填）"
                value="${escapeAttr(f.kol_name)}">
+      </div>
+      <div class="sched-form-group">
+        <div style="display:flex;gap:10px">
+          <div style="flex:1">
+            <label class="sched-form-label">达人类型<span class="req">*</span></label>
+            <select id="cf-direction" class="sched-form-control ${err.category_direction?'error':''}">
+              ${['<option value="">— 请选择 —</option>'].concat((SD.listDirections?SD.listDirections():[]).map(d=>`<option value="${escapeAttr(d.name)}" ${f.category_direction===d.name?'selected':''}>${escapeHtml(d.name)}</option>`)).join('')}
+            </select>
+          </div>
+          <div style="flex:1">
+            <label class="sched-form-label">作品类型<span class="req">*</span></label>
+            <select id="cf-worktype" class="sched-form-control ${err.work_type?'error':''}">
+              ${['<option value="">— 请选择 —</option>'].concat((SD.listWorkTypes?SD.listWorkTypes():[]).map(d=>`<option value="${escapeAttr(d.name)}" ${f.work_type===d.name?'selected':''}>${escapeHtml(d.name)}</option>`)).join('')}
+            </select>
+          </div>
+        </div>
       </div>
     ` : '';
     const schedBlock = state.editor.fromPlaceholder ? '' : `
@@ -1279,6 +1299,10 @@
     if (kolName) kolName.addEventListener('input', e => {
       state.editor.form.kol_name = e.target.value;
     });
+    const cfDir = document.getElementById('cf-direction');
+    if (cfDir) cfDir.addEventListener('change', e => { state.editor.form.category_direction = e.target.value; });
+    const cfWt = document.getElementById('cf-worktype');
+    if (cfWt) cfWt.addEventListener('change', e => { state.editor.form.work_type = e.target.value; });
     const fans = document.getElementById('cf-fans');
     if (fans) fans.addEventListener('input', e => {
       state.editor.form.fans = e.target.value;
@@ -1434,7 +1458,11 @@
     const f = state.editor.form;
     const errs = {};
     if (!f.schedule_id) errs.schedule_id = '请选择关联排期，或选择「不关联排期」';
-    if (f.schedule_id === 'none' && !f.kol_name.trim()) errs.kol_name = '选择不关联排期时，达人昵称为必填';
+    if (f.schedule_id === 'none') {
+      if (!f.kol_name.trim())      errs.kol_name = '选择不关联排期时，达人昵称为必填';
+      if (!f.category_direction)   errs.category_direction = '请选择达人类型';
+      if (!f.work_type)            errs.work_type = '请选择作品类型';
+    }
     f.publications.forEach((p, idx) => {
       // 链接非必填，无需校验
     });
@@ -1459,6 +1487,8 @@
       const data = {
         schedule_id: f.schedule_id === 'none' ? null : f.schedule_id,
         kol_name: f.schedule_id === 'none' ? f.kol_name.trim() : null,
+        category_direction: f.schedule_id === 'none' ? f.category_direction : undefined,
+        work_type: f.schedule_id === 'none' ? f.work_type : undefined,
         fans,
         bd_id: f.bd_id || null,
         price: f.price !== '' ? (Number(f.price) || 0) : null,

@@ -950,6 +950,9 @@
       id: uid(),
       schedule_id: data.schedule_id || null,
       kol_name: data.kol_name ? String(data.kol_name).trim() : null,
+      // 不关联排期时，达人类型/作品类型存在内容上（关联排期则从排期带，不冗余）
+      category_direction: data.schedule_id ? '' : (data.category_direction || ''),
+      work_type: data.schedule_id ? '' : (data.work_type || ''),
       fans: data.fans != null && data.fans !== '' ? Number(data.fans) : null,
       publications: (data.publications || []).map(normalizePublication),
       created_at: nowISO(),
@@ -1279,9 +1282,9 @@
       // 不关联排期时直接用内容记录上的 kol_name
       talent: s ? s.kol_name : (c.kol_name || '—'),
       price: s ? (s.amount != null ? s.amount : null) : (c.price != null ? c.price : null),
-      category: s ? s.category_direction : '',
+      category: s ? s.category_direction : (c.category_direction || ''),
       tier: s ? s.tier : '',
-      work_type: s ? (s.work_type || '') : '',
+      work_type: s ? (s.work_type || '') : (c.work_type || ''),
       bd_id: s ? s.bd_id : null,
       bd_name: bd ? bd.name : '',
       bd_color: bd ? bd.color : '',
