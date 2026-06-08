@@ -784,11 +784,19 @@
       blockMap.set(c.id, { key: c.id, r, c, kolKey, fans: kolFans[kolKey] ?? null, items });
     });
 
-    // 按主平台日期（publications[0]）升序排列，日期相同再按达人名排
+    // 排序：① 待发布（未填发布日期）置顶，按新增时间倒序（刚加的在最上，方便接着填）
+    //       ② 已发布（有日期）按发布日期倒序（最新在前），日期相同按达人名
     const blocks = [...blockMap.values()].sort((a, b) => {
       const da = (a.items[0]?.p.date || '');
       const db = (b.items[0]?.p.date || '');
-      const d = da.localeCompare(db);
+      const aEmpty = !da, bEmpty = !db;
+      if (aEmpty !== bEmpty) return aEmpty ? -1 : 1;   // 待发布永远在前
+      if (aEmpty && bEmpty) {                            // 都未填：新增时间倒序
+        const ca = a.c.created_at || a.c.id || '';
+        const cb = b.c.created_at || b.c.id || '';
+        return String(cb).localeCompare(String(ca));
+      }
+      const d = db.localeCompare(da);                    // 都已填：发布日期倒序
       return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || '');
     });
 
