@@ -69,6 +69,24 @@
     render();
   }
 
+  function _copyLink(link) {
+    if (!link) return;
+    const done = () => window.toast && window.toast('链接已复制', 'success', 1500);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(done).catch(() => _fallbackCopy(link, done));
+    } else {
+      _fallbackCopy(link, done);
+    }
+  }
+  function _fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done && done(); }
+    catch(e) { window.toast && window.toast('复制失败，请手动复制', 'error'); }
+    document.body.removeChild(ta);
+  }
+
   function _saveNote(contentId, pubId, val) {
     const c = (window.DB?.contents || []).find(x => x.id === contentId);
     if (!c) return;
@@ -128,10 +146,18 @@
           <td style="font-weight:500;vertical-align:middle">${bdDot}${escapeHtml(r.talent || '—')}</td>
           <td><span class="sched-card-chip platform">${escapeHtml(p.platform || '—')}</span></td>
           <td>${escapeHtml(p.date || '—')}</td>
-          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener"
-               style="color:var(--primary);text-decoration:none;font-size:.82rem"
-               title="${escapeHtml(p.link)}">🔗 ${escapeHtml(p.link.replace(/^https?:\/\//, '').slice(0, 30))}…</a>
+          <td style="max-width:240px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener"
+                 style="color:var(--primary);text-decoration:none;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"
+                 title="${escapeHtml(p.link)}">🔗 ${escapeHtml(p.link.replace(/^https?:\/\//, '').slice(0, 30))}…</a>
+              <button onclick="MaterialsPage._copyLink('${escapeHtml(p.link)}')" title="复制链接"
+                style="flex-shrink:0;border:none;background:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);line-height:1"
+                onmouseover="this.style.background='var(--primary-light)';this.style.color='var(--primary)'"
+                onmouseout="this.style.background='none';this.style.color='var(--text-muted)'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
           </td>
           <td style="text-align:center">
             <input type="checkbox" ${dl} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary)"
@@ -210,6 +236,7 @@
     _setBd(v) { state.bd_id = v; render(); },
     _toggle,
     _saveNote,
+    _copyLink,
   };
 
   // 覆盖旧 renderMaterials 全局函数
