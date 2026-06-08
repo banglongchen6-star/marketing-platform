@@ -1529,8 +1529,10 @@ async function openEmailConfig() {
         <label style="font-size:.8rem;color:var(--text-secondary)">SMTP 授权码 / 密码</label>
         <input id="_em_pass" class="form-control" type="password" placeholder="邮箱授权码" value="${cfg.senderPass||''}">
 
-        <label style="font-size:.8rem;color:var(--text-secondary)">收件邮箱（多个用逗号分隔）</label>
-        <input id="_em_to" class="form-control" placeholder="例：a@poputar.com, b@poputar.com" value="${Array.isArray(cfg.recipients)?cfg.recipients.join(', '):(cfg.recipients||'')}">
+        <label style="font-size:.8rem;color:var(--text-secondary)">收件邮箱 1</label>
+        <input id="_em_to1" class="form-control" placeholder="例：chenbanglong@poputar.com" value="${(Array.isArray(cfg.recipients)?cfg.recipients:[])[0]||''}">
+        <label style="font-size:.8rem;color:var(--text-secondary)">收件邮箱 2（选填）</label>
+        <input id="_em_to2" class="form-control" placeholder="例：ningxingyun@poputar.com" value="${(Array.isArray(cfg.recipients)?cfg.recipients:[])[1]||''}">
 
         <label style="font-size:.8rem;color:var(--text-secondary)">每天发送时间（24小时制）</label>
         <input id="_em_time" class="form-control" placeholder="22:00" value="${cfg.sendTime||'22:00'}" style="width:100px">
@@ -1560,7 +1562,7 @@ async function saveEmailConfig() {
   const cfg = {
     senderEmail: document.getElementById('_em_sender').value.trim(),
     senderPass:  document.getElementById('_em_pass').value,
-    recipients:  document.getElementById('_em_to').value.split(/[,，、;；\s]+/).map(s => s.trim()).filter(Boolean),
+    recipients:  [document.getElementById('_em_to1').value, document.getElementById('_em_to2').value].map(s => s.trim()).filter(Boolean),
     sendTime:    document.getElementById('_em_time').value.trim() || '22:00',
     smtpHost:    'smtp.qiye.aliyun.com',
     smtpPort:    465,
