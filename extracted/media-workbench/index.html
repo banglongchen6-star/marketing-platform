@@ -6067,6 +6067,12 @@ function initApp() {
         const serverTs = serverData._saved_at || 0;
         const localTs  = DB._saved_at  || 0;
         if (serverTs > localTs) {
+          // 自动更新前记录当前滚动位置（页面级 + 表格容器内）
+          const _winY = window.scrollY;
+          let _scTop = 0;
+          const _pe0 = document.getElementById('page-' + currentPage);
+          if (_pe0) _pe0.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
+
           Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
           window.DB = DB;
           localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
@@ -6082,6 +6088,18 @@ function initApp() {
           if (p === 'samples')     { try { renderSamples(); } catch(e){} }
           if (p === 'materials')   { try { renderMaterials(); } catch(e){} }
           if (p === 'settlement')  { try { renderSettlement(); } catch(e){} }
+          // 渲染完成后恢复滚动位置，避免页面跳回顶部
+          setTimeout(() => {
+            if (_winY) window.scrollTo(0, _winY);
+            if (_scTop) {
+              const pe = document.getElementById('page-' + currentPage);
+              if (pe) {
+                for (const el of pe.querySelectorAll('div')) {
+                  if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _scTop; break; }
+                }
+              }
+            }
+          }, 60);
           window.toast && window.toast('🔄 数据已更新', 'info', 2000);
         }
       } catch(e) {
