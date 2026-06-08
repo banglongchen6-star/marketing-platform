@@ -50,6 +50,7 @@
   mutated = ensureCollection('product_lines', []) || mutated;
   mutated = ensureCollection('platforms', []) || mutated;
   mutated = ensureCollection('tiers', []) || mutated;
+  mutated = ensureCollection('work_types', []) || mutated;
   mutated = ensureCollection('bds', []) || mutated;
   mutated = ensureCollection('supervisors', []) || mutated;
   mutated = ensureCollection('payment_accounts', ['私库', '星图']) || mutated;
@@ -532,6 +533,52 @@
     return { schedules: DB.schedules.filter(s => s.tier === name).length };
   }
 
+  /* ------------------------- 作品类型字典 CRUD（独立于达人类型，挂在 schedule.work_type） ------------------------- */
+  function listWorkTypes({ includeInactive = false } = {}) {
+    const rows = (DB.work_types || []).slice();
+    rows.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+    return includeInactive ? rows : rows.filter(t => t.is_active !== false);
+  }
+  function findWorkTypeByName(name) {
+    return (DB.work_types || []).find(t => t.name === name);
+  }
+  function createOrReactivateWorkType({ name, sort_order }) {
+    name = String(name || '').trim();
+    if (!name) throw new Error('作品类型名不能为空');
+    if (!DB.work_types) DB.work_types = [];
+    const existing = findWorkTypeByName(name);
+    if (existing) {
+      if (existing.is_active === false) { existing.is_active = true; existing.updated_at = nowISO(); saveData(); }
+      return existing;
+    }
+    const maxOrder = DB.work_types.reduce((m, t) => Math.max(m, t.sort_order || 0), 0);
+    const row = { id: uid(), name, sort_order: sort_order ?? maxOrder + 1, is_active: true, created_at: nowISO() };
+    DB.work_types.push(row);
+    saveData();
+    return row;
+  }
+  function updateWorkType(id, patch) {
+    const t = (DB.work_types || []).find(x => x.id === id);
+    if (!t) throw new Error('作品类型不存在');
+    Object.assign(t, patch, { updated_at: nowISO() });
+    saveData();
+    return t;
+  }
+  function deactivateWorkType(id, { cascadeClearSchedules = false } = {}) {
+    const t = (DB.work_types || []).find(x => x.id === id);
+    if (!t) throw new Error('作品类型不存在');
+    let cleared = 0;
+    if (cascadeClearSchedules) {
+      DB.schedules.forEach(s => { if (s.work_type === t.name) { s.work_type = ''; cleared++; } });
+    }
+    t.is_active = false; t.updated_at = nowISO();
+    saveData();
+    return { ok: true, clearedSchedules: cleared };
+  }
+  function countWorkTypeUsage(name) {
+    return { schedules: DB.schedules.filter(s => s.work_type === name).length };
+  }
+
   /* ------------------------- 5.8 商务 BD 字典 CRUD -------------------------
    * 第 5 个字典：BD 商务负责人（含颜色）。挂在 schedule.bd_id / kol.bd_id。
    */
@@ -659,6 +706,7 @@
       bd_id: data.bd_id || null,
       category_direction: data.category_direction || '',
       tier: data.tier || '',
+      work_type: data.work_type || '',
       amount: Number(data.amount) || 0,
       platform: data.platform || (Array.isArray(data.platforms) ? data.platforms[0] : '') || '',
       sync_platforms: Array.isArray(data.sync_platforms) ? data.sync_platforms : (Array.isArray(data.platforms) ? data.platforms.slice(1) : []),
@@ -1245,6 +1293,7 @@
       price: s ? (s.amount != null ? s.amount : null) : (c.price != null ? c.price : null),
       category: s ? s.category_direction : '',
       tier: s ? s.tier : '',
+      work_type: s ? (s.work_type || '') : '',
       bd_id: s ? s.bd_id : null,
       bd_name: bd ? bd.name : '',
       bd_color: bd ? bd.color : '',
@@ -1939,6 +1988,9 @@
     // dict (层级)
     listTiers, findTierByName, createOrReactivateTier,
     updateTier, deactivateTier, countTierUsage,
+    // dict (作品类型)
+    listWorkTypes, findWorkTypeByName, createOrReactivateWorkType,
+    updateWorkType, deactivateWorkType, countWorkTypeUsage,
     // dict (商务 BD)
     listBds, listBdPersonnel, findBdByName, findBdById, findBdPersonById, createOrReactivateBd,
     updateBd, deactivateBd, deleteBd, countBdUsage,

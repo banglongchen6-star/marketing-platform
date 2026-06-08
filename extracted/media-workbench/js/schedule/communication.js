@@ -15,7 +15,8 @@
   const ALL_COLUMNS = [
     { key: 'price',        label: '价格',     group: '基本' },
     { key: 'fans',         label: '粉丝量',   group: '基本' },
-    { key: 'category',     label: '作品类型', group: '基本' },
+    { key: 'category',     label: '达人类型', group: '基本' },
+    { key: 'work_type',    label: '作品类型', group: '基本' },
     { key: 'platform',     label: '平台',     group: '发布' },
     { key: 'date',         label: '发布时间', group: '发布' },
     { key: 'link',         label: '发布链接', group: '发布' },
@@ -581,6 +582,7 @@
       case 'price': return ctx.r.price != null && ctx.r.price !== '' ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
       case 'fans':  return ctx.content.fans != null ? formatFans(ctx.content.fans) : '-';
       case 'category': return escapeHtml(ctx.r.category || '-');
+      case 'work_type': return escapeHtml(ctx.r.work_type || '-');
       case 'platform': return `<span class="sched-card-chip platform">${escapeHtml(p.platform)}</span>`;
       case 'date': {
         const snapMap = { d0:'当天', d3:'3d', d7:'7d', d30:'30d' };
@@ -609,7 +611,7 @@
     }
   }
   // 哪些列是"基本信息"(整次合作共享，不随 publication 变化)，主行 rowspan 跨多行
-  const MAIN_COLS = new Set(['price','fans','category']);
+  const MAIN_COLS = new Set(['price','fans','category','work_type']);
 
   function _payStatusTag(scheduleId, contentId) {
     const st = scheduleId
@@ -804,6 +806,11 @@
           return `<td rowspan="${total}" style="vertical-align:middle">${escapeHtml(r.category || '-')}</td>`;
         }
         return `<td>${escapeHtml(r.category || '-')}</td>`;
+      }
+      // work_type：作品类型，主平台行 rowspan（一条内容一个作品类型）
+      if (col.key === 'work_type') {
+        if (i > 0) return '';
+        return `<td rowspan="${total}" style="vertical-align:middle">${escapeHtml(r.work_type || '-')}</td>`;
       }
       // date：主平台（i===0）锁定显示，同步平台支持内联编辑
       if (col.key === 'date') {

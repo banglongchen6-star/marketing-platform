@@ -120,6 +120,28 @@
       },
       footerHint: '💡 删除只停用字典并清空引用该层级的排期字段，不影响其他数据。',
     },
+    work_type: {
+      label: '作品类型',
+      nameEditable: true,
+      placeholder: '键入新作品类型（如：弹唱 / 口播 / 测评 / 剧情）',
+      list:    () => SD.listWorkTypes({ includeInactive: true }),
+      create:  (name) => SD.createOrReactivateWorkType({ name }),
+      update:  (id, patch) => SD.updateWorkType(id, patch),
+      countUsage: (name) => SD.countWorkTypeUsage(name),
+      deactivate: (id) => SD.deactivateWorkType(id, { cascadeClearSchedules: false }),
+      hardDelete: (id) => {
+        const r = SD.deactivateWorkType(id, { cascadeClearSchedules: true });
+        return { cleared: `${r.clearedSchedules} 条排期的作品类型被清空` };
+      },
+      usageLabel: (u) => u.schedules ? `${u.schedules} 条排期` : '未使用',
+      deleteWarn: (name, u) => {
+        let msg = `⚠️ 完全删除作品类型「${name}」？\n字典将被停用；`;
+        if (u.schedules) msg += `\n\n${u.schedules} 条排期的"作品类型"字段将被清空（其他数据保留）。`;
+        else msg += `\n当前无关联数据。`;
+        return msg;
+      },
+      footerHint: '💡 删除只停用字典并清空引用该作品类型的排期字段，不影响其他数据。',
+    },
     bd: {
       label: '商务',
       nameLabel: '姓名',

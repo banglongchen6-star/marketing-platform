@@ -51,6 +51,7 @@
       bd_id: window.currentUser?.bd_id || null,
       category_direction: '',
       tier: '',
+      work_type: '',
       platform: '',
       sync_platforms: [],
       amount: '',
@@ -111,6 +112,7 @@
         bd_id: s.bd_id || null,
         category_direction: s.category_direction || '',
         tier: s.tier || '',
+        work_type: s.work_type || '',
         platform: s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '',
         sync_platforms: Array.isArray(s.sync_platforms) ? [...s.sync_platforms] : (Array.isArray(s.platforms) ? s.platforms.slice(1) : []),
         amount: s.amount != null ? String(s.amount) : '',
@@ -311,6 +313,12 @@
     if (f.tier && !tiers.some(t => t.name === f.tier)) {
       tierOptions.push(`<option value="${escapeAttr(f.tier)}" selected>${escapeHtml(f.tier)}（自由值）</option>`);
     }
+    const workTypes = SD.listWorkTypes();
+    const workTypeOptions = ['<option value="">— 请选择 —</option>']
+      .concat(workTypes.map(t => `<option value="${escapeHtml(t.name)}" ${f.work_type===t.name?'selected':''}>${escapeHtml(t.name)}</option>`));
+    if (f.work_type && !workTypes.some(t => t.name === f.work_type)) {
+      workTypeOptions.push(`<option value="${escapeAttr(f.work_type)}" selected>${escapeHtml(f.work_type)}（自由值）</option>`);
+    }
     const computedStatus = computeStatus(f.schedule_date);
     const statusColor = STATUS_COLORS[computedStatus] || '#6b7280';
     const statusLabel = STATUS_LABELS[computedStatus] || computedStatus;
@@ -398,6 +406,15 @@
           <label class="sched-form-label">层级<span class="req">*</span></label>
           <select id="f-tier" class="sched-form-control ${err.tier?'error':''}">
             ${tierOptions.join('')}
+          </select>
+        </div>
+        <div class="sched-form-group">
+          <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
+            <span>作品类型</span>
+            <button type="button" onclick="DictManager.open('work_type')" style="border:none;background:none;font-size:.78rem;color:var(--primary);cursor:pointer;padding:0">⚙ 管理</button>
+          </label>
+          <select id="f-worktype" class="sched-form-control">
+            ${workTypeOptions.join('')}
           </select>
         </div>
       </div>
@@ -622,6 +639,7 @@
     if (document.getElementById('f-bd')) onChange('f-bd', v => { f.bd_id = v || null; renderAll(); });
     onChange('f-tier', v => f.tier = v);
     onChange('f-direction', v => f.category_direction = v);
+    onChange('f-worktype', v => f.work_type = v);
     // 日期变化时重渲染以更新状态徽章
     onInput('f-date', v => { f.schedule_date = v; renderAll(); });
     onInput('f-notes', v => f.notes = v);
@@ -879,6 +897,7 @@
       bd_id: f.bd_id || null,
       category_direction: f.category_direction || '',
       tier: f.tier || '',
+      work_type: f.work_type || '',
       platform: f.platform || '',
       sync_platforms: f.sync_platforms || [],
       platforms: f.platform ? [f.platform, ...(f.sync_platforms || [])] : [],
@@ -952,6 +971,7 @@
       bd_id: f.bd_id || null,
       category_direction: f.category_direction || '',
       tier: f.tier || '',
+      work_type: f.work_type || '',
       platform: f.platform || '',
       sync_platforms: f.sync_platforms || [],
       platforms: f.platform ? [f.platform, ...(f.sync_platforms || [])] : [],
