@@ -404,10 +404,10 @@
         </div>
         <div class="sched-form-group" style="flex:1;min-width:0">
           <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
-            <span>作品类型</span>
+            <span>作品类型<span class="req">*</span></span>
             <button type="button" title="管理作品类型" onclick="DictManager.open('work_type')" style="border:none;background:none;font-size:.85rem;color:var(--primary);cursor:pointer;padding:0">⚙</button>
           </label>
-          <select id="f-worktype" class="sched-form-control">
+          <select id="f-worktype" class="sched-form-control ${err.work_type?'error':''}">
             ${workTypeOptions.join('')}
           </select>
         </div>
@@ -852,6 +852,7 @@
     if (!f.kol_homepage || !f.kol_homepage.trim()) errs.kol_homepage = '达人主页链接不能为空';
     else if (!/^https?:\/\//i.test(f.kol_homepage.trim())) errs.kol_homepage = '主页链接需以 http:// 或 https:// 开头';
     if (!f.category_direction) errs.category_direction = '请选择达人类型';
+    if (!f.work_type) errs.work_type = '请选择作品类型';
     if (!f.tier) errs.tier = '请选择层级';
     if (!f.platform) errs.platforms = '请选择主平台';
     if (!f.bd_id) errs.bd_id = '请选择商务 BD';
