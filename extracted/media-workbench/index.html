@@ -5084,7 +5084,7 @@ function _renderPendingArea() {
 
   const totalCount = scheds.length + unscheduledContents.length;
   container.innerHTML = `
-    <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto">
+    <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 280px)">
       <table class="comm-table">
         <thead>
           <tr>
@@ -5222,7 +5222,7 @@ function _renderSettledArea() {
   }).join('');
 
   container.innerHTML = `
-    <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto">
+    <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 280px)">
       <div style="padding:8px 14px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;font-size:.8rem;color:#065f46">
         🔒 已结算区严禁删除，数据仅供查阅。如需修改请先退回待结算区。
       </div>
