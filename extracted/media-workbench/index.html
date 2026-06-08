@@ -1560,7 +1560,7 @@ async function saveEmailConfig() {
   const cfg = {
     senderEmail: document.getElementById('_em_sender').value.trim(),
     senderPass:  document.getElementById('_em_pass').value,
-    recipients:  document.getElementById('_em_to').value.split(',').map(s => s.trim()).filter(Boolean),
+    recipients:  document.getElementById('_em_to').value.split(/[,，、;；\s]+/).map(s => s.trim()).filter(Boolean),
     sendTime:    document.getElementById('_em_time').value.trim() || '22:00',
     smtpHost:    'smtp.qiye.aliyun.com',
     smtpPort:    465,
