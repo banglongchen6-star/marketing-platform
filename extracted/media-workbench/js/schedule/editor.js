@@ -393,28 +393,28 @@
       </div>
 
       <div class="sched-form-row">
-        <div class="sched-form-group">
+        <div class="sched-form-group" style="flex:1;min-width:0">
           <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
             <span>达人类型<span class="req">*</span></span>
-            <button type="button" onclick="openKolTypeDict()" style="border:none;background:none;font-size:.78rem;color:var(--primary);cursor:pointer;padding:0">⚙ 管理类型</button>
+            <button type="button" title="管理达人类型" onclick="openKolTypeDict()" style="border:none;background:none;font-size:.85rem;color:var(--primary);cursor:pointer;padding:0">⚙</button>
           </label>
           <select id="f-direction" class="sched-form-control ${err.category_direction?'error':''}">
             ${dirOptions.join('')}
           </select>
         </div>
-        <div class="sched-form-group">
-          <label class="sched-form-label">层级<span class="req">*</span></label>
-          <select id="f-tier" class="sched-form-control ${err.tier?'error':''}">
-            ${tierOptions.join('')}
-          </select>
-        </div>
-        <div class="sched-form-group">
+        <div class="sched-form-group" style="flex:1;min-width:0">
           <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
             <span>作品类型</span>
-            <button type="button" onclick="DictManager.open('work_type')" style="border:none;background:none;font-size:.78rem;color:var(--primary);cursor:pointer;padding:0">⚙ 管理</button>
+            <button type="button" title="管理作品类型" onclick="DictManager.open('work_type')" style="border:none;background:none;font-size:.85rem;color:var(--primary);cursor:pointer;padding:0">⚙</button>
           </label>
           <select id="f-worktype" class="sched-form-control">
             ${workTypeOptions.join('')}
+          </select>
+        </div>
+        <div class="sched-form-group" style="flex:1;min-width:0">
+          <label class="sched-form-label">层级<span class="req">*</span></label>
+          <select id="f-tier" class="sched-form-control ${err.tier?'error':''}">
+            ${tierOptions.join('')}
           </select>
         </div>
       </div>
