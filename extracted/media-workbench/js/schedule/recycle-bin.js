@@ -83,7 +83,7 @@
           <tr>
             <th>排期日期</th>
             <th>达人</th>
-            <th>类型/层级</th>
+            <th>达人类型</th>
             <th style="text-align:right">费用</th>
             <th>状态</th>
             <th>删除于</th>
@@ -111,7 +111,7 @@
         <td>${escapeHtml(s.schedule_date || '—')}</td>
         <td><strong>${escapeHtml(s.kol_name || '未命名')}</strong></td>
         <td>
-          <span style="font-size:.76rem;color:var(--text-secondary)">${escapeHtml(s.category_direction || '—')} · ${escapeHtml(s.tier || '—')}</span>
+          <span style="font-size:.76rem;color:var(--text-secondary)">${escapeHtml(s.category_direction || '—')}</span>
         </td>
         <td style="text-align:right">¥${Number(s.amount||0).toLocaleString()}</td>
         <td><span style="font-size:.76rem;color:var(--text-muted)">${escapeHtml(status)}</span></td>

@@ -117,18 +117,7 @@
     mutated = true;
   }
 
-  // 层级字典种子（首次为空时种 5 条：sss级 / 头部 / 腰部 / 尾部 / KOC素人）
-  if (DB.tiers.length === 0) {
-    const now = new Date().toISOString();
-    DB.tiers = [
-      { id: uid(), name: 'sss级',   sort_order: 1, is_active: true, created_at: now },
-      { id: uid(), name: '头部',    sort_order: 2, is_active: true, created_at: now },
-      { id: uid(), name: '腰部',    sort_order: 3, is_active: true, created_at: now },
-      { id: uid(), name: '尾部',    sort_order: 4, is_active: true, created_at: now },
-      { id: uid(), name: 'KOC素人', sort_order: 5, is_active: true, created_at: now },
-    ];
-    mutated = true;
-  }
+  // 层级功能已移除，不再种入层级字典
 
   // 商务 BD 字典（首次为空时保持空白，由用户自行添加）
   // 已在字典管理中提供添加入口，无需预设样例
@@ -873,18 +862,18 @@
     return DB.schedule_budgets.filter((b) => b.year === year && b.month === month);
   }
 
-  function upsertBudget({ year, month, category, tier = '', ...rest }) {
+  function upsertBudget({ year, month, category, ...rest }) {
     if (!year || !month || !category) throw new Error('year/month/category 必填');
-    const tierKey = tier || '';
+    delete rest.tier; // 层级已移除
     let row = DB.schedule_budgets.find(
-      (b) => b.year === year && b.month === month && b.category === category && (b.tier || '') === tierKey
+      (b) => b.year === year && b.month === month && b.category === category
     );
     if (row) {
       Object.assign(row, rest, { updated_at: nowISO() });
     } else {
       row = {
         id: uid(),
-        year, month, category, tier: tierKey,
+        year, month, category,
         budget_amount: 0,
         target_count: null,
         product_line: '',
@@ -922,9 +911,8 @@
     const source = listBudgetsByMonth(py, pm);
     let copied = 0;
     source.forEach((src) => {
-      const tierKey = src.tier || '';
       const exists = DB.schedule_budgets.some(
-        (b) => b.year === year && b.month === month && b.category === src.category && (b.tier || '') === tierKey
+        (b) => b.year === year && b.month === month && b.category === src.category
       );
       if (exists) return;
       DB.schedule_budgets.push({
@@ -1760,37 +1748,24 @@
   function getMonthlyBudgetRows(year, month) {
     const budgets = listBudgetsByMonth(year, month);
 
-    // 实际排期数据：按 (category_direction, tier) 双键聚合
+    // 实际排期数据：按 category_direction 聚合
     const schedules = listSchedulesByMonth(year, month);
-    const actualByKey = {};
+    const actualByCat = {};
     schedules.forEach((s) => {
       if (s.status === 'cancelled') return;
-      const cat  = s.category_direction || '';
-      const tier = s.tier || '';
-      const k = cat + '\x00' + tier;
-      if (!actualByKey[k]) actualByKey[k] = { spent: 0, count: 0 };
-      actualByKey[k].spent += Number(s.amount) || 0;
-      actualByKey[k].count += 1;
-    });
-    // 同类型所有层级的合计（用于显示在类型行）
-    const actualByDir = {};
-    Object.entries(actualByKey).forEach(([k, v]) => {
-      const cat = k.split('\x00')[0];
-      if (!actualByDir[cat]) actualByDir[cat] = { spent: 0, count: 0 };
-      actualByDir[cat].spent += v.spent;
-      actualByDir[cat].count += v.count;
+      const cat = s.category_direction || '';
+      if (!actualByCat[cat]) actualByCat[cat] = { spent: 0, count: 0 };
+      actualByCat[cat].spent += Number(s.amount) || 0;
+      actualByCat[cat].count += 1;
     });
 
     // 只展示本月已明确添加的预算行（每月默认空）
     const rows = budgets.map((b) => {
-      const tierKey = b.tier || '';
-      const k = b.category + '\x00' + tierKey;
-      const actual = actualByKey[k] || { spent: 0, count: 0 };
+      const actual = actualByCat[b.category] || { spent: 0, count: 0 };
       const budgetAmount = Number(b.budget_amount) || 0;
       return {
         id: b.id,
         category: b.category,
-        tier: tierKey,
         shortName: b.category,
         budgetAmount,
         targetCount: b.target_count,

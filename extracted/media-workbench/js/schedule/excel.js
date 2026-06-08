@@ -19,7 +19,6 @@
     { key: 'schedule_date',      header: '日期',     required: true,  example: '2026-05-01' },
     { key: 'kol_name',           header: '达人名',   required: true,  example: '万万也没想到' },
     { key: 'category_direction', header: '达人类型', required: false, example: '弹唱' },
-    { key: 'tier',               header: '层级',     required: false, example: '尾部' },
     { key: 'amount',             header: '费用',     required: true,  example: 500 },
     { key: 'platform',           header: '平台',     required: false, example: '抖音' },
     { key: 'status',             header: '状态',     required: false, example: '已结算' },
@@ -202,10 +201,7 @@
     const sr = parseStatus(get('status'));
     if (!sr.ok) errors.push(`状态：${sr.error}`); else out.status = sr.value;
 
-    // 层级
-    const tr = parseTier(get('tier'));
-    if (!tr.ok) errors.push(`层级：${tr.error}`); else out.tier = tr.value;
-
+    // 层级功能已移除，导入时忽略层级列
     out.category_direction = String(get('category_direction') || '').trim();
     out.platform = String(get('platform') || '').trim();
     out.publish_url = String(get('publish_url') || '').trim();
@@ -241,7 +237,6 @@
       ['达人名',       '是',       '若库里没有同名达人，导入时会自动创建'],
       ['费用',         '是',       '元；支持 ￥500 / 500 / 5,000 / 5万'],
       ['达人类型',     '否',       '弹唱 / 弹奏 / 鼓棒 / 生活 / ... （字典里没有的会作为"孤儿行"显示在规划表）'],
-      ['层级',         '否',       '头部 / 中部 / 腰部 / 尾部 / 素人'],
       ['平台',         '否',       '抖音 / 小红书 / 视频号 / B站 / 微博 / 快手'],
       ['状态',         '否',       '计划中 / 已发布 / 已取消（默认计划中）'],
       ['发布链接',     '否',       '只有状态 ≥ 已发布 时才有意义'],

@@ -219,7 +219,7 @@
         <table class="sched-import-preview-table">
           <thead><tr>
             <th>#</th>
-            <th>日期</th><th>达人名</th><th>类型</th><th>层级</th><th>费用</th>
+            <th>日期</th><th>达人名</th><th>类型</th><th>费用</th>
             <th>平台</th><th>状态</th><th>备注</th>
           </tr></thead>
           <tbody>
@@ -243,7 +243,6 @@
         <td>${escapeHtml(p.schedule_date || '—')}</td>
         <td>${escapeHtml(p.kol_name || '—')}</td>
         <td>${escapeHtml(p.category_direction || '—')}</td>
-        <td>${escapeHtml(p.tier || '—')}</td>
         <td>${p.amount != null ? '¥' + Number(p.amount).toLocaleString() : '—'}</td>
         <td>${escapeHtml(p.platform || '—')}</td>
         <td>${escapeHtml(XL.STATUS_TO_LABEL[p.status] || p.status || '—')}</td>

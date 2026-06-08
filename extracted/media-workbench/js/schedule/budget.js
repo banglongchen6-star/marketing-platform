@@ -1,7 +1,7 @@
 /* =====================================================================
  * 达人营销 · 内容排期模块 · 月度规划表 (Phase 4 v2)
  *
- * Option A 布局：按达人类型分组，同类型多层级用 rowspan 展示。
+ * 按达人类型逐行展示。
  * 每月独立数据（默认空），行 key 改用 id（budget 行主键）。
  *
  * 暴露：window.BudgetTable = { render(year, month), refresh() }
@@ -15,7 +15,6 @@
     month: 0,
     editing: null,      // { id, field } — 用预算行 id 作 key
     addDirOpen: false,  // "+ 添加达人类型" 浮层
-    addTierFor: null,   // 正在为哪个 category 添加层级
   };
 
   /* ========================= 1. 入口 ========================= */
@@ -24,7 +23,6 @@
     state.month = month;
     state.editing = null;
     state.addDirOpen = false;
-    state.addTierFor = null;
     paint();
   }
   function refresh() { paint(); }
@@ -63,62 +61,26 @@
 
   /* ========================= 2. 主表（按类型分组 + rowspan） ========================= */
   function renderTable(data) {
-    const rows = data.rows; // 每行含 { id, category, tier, budgetAmount, ... }
+    const rows = data.rows; // 每行含 { id, category, budgetAmount, ... }
 
-    /* 按 category 分组（保留顺序） */
-    const groupOrder = [];
-    const groups = {}; // category -> row[]
-    rows.forEach(r => {
-      if (!groups[r.category]) { groups[r.category] = []; groupOrder.push(r.category); }
-      groups[r.category].push(r);
-    });
-
-    let bodyHtml = '';
-    groupOrder.forEach(cat => {
-      const catRows = groups[cat];
-      // rowspan = 所有层级行数 + 1（"添加层级"行）
-      const span = catRows.length + 1;
-
-      catRows.forEach((r, idx) => {
-        bodyHtml += `<tr data-id="${escapeAttr(r.id)}">`;
-        if (idx === 0) {
-          /* 达人类型格：rowspan，含删除该类型所有行的按钮 */
-          bodyHtml += `
-            <td rowspan="${span}"
-                style="vertical-align:middle;padding:8px 10px;background:#fafbfd;
-                       border-right:2px solid var(--primary);text-align:center">
-              <div style="font-weight:600;font-size:.88rem;color:var(--text-primary);margin-bottom:6px">
-                ${escapeHtml(cat)}
-              </div>
-              <button class="sched-budget-del" title="删除该类型所有层级行"
-                      onclick="BudgetTable._deleteCategory('${escapeAttr(cat)}')">🗑</button>
-            </td>
-          `;
-        }
-        bodyHtml += renderDataCells(r);
-        bodyHtml += `</tr>`;
-      });
-
-      /* "+ 添加层级"行 */
-      bodyHtml += `
-        <tr class="sched-add-tier-row" data-cat="${escapeAttr(cat)}">
-          <td colspan="9" style="padding:4px 8px 10px;background:#fafbfd">
-            ${state.addTierFor === cat
-              ? renderTierPicker(cat)
-              : `<button class="sched-add-tier-btn"
-                         onclick="BudgetTable._openTierPicker('${escapeAttr(cat)}')">
-                   ＋ 添加层级
-                 </button>`
-            }
-          </td>
-        </tr>
-      `;
-    });
+    // 每个达人类型一行
+    const bodyHtml = rows.map(r => `
+      <tr data-id="${escapeAttr(r.id)}">
+        <td style="vertical-align:middle;padding:8px 10px;background:#fafbfd;text-align:center">
+          <div style="font-weight:600;font-size:.88rem;color:var(--text-primary);margin-bottom:6px">
+            ${escapeHtml(r.category)}
+          </div>
+          <button class="sched-budget-del" title="删除该达人类型"
+                  onclick="BudgetTable._deleteRow('${escapeAttr(r.id)}')">🗑</button>
+        </td>
+        ${renderDataCells(r)}
+      </tr>
+    `).join('');
 
     /* "+ 添加达人类型" 行 */
     const addCatRow = `
       <tr class="sched-add-dir-row">
-        <td colspan="10" style="position:relative">
+        <td colspan="9" style="position:relative">
           <button class="sched-add-dir-trigger" onclick="BudgetTable._toggleAddDir(event)">
             ＋ 添加达人类型
           </button>
@@ -130,7 +92,7 @@
     /* 合计行 */
     const totalRow = `
       <tr class="sched-budget-total-row">
-        <td colspan="2">合计</td>
+        <td>合计</td>
         <td></td><td></td>
         <td>¥${(data.total.budget/10000).toFixed(1)} 万</td>
         <td>${data.total.target || '—'}</td>
@@ -145,7 +107,6 @@
       <table class="sched-budget-table">
         <colgroup>
           <col style="width:100px"><!-- 达人类型 -->
-          <col style="width:80px"> <!-- 达人层级 -->
           <col style="width:90px"> <!-- 产品线 -->
           <col style="width:80px"> <!-- 平台 -->
           <col style="width:80px"> <!-- 预算 -->
@@ -158,7 +119,6 @@
         <thead>
           <tr>
             <th>达人类型</th>
-            <th>达人层级</th>
             <th>产品线</th>
             <th>平台</th>
             <th>预算（万）</th>
@@ -170,7 +130,7 @@
           </tr>
         </thead>
         <tbody>
-          ${bodyHtml || `<tr><td colspan="10" class="sched-empty" style="padding:32px">
+          ${bodyHtml || `<tr><td colspan="9" class="sched-empty" style="padding:32px">
             本月暂无规划数据，点击下方「添加达人类型」开始</td></tr>`}
           ${addCatRow}
           ${totalRow}
@@ -185,7 +145,6 @@
     const gapClass = r.gap >= 0 ? 'sched-budget-gap-pos' : 'sched-budget-gap-neg';
     const budgetWan = r.budgetAmount ? (r.budgetAmount / 10000) : 0;
     return `
-      <td>${tierCell(id, r.tier)}</td>
       <td>${productCell(id, r.productLine)}</td>
       <td>${platformCell(id, r.platform)}</td>
       <td>${cell(id, 'budget',       budgetWan ? budgetWan.toFixed(1) : '', budgetWan ? budgetWan.toFixed(1) : '—')}</td>
@@ -211,24 +170,6 @@
     /* 如需单行删除：在上面添加 <td><button onclick="_deleteRow(id)">🗑</button></td> */
   }
 
-  /* ---- 达人层级单元格（select 下拉） ---- */
-  function tierCell(id, currentTier) {
-    const isEditing = state.editing && state.editing.id === id && state.editing.field === 'tier';
-    const tiers = SD.listTiers ? SD.listTiers() : [];
-    if (isEditing) {
-      const opts = ['<option value="">(无)</option>']
-        .concat(tiers.map(t =>
-          `<option value="${escapeAttr(t.name)}" ${t.name === currentTier ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
-        ));
-      return `<select class="sched-budget-cell-input"
-                data-id="${escapeAttr(id)}" data-field="tier"
-                onchange="BudgetTable._saveCell(this)"
-                onblur="BudgetTable._saveCell(this)"
-                autofocus>${opts.join('')}</select>`;
-    }
-    const cls = currentTier ? 'sched-budget-cell editable' : 'sched-budget-cell editable muted';
-    return `<button class="${cls}" onclick="BudgetTable._editCell('${escapeAttr(id)}','tier')">${escapeHtml(currentTier || '—')}</button>`;
-  }
 
   /* ---- 产品线（多选浮层） ---- */
   function productCell(id, current) {
@@ -322,57 +263,6 @@
     return `<button class="${cls}" onclick="BudgetTable._editCell('${escapeAttr(id)}','${field}')">${escapeHtml(String(displayValue))}</button>`;
   }
 
-  /* ========================= 4. 层级选择浮层（添加层级） ========================= */
-  function renderTierPicker(cat) {
-    const existingTiers = new Set(
-      SD.getMonthlyBudgetRows(state.year, state.month).rows
-        .filter(r => r.category === cat)
-        .map(r => r.tier || '')
-    );
-    const allTiers = SD.listTiers ? SD.listTiers() : [];
-    const available = allTiers.filter(t => !existingTiers.has(t.name));
-
-    if (!available.length) {
-      return `
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:.78rem;color:var(--text-muted)">所有层级均已添加</span>
-          <button class="btn btn-secondary btn-sm" onclick="BudgetTable._closeTierPicker()">关闭</button>
-        </div>
-      `;
-    }
-    const opts = available.map(t =>
-      `<option value="${escapeAttr(t.name)}">${escapeHtml(t.name)}</option>`
-    ).join('');
-    return `
-      <div style="display:flex;align-items:center;gap:6px">
-        <select id="__new-tier-sel__"
-                style="font-size:.82rem;padding:3px 8px;border:1px solid var(--border);border-radius:4px;height:28px">
-          <option value="">选择层级…</option>
-          ${opts}
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="BudgetTable._confirmAddTier('${escapeAttr(cat)}')">确认</button>
-        <button class="btn btn-secondary btn-sm" onclick="BudgetTable._closeTierPicker()">取消</button>
-      </div>
-    `;
-  }
-
-  function _openTierPicker(cat) { state.addTierFor = cat; paint(); }
-  function _closeTierPicker()   { state.addTierFor = null; paint(); }
-  function _confirmAddTier(cat) {
-    const sel = document.getElementById('__new-tier-sel__');
-    if (!sel) return;
-    const tier = sel.value;
-    if (!tier) { window.toast && window.toast('请选择层级', 'error'); return; }
-    try {
-      SD.upsertBudget({ year: state.year, month: state.month, category: cat, tier });
-      window.toast && window.toast(`已添加「${cat} · ${tier}」`, 'success');
-      state.addTierFor = null;
-      paint();
-    } catch (e) {
-      window.toast && window.toast(e.message, 'error');
-    }
-  }
-
   /* ========================= 5. 内联编辑（id 版） ========================= */
   function _editCell(id, field) {
     state.editing = { id, field };
@@ -406,8 +296,6 @@
           if (!Number.isInteger(n) || n < 0) throw new Error('目标数必须为非负整数');
           patch.target_count = n;
         }
-      } else if (field === 'tier') {
-        patch.tier = String(raw || '').trim();
       } else if (field === 'product') {
         patch.product_line = String(raw || '').trim();
       } else if (field === 'platform') {
@@ -426,24 +314,11 @@
   }
 
   /* ========================= 6. 删除 ========================= */
-  /* 删除单行（一个层级） */
+  /* 删除该达人类型的预算行 */
   function _deleteRow(id) {
-    if (!confirm('确认删除该层级行？')) return;
+    if (!confirm('确认删除该达人类型的预算配置？')) return;
     try { SD.deleteBudget(id); paint(); }
     catch (e) { window.toast && window.toast(e.message, 'error'); }
-  }
-
-  /* 删除某达人类型下本月所有层级行 */
-  function _deleteCategory(cat) {
-    const data = SD.getMonthlyBudgetRows(state.year, state.month);
-    const catRows = data.rows.filter(r => r.category === cat);
-    if (!catRows.length) return;
-    const msg = catRows.length === 1
-      ? `删除「${cat}」的预算配置？`
-      : `删除「${cat}」的全部 ${catRows.length} 个层级行？`;
-    if (!confirm(msg)) return;
-    catRows.forEach(r => { try { SD.deleteBudget(r.id); } catch(e){} });
-    paint();
   }
 
   /* ========================= 7. 复制上月预算 ========================= */
@@ -553,7 +428,7 @@
   /* 选择已有类型 → 在本月创建预算行 */
   function _pickDir(name) {
     try {
-      SD.upsertBudget({ year: state.year, month: state.month, category: name, tier: '' });
+      SD.upsertBudget({ year: state.year, month: state.month, category: name });
       window.toast && window.toast(`已添加「${name}」`, 'success');
     } catch (e) {
       window.toast && window.toast(e.message, 'error');
@@ -566,7 +441,7 @@
   function _createAndPickDir(name) {
     try {
       SD.createOrReactivateDirection && SD.createOrReactivateDirection({ name });
-      SD.upsertBudget({ year: state.year, month: state.month, category: name, tier: '' });
+      SD.upsertBudget({ year: state.year, month: state.month, category: name });
       window.toast && window.toast(`已新建并添加「${name}」`, 'success');
     } catch (e) {
       window.toast && window.toast(e.message, 'error');
@@ -591,8 +466,7 @@
     _editCell, _saveCell, _cellKey,
     _copyLastMonth,
     _toggleAddDir, _filterAddDir, _pickDir, _createAndPickDir,
-    _deleteRow, _deleteCategory,
-    _openTierPicker, _closeTierPicker, _confirmAddTier,
+    _deleteRow,
     _toggleProduct, _closeProductPop,
   };
   console.log('[BudgetTable] 已就绪（v2 grouped）');
