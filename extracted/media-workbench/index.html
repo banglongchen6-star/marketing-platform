@@ -5074,11 +5074,15 @@ function _renderPendingArea() {
 
     const st = (DB.settlements||[]).find(s => s.content_id === c.id && !s.settled);
     if (!st) {
+      const cAmt = Number(c.price) || 0;
+      const amtHtml = (c.price != null && c.price !== '')
+        ? `<span style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtNum(cAmt)}</span><span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">内容报价</span>`
+        : `<span style="color:var(--text-muted);font-size:.82rem">— 未设金额 —</span>`;
       return `<tr class="comm-main-row" style="border-left:3px solid #e5e7eb">
         <td><strong>${escapeHtml(talent)}</strong></td>
         <td>${escapeHtml(date)}</td>
         <td>${pubTag}</td>
-        <td colspan="5" style="font-size:.82rem;color:var(--text-muted)">— 未填写结算 —</td>
+        <td colspan="5" style="font-size:.82rem">${amtHtml}</td>
         <td class="comm-actions">
           <button class="btn btn-primary btn-sm" onclick="openSettlementForContent('${c.id}')">填写结算</button>
         </td>
