@@ -149,7 +149,13 @@
 
   function paintList() {
     const host = document.getElementById('__kols-list-host__');
-    if (host) host.outerHTML = renderList();
+    if (!host) return;
+    const top = host.scrollTop; // 保留滚动位置，避免操作后跳回顶部
+    host.outerHTML = renderList();
+    if (top) requestAnimationFrame(() => {
+      const nh = document.getElementById('__kols-list-host__');
+      if (nh) nh.scrollTop = top;
+    });
   }
 
   function renderList() {

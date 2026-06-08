@@ -30,6 +30,7 @@
   function paint() {
     const host = document.getElementById('sched-budget-host');
     if (!host) return;
+    const winY = window.scrollY; // 保留滚动位置，避免填预算后跳回顶部
     const data = SD.getMonthlyBudgetRows(state.year, state.month);
     host.innerHTML = `
       <div class="sched-budget-card">
@@ -38,6 +39,7 @@
       </div>
     `;
     bindHandlers();
+    if (winY) requestAnimationFrame(() => window.scrollTo(0, winY));
   }
 
   function renderHeader(data) {

@@ -2304,9 +2304,27 @@ function renderDashboard_LEGACY_DISABLED() {
 
 /* ========== 数据看板新版（只保留品宣 ROI 矩阵）========== */
 function renderDashboard() {
+  // 保留滚动位置（含横向，ROI 表是横向31天），避免填投流/置换后跳回左上
+  const _winY = window.scrollY;
+  let _scTop = 0, _scLeft = 0;
+  const _pe = document.getElementById('page-dashboard');
+  if (_pe) _pe.querySelectorAll('div').forEach(el => {
+    if (el.scrollTop  > _scTop)  _scTop  = el.scrollTop;
+    if (el.scrollLeft > _scLeft) _scLeft = el.scrollLeft;
+  });
   initDashboardMonth();
   renderBrandRoiTable(dashboardYear, dashboardMonth, dashboardBdId);
   requestAnimationFrame(fitRoiCardHeight);
+  setTimeout(() => {
+    if (_winY) window.scrollTo(0, _winY);
+    if (_pe && (_scTop || _scLeft)) for (const el of _pe.querySelectorAll('div')) {
+      if (el.scrollWidth > el.clientWidth + 5 || el.scrollHeight > el.clientHeight + 5) {
+        if (_scLeft) el.scrollLeft = _scLeft;
+        if (_scTop)  el.scrollTop  = _scTop;
+        break;
+      }
+    }
+  }, 70);
 }
 
 /* ========== 数据看板（page-data-dashboard）========== */
@@ -4810,10 +4828,22 @@ function rollbackFromSettled(settlementId) {
 }
 
 function renderSettlement() {
+  // 保留滚动位置，避免转结算/退回等操作后跳回顶部
+  const _winY = window.scrollY;
+  let _scTop = 0;
+  const _pe = document.getElementById('page-settlement');
+  if (_pe) _pe.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
   _stInitMonth();
   if (_stTab === 'pending') _renderPendingArea();
   else                      _renderSettledArea();
   _fitSettlementTable();
+  setTimeout(() => {
+    if (_winY) window.scrollTo(0, _winY);
+    if (_scTop) {
+      const pe = document.getElementById('page-settlement');
+      if (pe) for (const el of pe.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _scTop; break; } }
+    }
+  }, 70);
 }
 // 自适应：把表格容器高度撑到屏幕底部，消除页面级滚动条
 function _fitSettlementTable() {
@@ -5912,11 +5942,11 @@ function initApp() {
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=63"></script>
 <script src="js/schedule/editor.js?v=84"></script>
-<script src="js/schedule/budget.js?v=55"></script>
+<script src="js/schedule/budget.js?v=56"></script>
 <script src="js/schedule/monthly-plan.js?v=54"></script>
 <script src="js/schedule/dict.js?v=58"></script>
 <script src="js/schedule/recycle-bin.js?v=53"></script>
-<script src="js/schedule/kols-page.js?v=65"></script>
+<script src="js/schedule/kols-page.js?v=66"></script>
 <script src="js/schedule/kols-excel.js?v=53"></script>
 <script src="js/schedule/communication.js?v=96"></script>
 <script src="js/schedule/materials.js?v=6"></script>
