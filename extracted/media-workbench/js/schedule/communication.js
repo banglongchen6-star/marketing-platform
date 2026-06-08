@@ -784,19 +784,27 @@
       blockMap.set(c.id, { key: c.id, r, c, kolKey, fans: kolFans[kolKey] ?? null, items });
     });
 
-    // 排序：① 待发布（未填发布日期）置顶，按新增时间倒序（刚加的在最上，方便接着填）
-    //       ② 已发布（有日期）按发布日期倒序（最新在前），日期相同按达人名
+    // 排序：① 待发布（未填实际发布日期）置顶，按【计划发布日期】升序——
+    //          逾期未发→今天该发→未来要发，越该处理的越靠上；无计划日期的垫底
+    //       ② 已发布（有实际发布日期）按发布日期倒序（最新在前），日期相同按达人名
     const blocks = [...blockMap.values()].sort((a, b) => {
-      const da = (a.items[0]?.p.date || '');
+      const da = (a.items[0]?.p.date || '');   // 实际发布日期
       const db = (b.items[0]?.p.date || '');
       const aEmpty = !da, bEmpty = !db;
       if (aEmpty !== bEmpty) return aEmpty ? -1 : 1;   // 待发布永远在前
-      if (aEmpty && bEmpty) {                            // 都未填：新增时间倒序
-        const ca = a.c.created_at || a.c.id || '';
-        const cb = b.c.created_at || b.c.id || '';
-        return String(cb).localeCompare(String(ca));
+      if (aEmpty && bEmpty) {                            // 待发布区：按计划发布日期
+        const pa = a.r.schedule_date || '';
+        const pb = b.r.schedule_date || '';
+        const ea = !pa, eb = !pb;
+        if (ea !== eb) return ea ? 1 : -1;              // 无计划日期的垫底
+        if (ea && eb) {                                  // 都无计划：新增时间倒序
+          const ca = a.c.created_at || a.c.id || '';
+          const cb = b.c.created_at || b.c.id || '';
+          return String(cb).localeCompare(String(ca));
+        }
+        return pa.localeCompare(pb);                     // 计划日期升序（该发的浮顶）
       }
-      const d = db.localeCompare(da);                    // 都已填：发布日期倒序
+      const d = db.localeCompare(da);                    // 已发布：发布日期倒序
       return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || '');
     });
 
