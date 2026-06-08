@@ -4798,7 +4798,18 @@ function renderSettlement() {
   _stInitMonth();
   if (_stTab === 'pending') _renderPendingArea();
   else                      _renderSettledArea();
+  _fitSettlementTable();
 }
+// 自适应：把表格容器高度撑到屏幕底部，消除页面级滚动条
+function _fitSettlementTable() {
+  requestAnimationFrame(() => {
+    const wrap = document.querySelector('#settlement-list > div');
+    if (!wrap) return;
+    const top = wrap.getBoundingClientRect().top;
+    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 16) + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (document.getElementById('page-settlement')?.classList.contains('active')) _fitSettlementTable(); });
 
 /* ---------- 待结算区 ---------- */
 function _renderPendingArea() {
