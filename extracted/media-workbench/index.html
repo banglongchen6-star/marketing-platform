@@ -4806,7 +4806,7 @@ function _fitSettlementTable() {
     const wrap = document.querySelector('#settlement-list > div');
     if (!wrap) return;
     const top = wrap.getBoundingClientRect().top;
-    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 16) + 'px';
+    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 40) + 'px';
   });
 }
 window.addEventListener('resize', () => { if (document.getElementById('page-settlement')?.classList.contains('active')) _fitSettlementTable(); });
