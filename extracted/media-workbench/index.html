@@ -402,27 +402,26 @@
 
     <!-- Samples -->
     <div class="page" id="page-samples">
-      <div class="filter-bar">
-        <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(-1)">‹</button>
-        <span id="sample-month-label" style="font-size:.9rem;font-weight:600;color:var(--text-primary);min-width:80px;text-align:center"></span>
-        <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(1)">›</button>
-        <input class="search-input" id="sample-search" placeholder="🔍 搜索达人/产品名称..." oninput="renderSamples()" />
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('sample-search').value='';renderSamples()">清除</button>
-        <select id="sample-status-filter-select" onchange="sampleStatusFilter=this.value;renderSamples()"
-          style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
-          <option value="">全部状态</option>
-          <option value="pending">待寄样</option>
-          <option value="awaiting">作业中</option>
-          <option value="keeping">长期留存</option>
-          <option value="transferred">已流转</option>
-          <option value="returned">已归还</option>
-          <option value="gifted">已赠送</option>
-        </select>
-        <div style="flex:1"></div>
-        <button class="btn btn-primary" onclick="openSampleModal()">＋ 新增样品</button>
-      </div>
       <div class="card" style="margin-bottom:16px">
-        <div class="card-title">📦 样品总览</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(-1)">‹</button>
+          <span id="sample-month-label" style="font-size:.9rem;font-weight:600;color:var(--text-primary);min-width:80px;text-align:center"></span>
+          <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(1)">›</button>
+          <input class="search-input" id="sample-search" placeholder="🔍 搜索达人/产品名称..." oninput="renderSamples()" />
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('sample-search').value='';renderSamples()">清除</button>
+          <select id="sample-status-filter-select" onchange="sampleStatusFilter=this.value;renderSamples()"
+            style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
+            <option value="">全部状态</option>
+            <option value="pending">待寄样</option>
+            <option value="awaiting">作业中</option>
+            <option value="keeping">长期留存</option>
+            <option value="transferred">已流转</option>
+            <option value="returned">已归还</option>
+            <option value="gifted">已赠送</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn btn-primary" onclick="openSampleModal()">＋ 新增样品</button>
+        </div>
         <div id="sample-totals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px"></div>
       </div>
       <div id="sample-list"></div>
