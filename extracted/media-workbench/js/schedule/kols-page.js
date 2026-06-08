@@ -262,7 +262,7 @@
             onclick="event.stopPropagation()">🔗 打开</a>`
       : '<span style="color:var(--text-muted);font-size:.78rem">—</span>';
     const lastDate = stats.lastDate || '<span style="color:var(--text-muted)">—</span>';
-    const bd = k.bd_id ? SD.listBds({ includeInactive: true }).find(b => b.id === k.bd_id) : null;
+    const bd = k.bd_id ? SD.findBdPersonById(k.bd_id) : null;
     const bdCell = bd
       ? `<span class="sched-card-chip" style="background:${bd.color}20;color:${bd.color};font-weight:500" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>`
       : '<span style="color:var(--text-muted)">—</span>';
