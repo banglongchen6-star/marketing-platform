@@ -37,7 +37,7 @@
   ];
   // 默认全部显示
   const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.map(c => c.key));
-  const COL_PREF_KEY = 'comm_visible_cols_v1';
+  const COL_PREF_KEY = 'comm_visible_cols_v2';
   function loadVisible() {
     try {
       const raw = localStorage.getItem(COL_PREF_KEY);
