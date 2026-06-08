@@ -681,7 +681,7 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   box-shadow: 1px 0 0 var(--border), 4px 0 6px -3px rgba(0,0,0,.12);
 }
 .comm-table thead .comm-fz1,
-.comm-table thead .comm-fz2 { z-index: 4; }
+.comm-table thead .comm-fz2 { z-index: 4; top: 0; }
 
 .comm-table tbody tr:hover { background: var(--bg-hover); }
 .comm-table .comm-sub-row td { background: #fafbfd; color: var(--text-secondary); }
