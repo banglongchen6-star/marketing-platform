@@ -158,7 +158,7 @@
     const total = allPubs.length;
 
     return `
-      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto">
+      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 200px)">
         <table class="comm-table">
           <thead>
             <tr>
