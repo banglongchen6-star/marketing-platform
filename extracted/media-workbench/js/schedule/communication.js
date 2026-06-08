@@ -523,6 +523,42 @@
     return `<td>${renderPubCell(p, colKey, ctx)}</td>`;
   }
 
+  /* 单平台模式：按「日期 vs 今天」分区渲染（发布区/待发布区/未排期 + 分隔条） */
+  function _partitionRows(list, activeCols, isDouyin) {
+    const _t = new Date();
+    const todayStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`;
+    const colCount = activeCols.length + 5;
+    const sectionLabel = {
+      0: `📋 发布区　<span style="font-weight:400;color:#64748b">已到发布日（今天 ${todayStr} 在最上）</span>`,
+      1: `🕓 待发布区　<span style="font-weight:400;color:#64748b">未到发布日（最近的在最上）</span>`,
+      2: `📎 未排期　<span style="font-weight:400;color:#64748b">未填发布日期</span>`,
+    };
+    const sectionBg = { 0:'#eef6ff', 1:'#fff7ed', 2:'#f3f4f6' };
+    const sectionFg = { 0:'#1e40af', 1:'#9a3412', 2:'#475569' };
+    const effOf = c => ((c.publications||[])[0]?.date) || (SD.resolveContent(c)?.schedule_date) || '';
+    const grpOf = c => { const d = effOf(c); if (!d) return 2; return d <= todayStr ? 0 : 1; };
+    const sorted = [...list].sort((a, b) => {
+      const ga = grpOf(a), gb = grpOf(b);
+      if (ga !== gb) return ga - gb;
+      const da = effOf(a), db = effOf(b);
+      if (ga === 0) return db.localeCompare(da);          // 发布区：日期倒序
+      if (ga === 1) return da.localeCompare(db);          // 待发布区：日期升序
+      const ca = a.created_at || a.id || '', cb = b.created_at || b.id || '';
+      return String(cb).localeCompare(String(ca));        // 未排期：新增倒序
+    });
+    let lastGrp = null;
+    return sorted.map(c => {
+      const g = grpOf(c);
+      let divider = '';
+      if (g !== lastGrp) {
+        lastGrp = g;
+        divider = `<tr class="comm-section-row"><td colspan="${colCount}" style="background:${sectionBg[g]};color:${sectionFg[g]};font-weight:700;font-size:.82rem;padding:7px 12px;position:sticky;left:0;border-top:2px solid ${sectionFg[g]}22">${sectionLabel[g]}</td></tr>`;
+      }
+      const row = c._placeholder ? renderPlaceholderRow(c, activeCols) : renderContentRows(c, isDouyin, activeCols, false);
+      return divider + row;
+    }).join('');
+  }
+
   function renderList() {
     if (state.mainPlatform === '全部') return renderAllPlatformsList();
     const list = SD.listContents({
@@ -578,10 +614,7 @@
             </tr>
           </thead>
           <tbody>
-            ${list.map(c => c._placeholder
-              ? renderPlaceholderRow(c, activeCols)
-              : renderContentRows(c, isDouyin, activeCols, false)
-            ).join('')}
+            ${_partitionRows(list, activeCols, isDouyin)}
           </tbody>
           <tfoot>
             ${renderListFooter(realList, activeCols.length + 1, false)}
