@@ -72,7 +72,13 @@
       "Bash(sed -i '' 's|max-height:calc\\(100vh - 180px\\)|max-height:calc\\(100vh - 220px\\)|g' index.html)",
       "Bash(curl -s -X POST http://8.218.189.74:3002/api/data -H \"Content-Type: application/json\" -d @db_sp2_new.json -w \"[状态:%{http_code}]\\\\n\")",
       "Bash(curl -s \"http://8.218.189.74:3002/js/schedule/editor.js\")",
-      "Bash(curl -s -X POST http://8.218.189.74:3002/api/data -H \"Content-Type: application/json\" -d @db_sp3_new.json -w \"[状态:%{http_code}]\\\\n\")"
+      "Bash(curl -s -X POST http://8.218.189.74:3002/api/data -H \"Content-Type: application/json\" -d @db_sp3_new.json -w \"[状态:%{http_code}]\\\\n\")",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 root@8.218.189.74 \"cd /root/marketing-platform && git pull -q && pm2 restart marketing-platform\")",
+      "Bash(echo \"===EXIT $?===\")",
+      "Bash(curl -s \"http://8.218.189.74:3002/api/data\" -o sv.json)",
+      "Bash(python3 -)",
+      "Bash(curl -s -X POST \"http://8.218.189.74:3002/api/data\" -H \"Content-Type: application/json\" --data-binary @/tmp/sv2.json -o /dev/null -w \"POST状态: %{http_code}\\\\n\")",
+      "Bash(node -c index.html)"
     ]
   }
 }
