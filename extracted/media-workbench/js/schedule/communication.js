@@ -707,7 +707,7 @@
 
   // 来源标签：不关联排期的手动补录内容，名字旁加「✏️手动」角标
   function _srcTag(scheduleId) {
-    return scheduleId ? '' : `<span style="margin-left:6px;font-size:.6rem;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;font-weight:500;white-space:nowrap;vertical-align:middle" title="手动补录，未关联内容排期">✏️手动</span>`;
+    return scheduleId ? '' : `<span style="font-size:.6rem;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;font-weight:500;white-space:nowrap" title="手动补录，未关联内容排期">✏️手动</span>`;
   }
 
   function renderContentRows(content, isDouyin, activeCols, readOnly = false, frozen = false) {
@@ -740,8 +740,12 @@
           <input type="checkbox" onchange="CommunicationPage._toggleSelect('${content.id}')"
             ${state.selectedIds.has(String(content.id)) ? 'checked' : ''}>
         </td>
-        <td rowspan="${total}" class="comm-fz2" style="font-weight:600;background:#fafbfd"><strong>${escapeHtml(r.talent)}</strong>${_srcTag(content.schedule_id)}
-          ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
+        <td rowspan="${total}" class="comm-fz2" style="font-weight:600;background:#fafbfd;vertical-align:middle">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <strong>${escapeHtml(r.talent)}</strong>
+            ${r.bd_color ? `<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:${r.bd_color}"></span><span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></span>` : ''}
+            ${_srcTag(content.schedule_id)}
+          </div>
         </td>
         ${activeCols.map(c => {
           if (MAIN_COLS.has(c.key)) {
@@ -945,8 +949,11 @@
                 ${state.selectedIds.has(String(c.id)) ? 'checked' : ''}>
             </td>
             <td rowspan="${total}" class="comm-fz2" style="font-weight:600;background:#fafbfd;vertical-align:middle">
-              <strong>${escapeHtml(r.talent)}</strong>${_srcTag(c.schedule_id)}
-              ${r.bd_color ? `<div style="margin-top:4px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${r.bd_color};vertical-align:middle"></span> <span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></div>` : ''}
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <strong>${escapeHtml(r.talent)}</strong>
+                ${r.bd_color ? `<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:${r.bd_color}"></span><span style="font-size:.7rem;color:var(--text-muted)">${escapeHtml(r.bd_name)}</span></span>` : ''}
+                ${_srcTag(c.schedule_id)}
+              </div>
             </td>
             ${cells}${opCell}
           </tr>`;
