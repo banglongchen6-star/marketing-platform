@@ -6,6 +6,7 @@ const cron      = require('node-cron');
 
 const app = express();
 const PORT       = process.env.PORT || 3002;
+const BUILD_ID   = Date.now(); // 进程启动时间，作为版本标识（pm2 restart 后变化 → 前端旧标签自动刷新）
 const DATA_FILE  = path.join(__dirname, 'db.json');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const EMAIL_CFG  = path.join(__dirname, 'email-config.json');
@@ -110,8 +111,10 @@ function scheduleDailyEmail() {
 /* ========== 数据 API ========== */
 app.get('/api/data', (req, res) => {
   try {
-    if (!fs.existsSync(DATA_FILE)) return res.json({});
-    res.json(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
+    if (!fs.existsSync(DATA_FILE)) return res.json({ _build: BUILD_ID });
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    data._build = BUILD_ID; // 附带版本标识（前端用于检测部署、自动刷新旧标签）
+    res.json(data);
   } catch(e) { res.status(500).json({ error: '读取失败' }); }
 });
 

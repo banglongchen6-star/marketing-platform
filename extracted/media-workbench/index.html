@@ -5942,7 +5942,8 @@ function initApp() {
       const serverData = await res.json();
       // 服务器是唯一数据源，直接用服务器数据，不做任何本地与服务器的合并比较
       if (serverData && Object.keys(serverData).length > 0) {
-        Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
+        if (serverData._build) window.__appBuild = serverData._build; // 记录首次加载时的版本
+        Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build') DB[k] = serverData[k]; });
         window.DB = DB;
         localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
       }
@@ -6057,6 +6058,16 @@ function initApp() {
           window.toast && window.toast('✅ 服务器已恢复连接', 'success', 3000);
         }
 
+        // 版本检测：服务器重新部署(pm2 restart)后 _build 变化，旧标签自动刷新加载新代码
+        if (serverData._build) {
+          if (window.__appBuild == null) {
+            window.__appBuild = serverData._build;
+          } else if (serverData._build !== window.__appBuild) {
+            window.toast && window.toast('🔄 检测到新版本，即将自动刷新…', 'info', 2500);
+            setTimeout(() => location.reload(true), 1500);
+            return;
+          }
+        }
         if (!serverData || !serverData._saved_at) return;
         const serverTs = serverData._saved_at || 0;
         const localTs  = DB._saved_at  || 0;
@@ -6067,7 +6078,7 @@ function initApp() {
           const _pe0 = document.getElementById('page-' + currentPage);
           if (_pe0) _pe0.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
 
-          Object.keys(serverData).forEach(k => { if (k !== '_version') DB[k] = serverData[k]; });
+          Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build') DB[k] = serverData[k]; });
           window.DB = DB;
           localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
           const p = currentPage;
