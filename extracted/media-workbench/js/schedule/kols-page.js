@@ -210,9 +210,8 @@
     }
     // 按最近合作日期降序
     items.sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || ''));
-    const bds = SD.listBds({ includeInactive: true });
     const rows = items.map(k => {
-      const bd = k.bd_id ? bds.find(b => b.id === k.bd_id) : null;
+      const bd = k.bd_id ? SD.findBdPersonById(k.bd_id) : null;
       const bdCell = bd
         ? `<span class="sched-card-chip" style="background:${bd.color}20;color:${bd.color};font-weight:500">${escapeHtml(bd.name)}</span>`
         : '<span style="color:var(--text-muted)">—</span>';
