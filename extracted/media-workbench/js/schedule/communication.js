@@ -1590,7 +1590,7 @@
           const kol = SD.quickCreateKol({
             name: f.kol_name.trim(),
             platform: f.main_platform || '',
-            homepage: (f.publications && f.publications[0]?.link) || '',
+            // 主页 = 达人个人主页，与作品发布链接不同，手动新增时无此信息，留空
             category: f.category_direction || '',
             followers: fans,
             bd_id: data.bd_id || null,
