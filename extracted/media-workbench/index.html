@@ -3784,7 +3784,8 @@ function renderSamples() {
     const wrap = document.querySelector('#sample-list .sample-sticky');
     if (!wrap) return;
     const top = wrap.getBoundingClientRect().top;
-    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 40) + 'px';
+    // 减去 .card(20) + .page(24) 内边距 + 余量
+    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 64) + 'px';
   });
 }
 
