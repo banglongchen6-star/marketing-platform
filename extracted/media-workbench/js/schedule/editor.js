@@ -392,8 +392,8 @@
         <div class="sched-form-hint">绑定到达人库后，下次选同一达人会自动带出主页链接</div>
       </div>
 
-      <div class="sched-form-row">
-        <div class="sched-form-group" style="flex:1;min-width:0">
+      <div class="sched-form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="sched-form-group" style="min-width:0">
           <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
             <span>达人类型<span class="req">*</span></span>
             <button type="button" title="管理达人类型" onclick="openKolTypeDict()" style="border:none;background:none;font-size:.85rem;color:var(--primary);cursor:pointer;padding:0">⚙</button>
