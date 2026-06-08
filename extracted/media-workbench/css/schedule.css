@@ -562,7 +562,7 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   padding: 0 12px;
   background: #fafbfd;
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
+  overflow: hidden;
 }
 .sched-tab {
   background: none;
