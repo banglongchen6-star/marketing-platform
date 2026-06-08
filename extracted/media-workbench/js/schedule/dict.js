@@ -98,28 +98,6 @@
       },
       footerHint: '💡 删除只停用字典；预算行清空该字段，排期里保留原值，不会丢数据。',
     },
-    tier: {
-      label: '层级',
-      nameEditable: true,
-      placeholder: '键入新层级名（如：sss级 / 头部 / 腰部 / 尾部 / KOC素人）',
-      list:    () => SD.listTiers({ includeInactive: true }),
-      create:  (name) => SD.createOrReactivateTier({ name }),
-      update:  (id, patch) => SD.updateTier(id, patch),
-      countUsage: (name) => SD.countTierUsage(name),
-      deactivate: (id) => SD.deactivateTier(id, { cascadeClearSchedules: false }),
-      hardDelete: (id) => {
-        const r = SD.deactivateTier(id, { cascadeClearSchedules: true });
-        return { cleared: `${r.clearedSchedules} 条排期的层级被清空` };
-      },
-      usageLabel: (u) => u.schedules ? `${u.schedules} 条排期` : '未使用',
-      deleteWarn: (name, u) => {
-        let msg = `⚠️ 完全删除层级「${name}」？\n字典将被停用；`;
-        if (u.schedules) msg += `\n\n${u.schedules} 条排期的"层级"字段将被清空（其他数据保留）。`;
-        else msg += `\n当前无关联数据。`;
-        return msg;
-      },
-      footerHint: '💡 删除只停用字典并清空引用该层级的排期字段，不影响其他数据。',
-    },
     work_type: {
       label: '作品类型',
       nameEditable: true,

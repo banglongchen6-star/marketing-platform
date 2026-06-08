@@ -138,8 +138,7 @@
     const amountText = amount >= 10000
       ? `¥${(amount/10000).toFixed(1)}万`
       : `¥${amount.toLocaleString()}`;
-    const tierChip = s.tier
-      ? `<span class="sched-card-chip tier">${escapeHtml(s.tier)}</span>` : '';
+    const tierChip = ''; // 层级已移除
     const dirChip = s.category_direction
       ? `<span class="sched-card-chip direction" title="达人类型">${escapeHtml(s.category_direction)}</span>` : '';
     const plats = Array.isArray(s.platforms) && s.platforms.length ? s.platforms : (s.platform ? [s.platform] : []);
@@ -159,7 +158,6 @@
       bd ? `BD：${bd.name}` : '',
       plats.length ? `平台：${plats.join('、')}` : '',
       s.category_direction ? `类型：${s.category_direction}` : '',
-      s.tier ? `层级：${s.tier}` : '',
     ].filter(Boolean).join(' · ');
     const homepageLink = s.kol_homepage
       ? `<a class="sched-card-link" href="${escapeHtml(s.kol_homepage)}" target="_blank" rel="noopener noreferrer"

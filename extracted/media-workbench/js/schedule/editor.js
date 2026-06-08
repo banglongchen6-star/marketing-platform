@@ -392,7 +392,7 @@
         <div class="sched-form-hint">绑定到达人库后，下次选同一达人会自动带出主页链接</div>
       </div>
 
-      <div class="sched-form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div class="sched-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="sched-form-group" style="min-width:0">
           <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
             <span>达人类型<span class="req">*</span></span>
@@ -409,12 +409,6 @@
           </label>
           <select id="f-worktype" class="sched-form-control ${err.work_type?'error':''}">
             ${workTypeOptions.join('')}
-          </select>
-        </div>
-        <div class="sched-form-group" style="flex:1;min-width:0">
-          <label class="sched-form-label">层级<span class="req">*</span></label>
-          <select id="f-tier" class="sched-form-control ${err.tier?'error':''}">
-            ${tierOptions.join('')}
           </select>
         </div>
       </div>
@@ -637,7 +631,6 @@
     // platforms 由 _setMainPlatform / _toggleSyncPlatform 处理，无需 onChange
     onInput('f-kol-homepage', v => f.kol_homepage = v);
     if (document.getElementById('f-bd')) onChange('f-bd', v => { f.bd_id = v || null; renderAll(); });
-    onChange('f-tier', v => f.tier = v);
     onChange('f-direction', v => f.category_direction = v);
     onChange('f-worktype', v => f.work_type = v);
     // 日期变化时重渲染以更新状态徽章
@@ -853,7 +846,6 @@
     else if (!/^https?:\/\//i.test(f.kol_homepage.trim())) errs.kol_homepage = '主页链接需以 http:// 或 https:// 开头';
     if (!f.category_direction) errs.category_direction = '请选择达人类型';
     if (!f.work_type) errs.work_type = '请选择作品类型';
-    if (!f.tier) errs.tier = '请选择层级';
     if (!f.platform) errs.platforms = '请选择主平台';
     if (!f.bd_id) errs.bd_id = '请选择商务 BD';
     if (f.amount === '' || f.amount === null || isNaN(Number(f.amount))) errs.amount = '费用必须为数字';
