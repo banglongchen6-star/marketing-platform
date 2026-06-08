@@ -5099,9 +5099,12 @@ function _renderPendingArea() {
     const totalSettlement = base + bonus;
     const totalPaidIn = pays.reduce((s, p) => s + (parseFloat(p.amount)||0), 0);
     const amountMatch = totalSettlement > 0 && Math.abs(totalPaidIn - totalSettlement) < 0.01;
-    const canTransfer = allPaid && amountMatch;
+    // 内容发布手动：同样要求有主链接（=已发布）才可结转
+    const hasLink = (c.publications||[]).some(p => p.link && p.link.trim());
+    const canTransfer = hasLink && allPaid && amountMatch;
 
     const transferReasons = [];
+    if (!hasLink)     transferReasons.push('🔗 链接未填（未发布）');
     if (!allPaid)     transferReasons.push('💰 有款项未付');
     if (!amountMatch) transferReasons.push('💰 金额未对齐');
     const transferCell = canTransfer
