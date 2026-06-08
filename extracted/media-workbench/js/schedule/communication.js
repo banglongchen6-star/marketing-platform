@@ -1584,13 +1584,18 @@
         price: f.price !== '' ? (Number(f.price) || 0) : null,
         publications: f.publications,
       };
-      // 不关联排期时，自动将达人写入达人库（upsert：同名已存在则跳过）
+      // 不关联排期时，把达人综合信息写入达人库（达人类型/粉丝/BD/平台），并回写 kol_id 以便统计合作次数/金额
       if (f.schedule_id === 'none' && f.kol_name.trim()) {
         try {
-          SD.quickCreateKol({
+          const kol = SD.quickCreateKol({
             name: f.kol_name.trim(),
             platform: f.main_platform || '',
+            homepage: (f.publications && f.publications[0]?.link) || '',
+            category: f.category_direction || '',
+            followers: fans,
+            bd_id: data.bd_id || null,
           });
+          if (kol && kol.id) data.kol_id = kol.id;
         } catch (e) {
           console.warn('[CommunicationPage] quickCreateKol failed', e);
         }

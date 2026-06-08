@@ -1588,11 +1588,17 @@
     const list = DB.schedules.filter(s =>
       !s.deleted_at && s.kol_id === kolId && s.status !== 'cancelled'
     );
+    // 不挂排期、但手动录入内容发布的，也算一次合作（金额取内容报价）
+    const uContents = (DB.contents || []).filter(c => !c.schedule_id && c.kol_id === kolId);
     const total = list.reduce((acc, s) => ({
       amount: acc.amount + (Number(s.amount) || 0),
       count: acc.count + 1,
     }), { amount: 0, count: 0 });
-    const dates = list.map(s => s.schedule_date).filter(Boolean).sort();
+    uContents.forEach(c => { total.amount += Number(c.price) || 0; total.count += 1; });
+    const dates = [
+      ...list.map(s => s.schedule_date),
+      ...uContents.map(c => (c.publications || [])[0]?.date),
+    ].filter(Boolean).sort();
     return {
       count: total.count,
       totalAmount: total.amount,
@@ -1708,7 +1714,7 @@
     return result;
   }
 
-  function quickCreateKol({ name, platform, homepage }) {
+  function quickCreateKol({ name, platform, homepage, category, followers, bd_id, notes }) {
     name = String(name || '').trim();
     if (!name) throw new Error('达人名不能为空');
     // upsert: 同名同平台返回已有
@@ -1716,11 +1722,14 @@
       (k) => k.name === name && (k.platform || '') === (platform || '')
     );
     if (existing) {
-      if (homepage && !existing.homepage) {
-        existing.homepage = homepage;
-        existing.updated_at = nowISO();
-        saveData();
-      }
+      // 用新信息补全已有记录里为空的字段（不覆盖已填的）
+      let changed = false;
+      if (homepage && !existing.homepage)            { existing.homepage = homepage; changed = true; }
+      if (category && !existing.category)            { existing.category = category; changed = true; }
+      if (followers != null && existing.followers == null) { existing.followers = followers; changed = true; }
+      if (bd_id && !existing.bd_id)                  { existing.bd_id = bd_id; changed = true; }
+      if (notes && !existing.notes)                  { existing.notes = notes; changed = true; }
+      if (changed) { existing.updated_at = nowISO(); saveData(); }
       return existing;
     }
     const row = {
@@ -1728,8 +1737,10 @@
       name,
       platform: platform || '',
       homepage: homepage || '',
-      followers: null,
-      category: '',
+      followers: followers != null ? followers : null,
+      category: category || '',
+      bd_id: bd_id || null,
+      notes: notes || '',
       status: 'pending',
       created_at: nowISO(),
     };

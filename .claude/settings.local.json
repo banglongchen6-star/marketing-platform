@@ -91,7 +91,9 @@
       "Bash(awk -F: '$1>=4980 && $1<=5210')",
       "Bash(sed -n '5085,5096p' index.html)",
       "Bash(sed -n '5147,5158p' index.html)",
-      "Bash(awk -F: '$1>=4980')"
+      "Bash(awk -F: '$1>=4980')",
+      "Bash(sed -i '' 's#data.js?v=93#data.js?v=94#' index.html)",
+      "Bash(sed -i '' 's#communication.js?v=103#communication.js?v=104#' index.html)"
     ]
   }
 }
