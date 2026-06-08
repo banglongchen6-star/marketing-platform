@@ -4818,6 +4818,7 @@ function _renderPendingArea() {
   const _schedHasSettle = (sid) => (DB.settlements||[]).some(s => s.schedule_id === sid);
   let scheds = (DB.schedules||[])
     .filter(s => !s.deleted_at && !settledIds.has(s.id))
+    .filter(s => (Number(s.amount) || 0) > 0)  // 0元（置换/免费）不进待结算
     .filter(s => _schedHasMainLink(s.id) || _schedHasSettle(s.id))
     .filter(s => !search || (s.kol_name||s.talent||'').toLowerCase().includes(search))
     .filter(s => !dateStart || (s.schedule_date && s.schedule_date >= dateStart))
@@ -4828,6 +4829,7 @@ function _renderPendingArea() {
   const settledContentIds = new Set((DB.settlements||[]).filter(s => s.settled && s.content_id).map(s => s.content_id));
   let unscheduledContents = (DB.contents||[])
     .filter(c => !c.schedule_id && !settledContentIds.has(c.id))
+    .filter(c => (Number(c.price) || 0) > 0)  // 0元（置换/免费）不进待结算
     .filter(c => {
       const mp = (c.publications||[])[0];
       const hasLink = mp && mp.link && mp.link.trim();
