@@ -971,6 +971,11 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
   color: var(--text-secondary);
   padding: 9px 12px;
 }
+.sched-budget-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 .sched-budget-table td { padding: 0; }
 
 /* 列宽（按 MD §4.9 比例） */
