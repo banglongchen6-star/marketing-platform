@@ -84,7 +84,9 @@
       "Bash(curl -s \"http://8.218.189.74:3002/api/data\" -o sv2.json)",
       "Bash(awk -F: '$1>=4843 && $1<=5420')",
       "Bash(awk -F: '$1>=4330 && $1<=4620')",
-      "Bash(curl -s -X POST \"http://8.218.189.74:3002/api/data\" -H \"Content-Type: application/json\" --data-binary @/tmp/sv_fix.json -o /dev/null -w \"POST状态: %{http_code}\\\\n\")"
+      "Bash(curl -s -X POST \"http://8.218.189.74:3002/api/data\" -H \"Content-Type: application/json\" --data-binary @/tmp/sv_fix.json -o /dev/null -w \"POST状态: %{http_code}\\\\n\")",
+      "Bash(sed -i '' 's#data.js?v=92#data.js?v=93#' index.html)",
+      "Bash(sed -i '' 's#communication.js?v=100#communication.js?v=101#' index.html)"
     ]
   }
 }

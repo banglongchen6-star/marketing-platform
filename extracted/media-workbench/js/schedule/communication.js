@@ -1565,7 +1565,10 @@
         category_direction: f.schedule_id === 'none' ? f.category_direction : undefined,
         work_type: f.schedule_id === 'none' ? f.work_type : undefined,
         fans,
-        bd_id: f.bd_id || null,
+        // 不关联排期：BD 按当前登录账号自动带入（无需手填）；关联排期：BD 跟随排期
+        bd_id: f.schedule_id === 'none'
+          ? (window.currentUser?.bd_id || window.currentUser?.id || f.bd_id || null)
+          : (f.bd_id || null),
         price: f.price !== '' ? (Number(f.price) || 0) : null,
         publications: f.publications,
       };

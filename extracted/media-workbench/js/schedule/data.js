@@ -1269,7 +1269,9 @@
   function resolveContent(c) {
     if (!c) return null;
     const s = c.schedule_id ? DB.schedules.find(x => x.id === c.schedule_id) : null;
-    const bd = s && s.bd_id ? findBdPersonById(s.bd_id) : null;
+    // 挂排期：BD 取排期的；不挂排期：取内容自己的 bd_id（录入账号自动带入）
+    const effBdId = s ? s.bd_id : (c.bd_id || null);
+    const bd = effBdId ? findBdPersonById(effBdId) : null;
     return {
       ...c,
       // 不关联排期时直接用内容记录上的 kol_name
@@ -1278,7 +1280,7 @@
       category: s ? s.category_direction : (c.category_direction || ''),
       tier: s ? s.tier : '',
       work_type: s ? (s.work_type || '') : (c.work_type || ''),
-      bd_id: s ? s.bd_id : null,
+      bd_id: effBdId,
       bd_name: bd ? bd.name : '',
       bd_color: bd ? bd.color : '',
       schedule_date: s ? s.schedule_date : '',
