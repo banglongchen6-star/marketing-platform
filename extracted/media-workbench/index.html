@@ -5278,10 +5278,6 @@ function _renderSettledArea() {
         <span style="font-size:.72rem;font-weight:600;color:var(--success);white-space:nowrap">已结算总金额</span>
         <span style="font-size:1.1rem;font-weight:700;color:var(--success)">¥${fmtNum(totalAmt)}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(26,86,219,.08),rgba(26,86,219,.04));border:1px solid rgba(26,86,219,.18)">
-        <span style="font-size:.72rem;font-weight:600;color:var(--primary);white-space:nowrap">待结算达人</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--primary)">${(DB.schedules||[]).filter(s=>!s.deleted_at&&!(DB.settlements||[]).some(st=>st.schedule_id===s.id&&st.settled)).length}</span>
-      </div>
     </div>
   `;
 
