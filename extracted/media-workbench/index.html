@@ -419,8 +419,6 @@
             <option value="returned">已归还</option>
             <option value="gifted">已赠送</option>
           </select>
-          <div style="flex:1"></div>
-          <button class="btn btn-primary" onclick="openSampleModal()">＋ 新增样品</button>
         </div>
         <div id="sample-totals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px"></div>
       </div>
@@ -3678,6 +3676,7 @@ function renderSamples() {
       ${chip('未排期', noScheduleCount + ' 件', '#d97706')}
       ${chip('本月置换费', '¥' + fmtNum(curMonthCost), '#ec4899')}
       <button onclick="openSampleProductDict()" style="margin-left:auto;border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">⚙ 管理品类</button>
+      <button class="btn btn-primary btn-sm" onclick="openSampleModal()">＋ 新增样品</button>
     </div>
   `;
 
