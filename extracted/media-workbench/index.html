@@ -2416,7 +2416,7 @@ function _ddComputeKPI() {
     }
 
     inRange.forEach(p => {
-      const v = (Number(p.views) || 0) / 10000; // 个→万
+      const v = (Number(p.views) || 0); // p.views 已是「万」，与内容发布一致，不再换算
       naturalViews += v;
       pubCount++;
       const plat = p.platform || '其他';
@@ -2580,7 +2580,7 @@ function _ddRenderCharts(kpi) {
         labels,
         datasets: [
           { type: 'bar',  label: '花费（元）',   data: totalCost,  backgroundColor: 'rgba(245,158,11,.45)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 3, yAxisID: 'y1' },
-          { type: 'line', label: '播放量（次）', data: totalViews, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2, yAxisID: 'y' },
+          { type: 'line', label: '播放量（万）', data: totalViews, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2, yAxisID: 'y' },
         ]
       },
       options: {
