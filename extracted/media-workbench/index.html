@@ -3209,12 +3209,7 @@ function _schedImpactWarning(scheduleId, action, opts, onConfirm) {
       dangers.push(`🗑️ ${allContents.length} 条内容发布记录将同步删除`);
     if (settlements.length)
       dangers.push(`⚠️ ${settlements.length} 笔结算记录将失去排期关联`);
-    const linkedSamples = (DB.samples||[]).filter(sp => sp.schedule_id === scheduleId);
-    const autoSamples = linkedSamples.filter(sp => !sp.recipient_name && !sp.address && !sp.tracking && !sp.return_tracking);
-    if (autoSamples.length)
-      dangers.push(`🗑️ ${autoSamples.length} 条关联样品将同步删除`);
-    if (linkedSamples.length - autoSamples.length > 0)
-      impacts.push(`📦 ${linkedSamples.length - autoSamples.length} 条已填寄件数据的样品将保留`);
+    // 样品已独立于排期，删排期不影响样品（不再提示）
   }
 
   // 无任何影响 → 直接执行
@@ -5938,7 +5933,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=89"></script>
+<script src="js/schedule/data.js?v=90"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=63"></script>
 <script src="js/schedule/editor.js?v=84"></script>
@@ -5980,28 +5975,7 @@ function initApp() {
   })();
 
   // 补全历史排期的样品记录（无样品的排期自动创建）
-  (function backfillSamples() {
-    const scheds = (DB.schedules || []).filter(s => !s.deleted_at && s.status !== 'draft');
-    if (!scheds.length) return;
-    let added = 0;
-    scheds.forEach(s => {
-      const has = (DB.samples || []).some(sp => sp.schedule_id === s.id);
-      if (has) return;
-      DB.samples = DB.samples || [];
-      DB.samples.push({
-        id: DB.samples.length ? Math.max(...DB.samples.map(x => x.id)) + 1 : 1,
-        talent:      s.kol_name || '',
-        date:        s.schedule_date || '',
-        contact:     s.bd_id || '',
-        schedule_id: s.id,
-        product: [], recipient_name: '', phone: '', address: '', note: '',
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      });
-      added++;
-    });
-    if (added > 0) saveDataNow();
-  })();
+  // 样品改为全手动新增，不再从排期自动生成（backfillSamples 已移除）
 
   // 一次性迁移：修复旧数据中以「长期留存」为默认值的样品
   (function migrateSampleStatus() {
