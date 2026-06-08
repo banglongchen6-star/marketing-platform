@@ -3811,6 +3811,13 @@ function toggleSampleReceived(id) {
   const s = DB.samples.find(x => x.id === id);
   if (!s) return;
   s.is_received = !s.is_received;
+  // 收到货 → 状态自动变「作业中」；取消收货 → 退回「—」
+  // （仅影响空/作业中状态，不覆盖 长期留存/已归还/已赠送/已流转 等手动状态）
+  if (s.is_received) {
+    if (!s.status || s.status === 'pending') s.status = 'awaiting';
+  } else {
+    if (s.status === 'awaiting') s.status = '';
+  }
   saveData();
   renderSamples();
 }
@@ -3887,27 +3894,11 @@ function saveSample() {
   if(editingSampleId!=null){
     const idx=DB.samples.findIndex(x=>x.id===editingSampleId);
     const existing = DB.samples[idx];
-    // 填写了收件地址且当前是待寄样 → 自动升级为「已寄出待确认」
-    if ((data.address || data.recipient_name) && existing.shipping_needed !== false
-        && (existing.status === 'pending' || !existing.status)) {
-      data.status = 'awaiting';
-    }
-    // 清空了收件地址且当前是「已寄出待确认」 → 自动回退为「待寄样」
-    if (!data.address && !data.recipient_name && existing.status === 'awaiting') {
-      data.status = 'pending';
-      // 若是流转样品，同步恢复原达人状态
-      if (existing.parent_sample_id) {
-        const parentIdx = DB.samples.findIndex(x => x.id === existing.parent_sample_id);
-        if (parentIdx !== -1 && DB.samples[parentIdx].status === 'transferred') {
-          const p = DB.samples[parentIdx];
-          DB.samples[parentIdx].status = (p.address || p.recipient_name) ? 'awaiting' : 'pending';
-        }
-      }
-    }
+    // 状态不再随地址自动变化，改由「是否收货」开关 + 状态弹窗控制
     DB.samples[idx]={...existing,...data};
     toast('样品已更新');
   } else {
-    DB.samples.push({ id:nextId(DB.samples), ...data, status: 'pending' });
+    DB.samples.push({ id:nextId(DB.samples), ...data, status: '' });
     toast('样品已添加');
   }
   // 样品仅记录关联，不推进排期状态
