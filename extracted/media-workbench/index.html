@@ -3779,6 +3779,13 @@ function renderSamples() {
       </div>
     </div>
   `;
+  // 自适应：表格容器高度撑到屏幕底部，消除页面级滚动条
+  requestAnimationFrame(() => {
+    const wrap = document.querySelector('#sample-list .sample-sticky');
+    if (!wrap) return;
+    const top = wrap.getBoundingClientRect().top;
+    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 40) + 'px';
+  });
 }
 
 function toggleSampleShipping(id) {
@@ -4810,6 +4817,7 @@ function _fitSettlementTable() {
   });
 }
 window.addEventListener('resize', () => { if (document.getElementById('page-settlement')?.classList.contains('active')) _fitSettlementTable(); });
+window.addEventListener('resize', () => { if (document.getElementById('page-samples')?.classList.contains('active')) renderSamples(); });
 
 /* ---------- 待结算区 ---------- */
 function _renderPendingArea() {
