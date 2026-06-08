@@ -78,7 +78,9 @@
       "Bash(curl -s \"http://8.218.189.74:3002/api/data\" -o sv.json)",
       "Bash(python3 -)",
       "Bash(curl -s -X POST \"http://8.218.189.74:3002/api/data\" -H \"Content-Type: application/json\" --data-binary @/tmp/sv2.json -o /dev/null -w \"POST状态: %{http_code}\\\\n\")",
-      "Bash(node -c index.html)"
+      "Bash(node -c index.html)",
+      "Bash(node -c js/schedule/communication.js)",
+      "Bash(node -c js/schedule/data.js)"
     ]
   }
 }

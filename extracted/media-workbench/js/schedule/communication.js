@@ -784,29 +784,14 @@
       blockMap.set(c.id, { key: c.id, r, c, kolKey, fans: kolFans[kolKey] ?? null, items });
     });
 
-    // 排序：① 待发布（未填实际发布日期）置顶，按【计划发布日期】升序——
-    //          逾期未发→今天该发→未来要发，越该处理的越靠上；无计划日期的垫底
-    //       ② 已发布（有实际发布日期）按发布日期倒序（最新在前），日期相同按达人名
-    const blocks = [...blockMap.values()].sort((a, b) => {
-      const da = (a.items[0]?.p.date || '');   // 实际发布日期
-      const db = (b.items[0]?.p.date || '');
-      const aEmpty = !da, bEmpty = !db;
-      if (aEmpty !== bEmpty) return aEmpty ? -1 : 1;   // 待发布永远在前
-      if (aEmpty && bEmpty) {                            // 待发布区：按计划发布日期
-        const pa = a.r.schedule_date || '';
-        const pb = b.r.schedule_date || '';
-        const ea = !pa, eb = !pb;
-        if (ea !== eb) return ea ? 1 : -1;              // 无计划日期的垫底
-        if (ea && eb) {                                  // 都无计划：新增时间倒序
-          const ca = a.c.created_at || a.c.id || '';
-          const cb = b.c.created_at || b.c.id || '';
-          return String(cb).localeCompare(String(ca));
-        }
-        return pa.localeCompare(pb);                     // 计划日期升序（该发的浮顶）
-      }
-      const d = db.localeCompare(da);                    // 已发布：发布日期倒序
-      return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || '');
-    });
+    // 今天（本地日期 YYYY-MM-DD）
+    const _t = new Date();
+    const todayStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`;
+    // 每条记录的「有效日期」=主平台发布日期，没有则用排期计划日期（两者已同步，通常相等）
+    const effOf = bl => (bl.items[0]?.p.date || bl.r.schedule_date || '');
+    // 分区：0=发布区(日期≤今天)  1=待发布区(日期>今天)  2=未排期(无日期)
+    const grpOf = bl => { const d = effOf(bl); if (!d) return 2; return d <= todayStr ? 0 : 1; };
+    const blocks = [...blockMap.values()];
 
     // 统计（每个 block = 一条内容记录 = 一笔合同，价格只计一次）
     let totalViews = 0, totalPrice = 0, totalPubs = 0;
@@ -857,12 +842,47 @@
     }
 
     const allFrozen = SD.isMonthFrozen(state.year, state.month);
-    const bodyRows = blocks.map(bl => {
+    // 分隔条：发布区 / 待发布区 / 未排期
+    const _colCount = activeCols.length + 5; // 选择框 + 昵称 + 数据列 + 操作3列
+    const _sectionLabel = {
+      0: `📋 发布区　<span style="font-weight:400;color:#64748b">已到发布日（今天 ${todayStr} 在最上）</span>`,
+      1: `🕓 待发布区　<span style="font-weight:400;color:#64748b">未到发布日（最近的在最上）</span>`,
+      2: `📎 未排期　<span style="font-weight:400;color:#64748b">未填发布日期</span>`,
+    };
+    const _sectionBg = { 0:'#eef6ff', 1:'#fff7ed', 2:'#f3f4f6' };
+    const _sectionFg = { 0:'#1e40af', 1:'#9a3412', 2:'#475569' };
+    // 占位行（排期已建、内容未录）包成 block 结构，与真实内容统一分区
+    const phBlocks = placeholders.map(ph => ({
+      _isPlaceholder: true, ph, c: ph, r: SD.resolveContent(ph), items: [],
+    }));
+    // 真实内容 + 占位行 统一排序：发布区(日期≤今天,倒序) → 待发布区(日期>今天,升序) → 未排期(无日期)
+    const entries = [...blocks, ...phBlocks].sort((a, b) => {
+      const ga = grpOf(a), gb = grpOf(b);
+      if (ga !== gb) return ga - gb;
+      const da = effOf(a), db = effOf(b);
+      if (ga === 0) { const d = db.localeCompare(da); return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || ''); }
+      if (ga === 1) { const d = da.localeCompare(db); return d !== 0 ? d : (a.r.talent || '').localeCompare(b.r.talent || ''); }
+      const ca = a.c.created_at || a.c.id || '', cb = b.c.created_at || b.c.id || '';
+      return String(cb).localeCompare(String(ca));
+    });
+
+    let _lastGrp = null;
+    const _dividerFor = (g) => {
+      if (g === _lastGrp) return '';
+      _lastGrp = g;
+      return `<tr class="comm-section-row"><td colspan="${_colCount}" style="background:${_sectionBg[g]};color:${_sectionFg[g]};font-weight:700;font-size:.82rem;padding:7px 12px;position:sticky;left:0;border-top:2px solid ${_sectionFg[g]}22">${_sectionLabel[g]}</td></tr>`;
+    };
+
+    const bodyRows = entries.map(bl => {
+      const _divider = _dividerFor(grpOf(bl));
+      // 占位行：单行渲染
+      if (bl._isPlaceholder) return _divider + renderPlaceholderRow(bl.ph, activeCols);
+
       const total = bl.items.length;
       const { r } = bl;
       const sameCategory = bl.items.every(item => item.r.category === bl.items[0].r.category);
 
-      return bl.items.map(({ p, c }, i) => {
+      return _divider + bl.items.map(({ p, c }, i) => {
         const cells = activeCols.map(col => renderCell(col, p, c, r, i, total, sameCategory)).join('');
         const cStBtn = _payStatusTag(c.schedule_id || null, c.id);
         const opCell = i === 0
@@ -921,7 +941,6 @@
           </thead>
           <tbody>
             ${bodyRows}
-            ${placeholders.map(c => renderPlaceholderRow(c, activeCols)).join('')}
           </tbody>
           <tfoot>
             <tr class="comm-footer-row">
@@ -1546,6 +1565,15 @@
       } else {
         SD.createContent(data);
         window.toast && window.toast('已新增', 'success');
+      }
+      // 同步发布日期回排期：关联排期时，主平台发布日期 → 排期日期统一（全系统只用一个日期）
+      const schedIdForDate = data.schedule_id;
+      const mainPubDate = (f.publications[0] && f.publications[0].date) || '';
+      if (schedIdForDate && mainPubDate) {
+        const sched = (window.DB?.schedules || []).find(x => x.id === schedIdForDate);
+        if (sched && sched.schedule_date !== mainPubDate) {
+          SD.updateSchedule(schedIdForDate, { schedule_date: mainPubDate, _fromContent: true });
+        }
       }
       closeEditor();
       render();

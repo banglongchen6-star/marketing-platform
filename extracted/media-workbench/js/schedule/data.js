@@ -745,7 +745,7 @@
       }]);
     }
     // 清掉控制字段，避免泄漏到 row
-    const { _autoAdvanceReason, ...realPatch } = patch;
+    const { _autoAdvanceReason, _fromContent, ...realPatch } = patch;
     // 同步 platform / sync_platforms / platforms 三字段保持一致
     if (realPatch.platform != null || Array.isArray(realPatch.sync_platforms)) {
       const mainP = realPatch.platform != null ? realPatch.platform : (before.platform || '');
@@ -765,9 +765,9 @@
     };
     syncKolHomepage(DB.schedules[idx]);
 
-    // 日期变更处理
+    // 日期变更处理（_fromContent：日期来自内容发布的回写，已是统一日期，跳过反向同步副作用）
     const newDate = realPatch.schedule_date || before.schedule_date;
-    if (realPatch.schedule_date) {
+    if (realPatch.schedule_date && !_fromContent) {
       if (newDate >= todayLocal()) {
         // 移至今天或未来 → 清除 auto_created 内容记录
         const before_len = (DB.contents || []).length;
