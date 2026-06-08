@@ -1393,7 +1393,7 @@
         const day = (p.date || '').slice(8, 10);
         if (!day || !platforms[p.platform].perDay[day]) return;
         platforms[p.platform].perDay[day].count += 1;
-        platforms[p.platform].perDay[day].views += (Number(p.views) || 0) / 10000; // 个→万
+        platforms[p.platform].perDay[day].views += (Number(p.views) || 0); // p.views 已是「万」，与内容发布一致，不再换算
         // 投流（每个 publication 单独存）
         const promoP = Number(p.promo_views) || 0;
         const promoC = Number(p.promo_cost) || 0;
