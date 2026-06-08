@@ -4760,15 +4760,15 @@ function stSetActualPaidDate(settlementId, payIndex, dateValue) {
 
 /** 结转：待结算 → 已结算（需满足：所有款已付 + 作品已发布） */
 function transferToSettled(scheduleId) {
-  const today = new Date().toISOString().slice(0,10);
   const sched = (DB.schedules||[]).find(x => x.id === scheduleId);
   const st    = (DB.settlements||[]).find(x => x.schedule_id === scheduleId && !x.settled);
   if (!sched || !st) return;
 
-  const published = sched.schedule_date < today;
+  // 有主链接即视为已发布（不再看发布日期）
+  const published = (DB.contents||[]).some(c => c.schedule_id === scheduleId && (c.publications||[]).some(p => p.link && p.link.trim()));
   const allPaid   = st.payments?.length && st.payments.every(p => !!p.actual_paid_date);
 
-  if (!published) { toast('作品尚未发布，无法结转', 'error'); return; }
+  if (!published) { toast('内容未填主链接（视为未发布），无法结转', 'error'); return; }
   if (!allPaid)   { toast('还有未填付款时间的款项，无法结转', 'error'); return; }
 
   if (!confirm(`确认将「${sched.kol_name || sched.talent}」结转到已结算区？结转后不可删除。`)) return;
@@ -4979,10 +4979,8 @@ function _renderPendingArea() {
     const _sp = Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]);
     const plat = _mp?(_sp.length?`${_mp}（主）· ${_sp.join(' · ')}`:_mp):'-';
     const date    = sched.schedule_date || '-';
-    const isPublished = date !== '-' && date < today;
-    const pubTag  = isPublished
-      ? `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#d1fae5;color:#065f46">已发布</span>`
-      : `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#e0e7ff;color:#3730a3">计划中</span>`;
+    // 来源标签：挂排期的内容 = 从内容发布同步过来
+    const pubTag  = `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#dbeafe;color:#1e40af">内容发布同步</span>`;
 
     if (!st) {
       // 无结算信息：显示排期预算金额
@@ -5015,11 +5013,11 @@ function _renderPendingArea() {
     const hasLink = (DB.contents||[]).some(c => c.schedule_id === sched.id && (c.publications||[]).some(p => p.link && p.link.trim()));
     const amountMatch = totalSettlement > 0 && Math.abs(totalPaidIn - totalSettlement) < 0.01;
     const allActualPaid = pays.every(p => !!p.actual_paid_date);
-    const canTransfer = isPublished && hasLink && amountMatch && allActualPaid;
+    // 有主链接即视为已发布（不再看发布日期），避免日期填法卡住结转
+    const canTransfer = hasLink && amountMatch && allActualPaid;
 
     const transferReasons = [];
-    if (!isPublished)    transferReasons.push('⏳ 未发布');
-    if (!hasLink)        transferReasons.push('🔗 链接未填');
+    if (!hasLink)        transferReasons.push('🔗 链接未填（未发布）');
     if (!amountMatch)    transferReasons.push('💰 金额未对齐');
     if (!allActualPaid)  transferReasons.push('📅 付款时间未填');
     const transferCell = canTransfer
@@ -5070,7 +5068,7 @@ function _renderPendingArea() {
     const firstPub = (c.publications||[])[0] || {};
     const plat   = firstPub.platform || '—';
     const date   = firstPub.date || (c.created_at||'').slice(0,10) || '—';
-    const pubTag = `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#fef9c3;color:#854d0e">内容发布</span>`;
+    const pubTag = `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#fef9c3;color:#854d0e">内容发布手动</span>`;
 
     const st = (DB.settlements||[]).find(s => s.content_id === c.id && !s.settled);
     if (!st) {
@@ -5217,7 +5215,7 @@ function _renderPendingArea() {
         <thead>
           <tr>
             <th style="min-width:110px">达人昵称</th>
-            <th>发布日期</th><th>发布状态</th>
+            <th>发布日期</th><th>来源</th>
             <th style="background:${gb.basic}">结算金额</th>
             <th style="background:${gb.basic}">付款方式</th>
             <th style="background:${gb.pay}">申请付款时间</th>
