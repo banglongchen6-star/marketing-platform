@@ -1075,29 +1075,17 @@
   }
 
   function _autoSyncSample(scheduleId, schedData) {
-    if (!scheduleId || schedData.status === 'draft') return;
-    const samples = window.DB.samples || (window.DB.samples = []);
+    // 样品改为全手动新增，排期保存时不再自动创建/同步样品
+    // （仅同步已存在的关联样品的达人/日期/BD，不新建）
+    if (!scheduleId) return;
+    const samples = window.DB.samples || [];
     const existing = samples.find(s => s.schedule_id === scheduleId);
-    const fields = {
-      talent:      schedData.kol_name  || '',
-      date:        schedData.schedule_date || '',
-      contact:     schedData.bd_id    || '',
-      schedule_id: scheduleId,
-    };
     if (existing) {
-      Object.assign(existing, fields);
-    } else {
-      samples.push({
-        id: samples.length ? Math.max(...samples.map(x => x.id)) + 1 : 1,
-        ...fields,
-        product: [], recipient_name: '', phone: '', address: '', note: '',
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      });
+      existing.talent  = schedData.kol_name || existing.talent;
+      existing.date    = schedData.schedule_date || existing.date;
+      existing.contact = schedData.bd_id || existing.contact;
+      if (typeof window.saveData === 'function') window.saveData();
     }
-    if (typeof window.saveDataNow === 'function') window.saveDataNow();
-    else if (typeof window.saveData === 'function') window.saveData();
-    if (typeof window.renderSamples === 'function') window.renderSamples();
   }
 
   function afterSave() {
