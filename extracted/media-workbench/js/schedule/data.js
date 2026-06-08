@@ -1573,7 +1573,8 @@
       rows = rows.filter(k =>
         (k.name||'').toLowerCase().includes(lo) ||
         (k.homepage||'').toLowerCase().includes(lo) ||
-        (k.notes||'').toLowerCase().includes(lo)
+        (k.notes||'').toLowerCase().includes(lo) ||
+        (k.category||'').toLowerCase().includes(lo)
       );
     }
     if (platform) rows = rows.filter(k => k.platform === platform);

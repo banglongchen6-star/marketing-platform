@@ -102,7 +102,7 @@
     return `
       <div class="filter-bar">
         <input id="__kols-search__" class="search-input"
-               placeholder="🔍 搜达人名 / 主页 / 备注" value="${escapeAttr(state.q)}">
+               placeholder="🔍 搜达人名 / 主页 / 备注 / 达人类型" value="${escapeAttr(state.q)}">
         <select id="__kols-platform__" class="filter-select">
           ${platOpts.join('')}
         </select>
@@ -199,7 +199,7 @@
     // 搜索过滤
     if (state.q) {
       const lo = state.q.toLowerCase();
-      items = items.filter(k => (k.name || '').toLowerCase().includes(lo));
+      items = items.filter(k => (k.name || '').toLowerCase().includes(lo) || (k.category || '').toLowerCase().includes(lo));
     }
     if (!items.length) {
       return `<div id="__kols-list-host__" class="sched-empty" style="background:var(--bg-panel);border-radius:var(--radius);padding:60px 16px">
