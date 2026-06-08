@@ -5383,7 +5383,11 @@ function openSettlementForSchedule(scheduleId) {
   const sched = (DB.schedules||[]).find(x => x.id === scheduleId);
   if (sched) {
     _st.kol_name = sched.kol_name || '';
-    if (sched.amount) { _st.contract_amount = sched.amount; _stSyncFullAmount(); }
+    // 结算金额取「内容发布」里该达人的价格（实际执行价），不再用排期预算
+    const content = (DB.contents||[]).find(c => c.schedule_id === scheduleId);
+    if (content && content.price != null && content.price !== '') {
+      _st.contract_amount = Number(content.price); _stSyncFullAmount();
+    }
   }
   _stFromContext = true;
   _stRender();
@@ -5414,6 +5418,8 @@ function openSettlementForContent(contentId) {
       _st.platform     = (c.publications && c.publications[0]?.platform) || '';
       _st.publish_date = (c.publications && c.publications[0]?.date)     || '';
       _st.content_id   = contentId;
+      // 结算金额取内容发布里的价格（实际执行价）
+      if (c.price != null && c.price !== '') { _st.contract_amount = Number(c.price); _stSyncFullAmount(); }
       _stFromContext   = true;
       _stRender();
       openModal('settlement-modal');
