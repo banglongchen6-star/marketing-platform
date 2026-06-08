@@ -533,7 +533,7 @@
     // 操作列需要 1 列（非冻结），tfoot colspan = activeCols.length + 1（昵称） + 1（操作）
     const realList = list.filter(c => !c._placeholder);
     return `
-      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 180px)">
+      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 240px)">
         <table class="comm-table">
           <thead>
             <tr class="comm-group-header">
@@ -866,7 +866,7 @@
     }).join('');
 
     return `
-      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 180px)">
+      <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 240px)">
         <table class="comm-table">
           <thead>
             <tr class="comm-group-header">
