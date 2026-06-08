@@ -3630,6 +3630,11 @@ function shiftSampleMonth(delta) {
 }
 
 function renderSamples() {
+  // 记录滚动位置（重渲染后恢复，避免操作后跳回顶部）
+  const _sWinY = window.scrollY;
+  let _sScTop = 0;
+  const _sPe = document.getElementById('page-samples');
+  if (_sPe) _sPe.querySelectorAll('div').forEach(el => { if (el.scrollTop > _sScTop) _sScTop = el.scrollTop; });
   const monthStr = `${sampleMonthYear}-${String(sampleMonthMonth).padStart(2,'0')}`;
   const lbl = document.getElementById('sample-month-label');
   if (lbl) lbl.textContent = `${sampleMonthYear}年${sampleMonthMonth}月`;
@@ -3780,10 +3785,14 @@ function renderSamples() {
   // 自适应：表格容器高度撑到屏幕底部，消除页面级滚动条
   requestAnimationFrame(() => {
     const wrap = document.querySelector('#sample-list .sample-sticky');
-    if (!wrap) return;
-    const top = wrap.getBoundingClientRect().top;
-    // 减去 .card(20) + .page(24) 内边距 + 余量
-    wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 64) + 'px';
+    if (wrap) {
+      const top = wrap.getBoundingClientRect().top;
+      // 减去 .card(20) + .page(24) 内边距 + 余量
+      wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 64) + 'px';
+    }
+    // 恢复滚动位置
+    if (_sWinY) window.scrollTo(0, _sWinY);
+    if (_sScTop && _sPe) { for (const el of _sPe.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _sScTop; break; } } }
   });
 }
 
@@ -5909,7 +5918,7 @@ function initApp() {
 <script src="js/schedule/recycle-bin.js?v=53"></script>
 <script src="js/schedule/kols-page.js?v=65"></script>
 <script src="js/schedule/kols-excel.js?v=53"></script>
-<script src="js/schedule/communication.js?v=95"></script>
+<script src="js/schedule/communication.js?v=96"></script>
 <script src="js/schedule/materials.js?v=6"></script>
 <script src="js/schedule/communication-excel.js?v=53"></script>
 <script src="js/schedule/replacements-page.js?v=52"></script>

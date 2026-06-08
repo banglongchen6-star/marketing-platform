@@ -121,6 +121,10 @@
     initState();
     const page = document.getElementById('page-contents');
     if (!page) return;
+    // 记录滚动位置（重渲染后恢复，避免操作后跳回顶部）
+    const _winY = window.scrollY;
+    let _scTop = 0;
+    page.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
     const kpi = SD.getCommunicationKPI({
       year: state.year, month: state.month,
       mainPlatform: state.mainPlatform,
@@ -141,6 +145,9 @@
         allCb.indeterminate = selCount > 0 && selCount < allIds.length;
       }
       _alignFrozenCols();
+      // 恢复滚动位置
+      if (_winY) window.scrollTo(0, _winY);
+      if (_scTop) { for (const el of page.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _scTop; break; } } }
     }, 0);
   }
 
