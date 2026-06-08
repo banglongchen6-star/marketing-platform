@@ -396,7 +396,7 @@
         <div class="sched-form-group" style="min-width:0">
           <label class="sched-form-label" style="display:flex;align-items:center;justify-content:space-between">
             <span>达人类型<span class="req">*</span></span>
-            <button type="button" title="管理达人类型" onclick="openKolTypeDict()" style="border:none;background:none;font-size:.85rem;color:var(--primary);cursor:pointer;padding:0">⚙</button>
+            <button type="button" title="管理达人类型" onclick="DictManager.open('direction')" style="border:none;background:none;font-size:.85rem;color:var(--primary);cursor:pointer;padding:0">⚙</button>
           </label>
           <select id="f-direction" class="sched-form-control ${err.category_direction?'error':''}">
             ${dirOptions.join('')}
