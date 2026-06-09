@@ -448,7 +448,7 @@
     input.type = 'text';
     input.value = current != null ? String(current) : '';
     input.placeholder = '输入…';
-    input.style.cssText = 'width:40%;min-width:48px;border:1px solid var(--primary);border-radius:4px;padding:3px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+    input.style.cssText = 'width:64px;border:1px solid var(--primary);border-radius:4px;padding:3px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
 
     let saved = false;
     const save = () => {
@@ -1743,7 +1743,7 @@
     input.step = '0.01';
     input.value = current;
     input.placeholder = '万';
-    input.style.cssText = 'width:40%;min-width:48px;border:1px solid var(--primary);border-radius:4px;padding:4px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+    input.style.cssText = 'width:64px;border:1px solid var(--primary);border-radius:4px;padding:4px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
 
     let saved = false;
     const save = () => {
