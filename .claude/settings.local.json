@@ -99,7 +99,9 @@
       "Bash(node -c server.js)",
       "Bash(grep -n \"listContents, resolveContent\\\\|return {\" js/schedule/data.js)",
       "Bash(sed -i '' 's#data.js?v=94#data.js?v=95#' index.html)",
-      "Bash(sed -i '' 's#communication.js?v=105#communication.js?v=106#' index.html)"
+      "Bash(sed -i '' 's#communication.js?v=105#communication.js?v=106#' index.html)",
+      "Bash(awk -F: '$1>=4940 && $1<=5260')",
+      "Bash(awk 'NR>=4843 && NR<=5270' index.html)"
     ]
   }
 }

@@ -4881,6 +4881,8 @@ function _renderPendingArea() {
   const dateEnd   = document.getElementById('st-pending-date-end')?.value   || '';
   // 当前 tab 模式：pending=未申请付款 / applied=已申请付款（均为未结转）
   const mode = _stTab === 'applied' ? 'applied' : 'pending';
+  // 「付款时间」「可转结算」两列只在「已申请付款」tab 显示（待结算阶段还没到付款，无意义）
+  const showPayCols = mode === 'applied';
   const _isApplied = (st) => !!(st && (st.payments||[]).some(p => p.paid_date));
   const _schedAppliedF   = (sid) => _isApplied((DB.settlements||[]).find(s => s.schedule_id === sid && !s.settled));
   const _contentAppliedF = (cid) => _isApplied((DB.settlements||[]).find(s => s.content_id === cid && !s.settled));
@@ -5035,8 +5037,7 @@ function _renderPendingArea() {
         <td class="comm-actions">
           <button class="btn btn-primary btn-sm" onclick="openSettlementForSchedule('${sched.id}')">填写结算</button>
         </td>
-        <td>—</td>
-        <td>—</td>
+        ${showPayCols ? '<td>—</td><td>—</td>' : ''}
       </tr>`;
     }
 
@@ -5070,7 +5071,7 @@ function _renderPendingArea() {
       const statusHtml = isPaid
         ? `<span style="color:var(--text-primary);font-size:.82rem">${p.paid_date}</span>`
         : `<span style="color:var(--text-muted);font-size:.82rem">待付款</span>`;
-      const actualPaidTd = `<td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>`;
+      const actualPaidTd = showPayCols ? `<td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>` : '';
       if (i === 0) return `
         <tr class="comm-main-row" style="border-left:3px solid ${borderColor}">
           <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
@@ -5093,7 +5094,7 @@ function _renderPendingArea() {
             <button class="btn btn-secondary btn-sm" onclick="openSettlementModal(${st.id})">编辑</button>
           </td>
           ${actualPaidTd}
-          <td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>
+          ${showPayCols ? `<td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>` : ''}
         </tr>`;
       return `<tr class="comm-sub-row"><td>${statusHtml}</td>${actualPaidTd}</tr>`;
     }).join('');
@@ -5120,8 +5121,7 @@ function _renderPendingArea() {
         <td class="comm-actions">
           <button class="btn btn-primary btn-sm" onclick="openSettlementForContent('${c.id}')">填写结算</button>
         </td>
-        <td>—</td>
-        <td>—</td>
+        ${showPayCols ? '<td>—</td><td>—</td>' : ''}
       </tr>`;
     }
 
@@ -5175,10 +5175,10 @@ function _renderPendingArea() {
           <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
             <button class="btn btn-secondary btn-sm" onclick="openSettlementModal(${st.id})">编辑</button>
           </td>
-          <td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>
-          <td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>
+          ${showPayCols ? `<td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>
+          <td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>` : ''}
         </tr>`;
-      return `<tr class="comm-sub-row"><td>${statusHtml}</td><td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td></tr>`;
+      return `<tr class="comm-sub-row"><td>${statusHtml}</td>${showPayCols ? `<td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>` : ''}</tr>`;
     }).join('');
   }).join('');
 
@@ -5235,10 +5235,10 @@ function _renderPendingArea() {
           <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
             <button class="btn btn-secondary btn-sm" onclick="openSettlementModal(${st.id})">编辑</button>
           </td>
-          <td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>
-          <td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>
+          ${showPayCols ? `<td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>
+          <td rowspan="${total}" style="vertical-align:middle;text-align:center">${transferCell}</td>` : ''}
         </tr>`;
-      return `<tr class="comm-sub-row"><td>${statusHtml}</td><td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td></tr>`;
+      return `<tr class="comm-sub-row"><td>${statusHtml}</td>${showPayCols ? `<td style="text-align:center"><input type="date" value="${escapeHtml(p.actual_paid_date||'')}" style="border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:.78rem;background:transparent;cursor:pointer;color:var(--text-primary)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" onchange="stSetActualPaidDate(${st.id},${i},this.value)"></td>` : ''}</tr>`;
     }).join('');
   }).join('');
 
@@ -5256,12 +5256,11 @@ function _renderPendingArea() {
             <th>账户</th>
             <th>发票</th>
             <th>操作</th>
-            <th>付款时间</th>
-            <th>可转结算</th>
+            ${showPayCols ? '<th>付款时间</th><th>可转结算</th>' : ''}
           </tr>
         </thead>
         <tbody>${bodyRows}${unscheduledBodyRows}${standaloneBodyRows}</tbody>
-        <tfoot><tr class="comm-footer-row"><td colspan="11">
+        <tfoot><tr class="comm-footer-row"><td colspan="${showPayCols ? 11 : 9}">
           共 ${totalCount} 位达人待结算 · 待付 <b style="color:var(--warning)">¥${fmtNum(pendingAmt)}</b> · 已付 <b style="color:var(--success)">¥${fmtNum(paidAmt)}</b>
         </td></tr></tfoot>
       </table>
