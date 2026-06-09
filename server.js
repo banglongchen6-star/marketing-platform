@@ -26,12 +26,16 @@ function ensureBackupDir() {
 }
 function createDailyBackup(data) {
   ensureBackupDir();
+  // 防呆：空/残缺数据不写备份，避免覆盖掉当天已有的好备份
+  if (!data || typeof data !== 'object') return;
+  const hasContent = ['schedules', 'contents', 'kols', 'settlements', 'samples']
+    .some(k => Array.isArray(data[k]) && data[k].length > 0);
+  if (!hasContent) return;
   const filename = `data-${todayStr()}.json`;
   const filepath = path.join(BACKUP_DIR, filename);
-  if (!fs.existsSync(filepath)) {
-    fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
-    console.log(`📦 已创建每日备份: ${filename}`);
-  }
+  // 每次保存都更新当天备份，确保备份=当天最新完整状态
+  // （原来只在当天第一次保存时备份，会把旧标签推上来的残缺数据固化成当天备份）
+  fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
   pruneOldBackups();
 }
 function pruneOldBackups() {

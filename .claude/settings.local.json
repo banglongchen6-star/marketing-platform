@@ -93,7 +93,10 @@
       "Bash(sed -n '5147,5158p' index.html)",
       "Bash(awk -F: '$1>=4980')",
       "Bash(sed -i '' 's#data.js?v=93#data.js?v=94#' index.html)",
-      "Bash(sed -i '' 's#communication.js?v=103#communication.js?v=104#' index.html)"
+      "Bash(sed -i '' 's#communication.js?v=103#communication.js?v=104#' index.html)",
+      "Bash(curl -s \"http://8.218.189.74:3002/api/data\" -o now.json)",
+      "Bash(awk '{printf \"  %.1f KB \\(%d 字节\\)\\\\n\", $1/1024, $1}')",
+      "Bash(node -c server.js)"
     ]
   }
 }
