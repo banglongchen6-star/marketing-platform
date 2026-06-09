@@ -500,25 +500,25 @@
     if (colKey === 'date') {
       const isMain = (content.publications || [])[0]?.id === p.id;
       if (frozen || isMain) return `<td style="min-width:110px">${escapeHtml(p.date || '-')}</td>`;
-      const display = p.date ? escapeHtml(p.date) : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>';
+      const display = p.date ? escapeHtml(p.date) : '<span style="color:var(--text-muted);font-size:.78rem">-</span>';
       return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditDate('${content.id}','${p.id}',this)" title="点击修改同步平台发布日期">${display}</td>`;
     }
     // link：内联编辑 URL
     if (colKey === 'link') {
       if (frozen) return `<td style="min-width:110px">${p.link ? renderLink(p.link) : '<span style="color:var(--text-muted);font-size:.78rem">-</span>'}</td>`;
-      return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditLink('${content.id}','${p.id}',this)" title="点击填写链接">${p.link ? renderLink(p.link) : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>'}</td>`;
+      return `<td style="cursor:pointer;min-width:110px" onclick="CommunicationPage._inlineEditLink('${content.id}','${p.id}',this)" title="点击填写链接">${p.link ? renderLink(p.link) : '<span style="color:var(--text-muted);font-size:.78rem">-</span>'}</td>`;
     }
     // views：内联编辑（万）
     if (colKey === 'views') {
       if (frozen) return `<td style="min-width:70px">${p.views != null ? fmtNullable(p.views, '-') : '-'}</td>`;
-      return `<td style="cursor:pointer;min-width:70px" onclick="CommunicationPage._inlineEditViews('${content.id}','${p.id}',this)" title="点击填写播放量">${p.views != null ? fmtNullable(p.views, '-') : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>'}</td>`;
+      return `<td style="cursor:pointer;min-width:70px" onclick="CommunicationPage._inlineEditViews('${content.id}','${p.id}',this)" title="点击填写播放量">${p.views != null ? fmtNullable(p.views, '-') : '<span style="color:var(--text-muted);font-size:.78rem">-</span>'}</td>`;
     }
     // 完播率起往后：通用内联编辑
     if (INLINE_EDIT_KEYS.has(colKey)) {
       const display = renderPubCell(p, colKey, ctx);
       if (frozen) return `<td>${display}</td>`;
       const isEmpty = display === '-';
-      return `<td style="cursor:pointer" onclick="CommunicationPage._inlineEditField('${content.id}','${p.id}','${colKey}',this)" title="点击填写">${isEmpty ? '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>' : display}</td>`;
+      return `<td style="cursor:pointer" onclick="CommunicationPage._inlineEditField('${content.id}','${p.id}','${colKey}',this)" title="点击填写">${isEmpty ? '<span style="color:var(--text-muted);font-size:.78rem">-</span>' : display}</td>`;
     }
     // 其余静态列
     return `<td>${renderPubCell(p, colKey, ctx)}</td>`;
@@ -892,7 +892,7 @@
           ? `<span style="margin-left:4px;font-size:.62rem;padding:1px 5px;border-radius:3px;background:${p.snapshot_day==='d7'?'#dcfce7':'#fef3c7'};color:${p.snapshot_day==='d7'?'#15803d':'#92400e'};font-weight:500">${snapMap[p.snapshot_day]}</span>`
           : '';
         if (allFrozen || i === 0) return `<td style="vertical-align:middle">${escapeHtml(p.date || '-')}${chip}</td>`;
-        const display = p.date ? escapeHtml(p.date) + chip : '<span style="color:var(--text-muted);font-size:.78rem">点击填写…</span>';
+        const display = p.date ? escapeHtml(p.date) + chip : '<span style="color:var(--text-muted);font-size:.78rem">-</span>';
         return `<td style="cursor:pointer;vertical-align:middle" onclick="CommunicationPage._inlineEditDate('${c.id}','${p.id}',this)" title="点击修改同步平台发布日期">${display}</td>`;
       }
       // 其余列（含 platform/link/views/inline-edit）统一走 renderPubTd
