@@ -1287,6 +1287,29 @@
     };
   }
 
+  /**
+   * 统一的结算付款状态判定（内容发布 + 达人结算共用）
+   * 规则：
+   *   应付总额 = 基础金额 + 奖金
+   *   已付金额 = 只把「填了付款时间(实际打款)」的那几笔金额加起来
+   *   none(无需付款,应付=0) / unpaid(已付=0) / partial(0<已付<应付) / paid(已付>=应付)
+   * 返回 { status, paid, due }
+   */
+  function getSettlementPayStatus(st) {
+    if (!st) return { status: 'unpaid', paid: 0, due: 0 };
+    const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
+    const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
+    const due   = base + bonus;
+    const pays  = st.payments || [];
+    const paid  = pays.reduce((s, p) => s + (p.actual_paid_date ? (parseFloat(p.amount) || 0) : 0), 0);
+    let status;
+    if (due <= 0)               status = 'none';     // 无需付款（0元，理论上不进结算）
+    else if (paid <= 0)         status = 'unpaid';   // 未付款
+    else if (paid + 0.01 < due) status = 'partial';  // 部分付款
+    else                        status = 'paid';     // 已付款
+    return { status, paid, due };
+  }
+
   /** 月度 KPI：选定月份的总播放/总费用/CPM */
   function getCommunicationKPI({ year, month, mainPlatform, bd_id } = {}) {
     const list = listContents({ year, month, mainPlatform, bd_id });
@@ -1992,7 +2015,7 @@
     createKol, updateKol, deleteKol, batchImportKols,
     // contents (传播执行)
     createContent, updateContent, deleteContent,
-    listContents, resolveContent, getCommunicationKPI,
+    listContents, resolveContent, getCommunicationKPI, getSettlementPayStatus,
     autoPublishPastSchedules,
     getBrandRoiMatrix,
     // replacements (置换成本)

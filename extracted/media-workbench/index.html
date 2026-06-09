@@ -4766,10 +4766,10 @@ function transferToSettled(scheduleId) {
 
   // 有主链接即视为已发布（不再看发布日期）
   const published = (DB.contents||[]).some(c => c.schedule_id === scheduleId && (c.publications||[]).some(p => p.link && p.link.trim()));
-  const allPaid   = st.payments?.length && st.payments.every(p => !!p.actual_paid_date);
+  const paidStatus = window.ScheduleData.getSettlementPayStatus(st).status;
 
   if (!published) { toast('内容未填主链接（视为未发布），无法结转', 'error'); return; }
-  if (!allPaid)   { toast('还有未填付款时间的款项，无法结转', 'error'); return; }
+  if (paidStatus !== 'paid') { toast('款项未付清（已付金额未达应付总额），无法结转', 'error'); return; }
 
   if (!confirm(`确认将「${sched.kol_name || sched.talent}」结转到已结算区？结转后不可删除。`)) return;
   st.settled    = true;
@@ -4784,8 +4784,7 @@ function transferToSettled(scheduleId) {
 function transferSettlementById(settlementId) {
   const st = (DB.settlements||[]).find(x => x.id === settlementId);
   if (!st) return;
-  const allPaid = st.payments?.length && st.payments.every(p => !!p.actual_paid_date);
-  if (!allPaid) { toast('还有未填付款时间的款项，无法结转', 'error'); return; }
+  if (window.ScheduleData.getSettlementPayStatus(st).status !== 'paid') { toast('款项未付清（已付金额未达应付总额），无法结转', 'error'); return; }
   if (!confirm(`确认将「${st.kol_name || '此记录'}」结转到已结算区？结转后不可删除。`)) return;
   st.settled    = true;
   st.settled_at = new Date().toISOString().slice(0,10);
@@ -4803,8 +4802,8 @@ function rollbackFromSettled(settlementId) {
   if (!confirm(`确认将「${sched?.kol_name || st.talent || '此记录'}」退回待结算区？`)) return;
   st.settled    = false;
   delete st.settled_at;
-  st.status = st.payments?.every(p => !!p.actual_paid_date) ? '已付款'
-            : st.payments?.some(p => !!p.actual_paid_date)  ? '部分已付' : '待结算';
+  const _rb = window.ScheduleData.getSettlementPayStatus(st).status;
+  st.status = _rb === 'paid' ? '已付款' : _rb === 'partial' ? '部分已付' : '待结算';
   saveData();
   renderSettlement();
   toast('已退回待结算区', 'info');
@@ -5005,21 +5004,18 @@ function _renderPendingArea() {
     const bonus  = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
     const pays   = st.payments?.length ? st.payments
       : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
-    const allPaid  = pays.every(p => !!p.actual_paid_date);
-    const partPaid = !allPaid && pays.some(p => !!p.actual_paid_date);
-    const borderColor = allPaid ? '#10b981' : partPaid ? '#3b82f6' : '#f59e0b';
+    // 统一付款状态：已付金额(只算填了付款时间的) vs 应付总额
+    const _ps = window.ScheduleData.getSettlementPayStatus(st);
+    const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
-    const totalPaidIn = pays.reduce((s, p) => s + (parseFloat(p.amount)||0), 0);
     const hasLink = (DB.contents||[]).some(c => c.schedule_id === sched.id && (c.publications||[]).some(p => p.link && p.link.trim()));
-    const amountMatch = totalSettlement > 0 && Math.abs(totalPaidIn - totalSettlement) < 0.01;
-    const allActualPaid = pays.every(p => !!p.actual_paid_date);
-    // 有主链接即视为已发布（不再看发布日期），避免日期填法卡住结转
-    const canTransfer = hasLink && amountMatch && allActualPaid;
+    // 有主链接即视为已发布（不看发布日期）；付清=已付金额≥应付总额
+    const canTransfer = hasLink && _ps.status === 'paid';
 
     const transferReasons = [];
-    if (!hasLink)        transferReasons.push('🔗 链接未填（未发布）');
-    if (!amountMatch)    transferReasons.push('💰 金额未对齐');
-    if (!allActualPaid)  transferReasons.push('📅 付款时间未填');
+    if (!hasLink)               transferReasons.push('🔗 链接未填（未发布）');
+    if (_ps.status === 'unpaid')  transferReasons.push('💰 未付款');
+    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付¥${fmtNum(_ps.paid)}/应付¥${fmtNum(_ps.due)}）`);
     const transferCell = canTransfer
       ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferToSettled('${sched.id}')">✅ 可转结算</button>`
       : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
@@ -5093,20 +5089,17 @@ function _renderPendingArea() {
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
     const pays  = st.payments?.length ? st.payments
       : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
-    const allPaid  = pays.every(p => !!p.actual_paid_date);
-    const partPaid = !allPaid && pays.some(p => !!p.actual_paid_date);
-    const borderColor = allPaid ? '#10b981' : partPaid ? '#3b82f6' : '#f59e0b';
+    const _ps = window.ScheduleData.getSettlementPayStatus(st);
+    const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
-    const totalPaidIn = pays.reduce((s, p) => s + (parseFloat(p.amount)||0), 0);
-    const amountMatch = totalSettlement > 0 && Math.abs(totalPaidIn - totalSettlement) < 0.01;
     // 内容发布手动：同样要求有主链接（=已发布）才可结转
     const hasLink = (c.publications||[]).some(p => p.link && p.link.trim());
-    const canTransfer = hasLink && allPaid && amountMatch;
+    const canTransfer = hasLink && _ps.status === 'paid';
 
     const transferReasons = [];
-    if (!hasLink)     transferReasons.push('🔗 链接未填（未发布）');
-    if (!allPaid)     transferReasons.push('💰 有款项未付');
-    if (!amountMatch) transferReasons.push('💰 金额未对齐');
+    if (!hasLink)               transferReasons.push('🔗 链接未填（未发布）');
+    if (_ps.status === 'unpaid')  transferReasons.push('💰 未付款');
+    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付¥${fmtNum(_ps.paid)}/应付¥${fmtNum(_ps.due)}）`);
     const transferCell = canTransfer
       ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferSettlementById('${st.id}')">✅ 可转结算</button>`
       : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
@@ -5158,17 +5151,15 @@ function _renderPendingArea() {
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
     const pays  = st.payments?.length ? st.payments
       : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
-    const allPaid  = pays.every(p => !!p.actual_paid_date);
-    const partPaid = !allPaid && pays.some(p => !!p.actual_paid_date);
-    const borderColor = allPaid ? '#10b981' : partPaid ? '#3b82f6' : '#f59e0b';
+    const _ps = window.ScheduleData.getSettlementPayStatus(st);
+    const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
-    const totalPaidIn = pays.reduce((s, p) => s + (parseFloat(p.amount)||0), 0);
-    const amountMatch = totalSettlement > 0 && Math.abs(totalPaidIn - totalSettlement) < 0.01;
-    const canTransfer = allPaid && amountMatch;
+    // 独立结算不要求链接，付清即可结转
+    const canTransfer = _ps.status === 'paid';
 
     const transferReasons = [];
-    if (!allPaid)     transferReasons.push('💰 有款项未付');
-    if (!amountMatch) transferReasons.push('💰 金额未对齐');
+    if (_ps.status === 'unpaid')  transferReasons.push('💰 未付款');
+    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付¥${fmtNum(_ps.paid)}/应付¥${fmtNum(_ps.due)}）`);
     const transferCell = canTransfer
       ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferSettlementById('${st.id}')">✅ 可转结算</button>`
       : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
@@ -5467,8 +5458,8 @@ function saveSettlement() {
     note:            _st.note,
     content_id:      _st.content_id || null,
     amount:          base + bonus,
-    status: _st.payments.every(p => !!p.actual_paid_date) ? '已付款'
-          : _st.payments.some(p => !!p.actual_paid_date)  ? '部分已付' : '待结算',
+    status: (() => { const s = window.ScheduleData.getSettlementPayStatus(_st).status;
+                     return s === 'paid' ? '已付款' : s === 'partial' ? '部分已付' : '待结算'; })(),
   };
   if (editingSettlementId != null) {
     const idx = DB.settlements.findIndex(x => x.id === editingSettlementId);
@@ -6012,7 +6003,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=94"></script>
+<script src="js/schedule/data.js?v=95"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=63"></script>
 <script src="js/schedule/editor.js?v=84"></script>
@@ -6022,7 +6013,7 @@ function initApp() {
 <script src="js/schedule/recycle-bin.js?v=53"></script>
 <script src="js/schedule/kols-page.js?v=66"></script>
 <script src="js/schedule/kols-excel.js?v=53"></script>
-<script src="js/schedule/communication.js?v=105"></script>
+<script src="js/schedule/communication.js?v=106"></script>
 <script src="js/schedule/materials.js?v=6"></script>
 <script src="js/schedule/communication-excel.js?v=53"></script>
 <script src="js/schedule/replacements-page.js?v=52"></script>
