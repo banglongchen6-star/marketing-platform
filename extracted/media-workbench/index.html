@@ -466,6 +466,7 @@
           <button class="btn btn-secondary btn-sm" onclick="clearPendingDateFilter()" title="清除日期筛选">✕</button>
           <span style="color:var(--text-muted);font-size:.82rem;padding:0 2px">|</span>
           <button class="btn btn-primary btn-sm" onclick="exportPendingToExcel()" style="white-space:nowrap;margin-left:auto">📥 导出 Excel</button>
+          <button id="st-new-settle-btn" class="btn btn-primary btn-sm" onclick="openSettlementModal()" style="white-space:nowrap;display:none">＋ 新增结算</button>
         </div>
         <!-- 已结算 筛选栏 -->
         <div class="filter-bar" id="st-filter-settled" style="display:none;margin-bottom:0">
@@ -4734,6 +4735,9 @@ function setStTab(tab) {
   document.getElementById('st-filter-settled').style.display = isSettled ? '' : 'none';
   document.getElementById('st-stats-title').textContent =
     tab === 'pending' ? '💰 待结算总览' : tab === 'applied' ? '📤 已申请付款总览' : '✅ 已结算总览';
+  // 「新增结算」按钮只在「已申请付款」tab 显示
+  const _newBtn = document.getElementById('st-new-settle-btn');
+  if (_newBtn) _newBtn.style.display = tab === 'applied' ? '' : 'none';
   renderSettlement();
 }
 
