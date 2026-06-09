@@ -448,7 +448,8 @@
     input.type = 'text';
     input.value = current != null ? String(current) : '';
     input.placeholder = '输入…';
-    input.style.cssText = 'width:50px;border:1px solid var(--primary);border-radius:4px;padding:3px 6px;font-size:.78rem;outline:none;box-sizing:border-box';
+    const _iw = field === 'likes' ? 20 : 50;
+    input.style.cssText = `width:${_iw}px;border:1px solid var(--primary);border-radius:4px;padding:3px 6px;font-size:.78rem;outline:none;box-sizing:border-box`;
 
     let saved = false;
     const save = () => {
