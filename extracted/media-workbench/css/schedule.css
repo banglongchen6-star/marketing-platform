@@ -231,7 +231,6 @@
 .sched-card {
   background: #ffffff;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--primary);
   border-radius: 4px;
   padding: 4px 6px;
   margin-bottom: 3px;
@@ -369,14 +368,8 @@
 .sched-status-settled   { color: #047857; }   /* green-700 */
 .sched-status-cancelled { color: #9ca3af; text-decoration: line-through; }
 
-/* left-border accent per status */
-.sched-card[data-status="draft"]     { border-left-color: #d1d5db; border-left-width: 4px; }
-.sched-card[data-status="planned"]   { border-left-color: #9ca3af; }
-.sched-card[data-status="contacted"] { border-left-color: #d97706; }
-.sched-card[data-status="confirmed"] { border-left-color: #2563eb; }
-.sched-card[data-status="published"] { border-left-color: #7c3aed; }
-.sched-card[data-status="settled"]   { border-left-color: #059669; }
-.sched-card[data-status="cancelled"] { border-left-color: #d1d5db; opacity: .65; }
+/* 已去掉左边框色条；仅保留已取消的置灰 */
+.sched-card[data-status="cancelled"] { opacity: .65; }
 
 /* ============ 空态 ============ */
 .sched-empty {
