@@ -443,6 +443,10 @@
           style="padding:10px 22px;border:none;border-bottom:2px solid var(--primary);background:none;color:var(--primary);font-weight:700;cursor:pointer;font-size:.92rem;margin-bottom:-2px">
           ⏳ 待结算 <span id="st-pending-badge" style="background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:.72rem;margin-left:4px"></span>
         </button>
+        <button id="st-tab-applied-btn" onclick="setStTab('applied')"
+          style="padding:10px 22px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-muted);cursor:pointer;font-size:.92rem;margin-bottom:-2px">
+          📤 已申请付款 <span id="st-applied-badge" style="background:var(--text-muted);color:#fff;border-radius:10px;padding:1px 7px;font-size:.72rem;margin-left:4px"></span>
+        </button>
         <button id="st-tab-settled-btn" onclick="setStTab('settled')"
           style="padding:10px 22px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-muted);cursor:pointer;font-size:.92rem;margin-bottom:-2px">
           ✅ 已结算 <span id="st-settled-badge" style="background:var(--text-muted);color:#fff;border-radius:10px;padding:1px 7px;font-size:.72rem;margin-left:4px"></span>
@@ -4716,22 +4720,21 @@ function exportPendingToExcel() {
 
 /* 列表里快速标记已付，不需要打开编辑器 */
 /* ========== 达人结算 v3：双区设计 ========== */
-let _stTab = 'pending'; // 'pending' | 'settled'
+let _stTab = 'pending'; // 'pending' | 'applied' | 'settled'
 
 function setStTab(tab) {
   _stTab = tab;
-  const isPending = tab === 'pending';
-  // tab 按钮样式
-  document.getElementById('st-tab-pending-btn').style.cssText =
-    isPending ? 'padding:10px 22px;border:none;border-bottom:2px solid var(--primary);background:none;color:var(--primary);font-weight:700;cursor:pointer;font-size:.92rem;margin-bottom:-2px'
-              : 'padding:10px 22px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-muted);cursor:pointer;font-size:.92rem;margin-bottom:-2px';
-  document.getElementById('st-tab-settled-btn').style.cssText =
-    !isPending ? 'padding:10px 22px;border:none;border-bottom:2px solid var(--primary);background:none;color:var(--primary);font-weight:700;cursor:pointer;font-size:.92rem;margin-bottom:-2px'
-               : 'padding:10px 22px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-muted);cursor:pointer;font-size:.92rem;margin-bottom:-2px';
-  // 筛选栏切换
-  document.getElementById('st-filter-pending').style.display = isPending ? '' : 'none';
-  document.getElementById('st-filter-settled').style.display = isPending ? 'none' : '';
-  document.getElementById('st-stats-title').textContent = isPending ? '💰 待结算总览' : '✅ 已结算总览';
+  const activeCss = 'padding:10px 22px;border:none;border-bottom:2px solid var(--primary);background:none;color:var(--primary);font-weight:700;cursor:pointer;font-size:.92rem;margin-bottom:-2px';
+  const idleCss   = 'padding:10px 22px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-muted);cursor:pointer;font-size:.92rem;margin-bottom:-2px';
+  document.getElementById('st-tab-pending-btn').style.cssText = tab === 'pending' ? activeCss : idleCss;
+  document.getElementById('st-tab-applied-btn').style.cssText = tab === 'applied' ? activeCss : idleCss;
+  document.getElementById('st-tab-settled-btn').style.cssText = tab === 'settled' ? activeCss : idleCss;
+  // 筛选栏：待结算/已申请付款 共用 pending 筛选；已结算用 settled 筛选
+  const isSettled = tab === 'settled';
+  document.getElementById('st-filter-pending').style.display = isSettled ? 'none' : '';
+  document.getElementById('st-filter-settled').style.display = isSettled ? '' : 'none';
+  document.getElementById('st-stats-title').textContent =
+    tab === 'pending' ? '💰 待结算总览' : tab === 'applied' ? '📤 已申请付款总览' : '✅ 已结算总览';
   renderSettlement();
 }
 
@@ -4809,6 +4812,36 @@ function rollbackFromSettled(settlementId) {
   toast('已退回待结算区', 'info');
 }
 
+/** 统一计算三个 tab 的 badge（待结算/已申请付款/已结算），与当前 tab 无关 */
+function _updateStBadges() {
+  const sets = DB.settlements || [];
+  const isApplied = st => !!(st && (st.payments||[]).some(p => p.paid_date));
+  const hasLink = sid => (DB.contents||[]).some(c => c.schedule_id === sid && (((c.publications||[])[0]||{}).link||'').trim());
+  const settledSchedIds   = new Set(sets.filter(s => s.settled).map(s => s.schedule_id).filter(Boolean));
+  const settledContentIds = new Set(sets.filter(s => s.settled && s.content_id).map(s => s.content_id));
+  let pending = 0, applied = 0;
+  (DB.schedules||[]).forEach(s => {
+    if (s.deleted_at || settledSchedIds.has(s.id)) return;
+    if ((Number(s.amount)||0) <= 0) return;
+    if (!hasLink(s.id) && !sets.some(x => x.schedule_id === s.id)) return;
+    isApplied(sets.find(x => x.schedule_id === s.id && !x.settled)) ? applied++ : pending++;
+  });
+  (DB.contents||[]).forEach(c => {
+    if (c.schedule_id || settledContentIds.has(c.id)) return;
+    if ((Number(c.price)||0) <= 0) return;
+    const mp = (c.publications||[])[0];
+    if (!(mp && mp.link && mp.link.trim()) && !sets.some(x => x.content_id === c.id)) return;
+    isApplied(sets.find(x => x.content_id === c.id && !x.settled)) ? applied++ : pending++;
+  });
+  sets.forEach(s => {
+    if (s.settled || s.schedule_id || s.content_id) return;
+    isApplied(s) ? applied++ : pending++;
+  });
+  const pb = document.getElementById('st-pending-badge'); if (pb) pb.textContent = pending;
+  const ab = document.getElementById('st-applied-badge'); if (ab) ab.textContent = applied;
+  const sb = document.getElementById('st-settled-badge'); if (sb) sb.textContent = sets.filter(s => s.settled).length;
+}
+
 function renderSettlement() {
   // 保留滚动位置，避免转结算/退回等操作后跳回顶部
   const _winY = window.scrollY;
@@ -4816,8 +4849,9 @@ function renderSettlement() {
   const _pe = document.getElementById('page-settlement');
   if (_pe) _pe.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
   _stInitMonth();
-  if (_stTab === 'pending') _renderPendingArea();
-  else                      _renderSettledArea();
+  _updateStBadges();
+  if (_stTab === 'settled') _renderSettledArea();
+  else                      _renderPendingArea();
   _fitSettlementTable();
   setTimeout(() => {
     if (_winY) window.scrollTo(0, _winY);
@@ -4845,6 +4879,12 @@ function _renderPendingArea() {
   const search    = (document.getElementById('st-pending-search')?.value || '').toLowerCase();
   const dateStart = document.getElementById('st-pending-date-start')?.value || '';
   const dateEnd   = document.getElementById('st-pending-date-end')?.value   || '';
+  // 当前 tab 模式：pending=未申请付款 / applied=已申请付款（均为未结转）
+  const mode = _stTab === 'applied' ? 'applied' : 'pending';
+  const _isApplied = (st) => !!(st && (st.payments||[]).some(p => p.paid_date));
+  const _schedAppliedF   = (sid) => _isApplied((DB.settlements||[]).find(s => s.schedule_id === sid && !s.settled));
+  const _contentAppliedF = (cid) => _isApplied((DB.settlements||[]).find(s => s.content_id === cid && !s.settled));
+  const _matchMode = (applied) => mode === 'applied' ? applied : !applied;
 
   // 所有未软删排期，过滤掉已结算的
   const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => s.schedule_id).filter(Boolean));
@@ -4900,10 +4940,10 @@ function _renderPendingArea() {
     })
     .sort((a,b) => (b.publish_date||'').localeCompare(a.publish_date||''));
 
-  // badge
-  document.getElementById('st-pending-badge').textContent = scheds.length + unscheduledContents.length + standaloneSettlements.length;
-  document.getElementById('st-settled-badge').textContent =
-    (DB.settlements||[]).filter(s => s.settled).length;
+  // 当前 tab 过滤（badge 由 _updateStBadges 统一计算）
+  scheds = scheds.filter(s => _matchMode(_schedAppliedF(s.id)));
+  unscheduledContents = unscheduledContents.filter(c => _matchMode(_contentAppliedF(c.id)));
+  standaloneSettlements = standaloneSettlements.filter(s => _matchMode(_isApplied(s)));
 
   // 统计（排期来源）
   let totalAmt = 0, paidAmt = 0, pendingAmt = 0;
@@ -5256,11 +5296,7 @@ function _renderSettledArea() {
     return true;
   }).sort((a,b) => (b.settled_at||'').localeCompare(a.settled_at||''));
 
-  // badge
-  document.getElementById('st-pending-badge').textContent =
-    (DB.schedules||[]).filter(s => !s.deleted_at && !(DB.settlements||[]).some(st => st.schedule_id === s.id && st.settled)).length;
-  document.getElementById('st-settled-badge').textContent =
-    (DB.settlements||[]).filter(s => s.settled).length;
+  // badge 由 _updateStBadges 统一计算
 
   // 统计
   let totalAmt = 0;
