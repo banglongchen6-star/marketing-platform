@@ -675,6 +675,9 @@
     if (status === 'paid')    return paidTag;
     if (status === 'partial') return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">部分付款</span>`;
     if (status === 'none')    return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb">无需付款</span>`;
+    // 未付款细分：填了「申请付款时间」但还没实际付款 → 已申请
+    if ((active.payments||[]).some(p => p.paid_date))
+      return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe">已申请</span>`;
     return unpaidTag;
   }
 
