@@ -662,14 +662,17 @@
   const MAIN_COLS = new Set(['price','fans','category','work_type']);
 
   function _payStatusTag(scheduleId, contentId) {
-    const st = scheduleId
-      ? (window.DB?.settlements || []).find(s => s.schedule_id === scheduleId && !s.settled)
-      : (window.DB?.settlements || []).find(s => s.content_id === contentId && !s.settled);
+    const list = (window.DB?.settlements || []).filter(s =>
+      scheduleId ? s.schedule_id === scheduleId : s.content_id === contentId);
     const unpaidTag = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">未付款</span>`;
-    if (!st) return unpaidTag;
+    const paidTag   = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-weight:600">已付款</span>`;
+    if (!list.length) return unpaidTag;
+    // 已结转到「已结算」区的，视为已付清归档
+    const active = list.find(s => !s.settled);
+    if (!active) return paidTag;
     // 统一付款状态：已付金额(只算填了付款时间的) vs 应付总额
-    const { status } = SD.getSettlementPayStatus(st);
-    if (status === 'paid')    return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-weight:600">已付款</span>`;
+    const { status } = SD.getSettlementPayStatus(active);
+    if (status === 'paid')    return paidTag;
     if (status === 'partial') return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">部分付款</span>`;
     if (status === 'none')    return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb">无需付款</span>`;
     return unpaidTag;
