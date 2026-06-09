@@ -425,6 +425,7 @@
 
   /* 可内联编辑的字段（完播率起往后） */
   const INLINE_EDIT_KEYS = new Set([
+    'likes', 'comments',
     'completion', 'interaction',
     'search_views', 'search_rate',
     'attr_direct', 'attr_indirect', 'attr_search', 'attr_audience', 'attr_store', 'cpa3',
