@@ -5375,11 +5375,12 @@ function openSettlementForSchedule(scheduleId) {
   const sched = (DB.schedules||[]).find(x => x.id === scheduleId);
   if (sched) {
     _st.kol_name = sched.kol_name || '';
-    // 结算金额取「内容发布」里该达人的价格（实际执行价），不再用排期预算
+    // 结算金额取「内容发布显示的价格」：挂排期的内容其价格就是排期金额（内容自身price字段为空）
     const content = (DB.contents||[]).find(c => c.schedule_id === scheduleId);
-    if (content && content.price != null && content.price !== '') {
-      _st.contract_amount = Number(content.price); _stSyncFullAmount();
-    }
+    const amt = (content && content.price != null && content.price !== '')
+      ? Number(content.price)
+      : (sched.amount != null && sched.amount !== '' ? Number(sched.amount) : null);
+    if (amt != null) { _st.contract_amount = amt; _stSyncFullAmount(); }
   }
   _stFromContext = true;
   _stRender();
