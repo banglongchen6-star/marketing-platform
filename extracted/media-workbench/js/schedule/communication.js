@@ -666,7 +666,15 @@
       scheduleId ? s.schedule_id === scheduleId : s.content_id === contentId);
     const unpaidTag = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">未付款</span>`;
     const paidTag   = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-weight:600">已付款</span>`;
-    if (!list.length) return unpaidTag;
+    const noneTag   = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb">无需付款</span>`;
+    if (!list.length) {
+      // 没有结算单：明确填了 0 元（置换/免费）→ 无需付款；没填金额 → 未付款
+      let amt = null;
+      if (scheduleId) { const s = (window.DB?.schedules||[]).find(x => x.id === scheduleId); amt = s ? s.amount : null; }
+      else            { const c = (window.DB?.contents ||[]).find(x => x.id === contentId);  amt = c ? c.price  : null; }
+      if (amt != null && amt !== '' && Number(amt) === 0) return noneTag;
+      return unpaidTag;
+    }
     // 已结转到「已结算」区的，视为已付清归档
     const active = list.find(s => !s.settled);
     if (!active) return paidTag;
@@ -674,7 +682,7 @@
     const { status } = SD.getSettlementPayStatus(active);
     if (status === 'paid')    return paidTag;
     if (status === 'partial') return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">部分付款</span>`;
-    if (status === 'none')    return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb">无需付款</span>`;
+    if (status === 'none')    return noneTag;
     // 未付款细分：填了「申请付款时间」但还没实际付款 → 已申请
     if ((active.payments||[]).some(p => p.paid_date))
       return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe">已申请</span>`;
