@@ -1419,9 +1419,12 @@ function loadData() {
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
 
+// 首次从服务器成功同步后才允许上传（防止空缓存浏览器在同步前把空数据推上服务器）
+window.__syncReady = false;
 function saveData() {
   DB._saved_at = Date.now();
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+  if (!window.__syncReady) return; // 未完成首次同步：只存本地，不上传
   // 同步到服务器（防抖 800ms）
   clearTimeout(saveData._t);
   saveData._t = setTimeout(() => {
@@ -1436,6 +1439,7 @@ function saveData() {
 function saveDataNow() {
   DB._saved_at = Date.now();
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+  if (!window.__syncReady) return;
   clearTimeout(saveData._t);
   fetch('/api/data', {
     method: 'POST',
@@ -6086,6 +6090,7 @@ function initApp() {
         Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build') DB[k] = serverData[k]; });
         window.DB = DB;
         localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+        window.__syncReady = true; // 首次同步完成，允许上传
       }
     } catch (e) {
       // 服务器不可达时才降级用本地缓存（离线模式）
@@ -6209,6 +6214,7 @@ function initApp() {
           }
         }
         if (!serverData || !serverData._saved_at) return;
+        window.__syncReady = true; // 拿到服务器数据即视为已同步，允许上传
         const serverTs = serverData._saved_at || 0;
         const localTs  = DB._saved_at  || 0;
         if (serverTs > localTs) {

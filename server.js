@@ -164,8 +164,17 @@ app.get('/api/data', requireAuth, (req, res) => {
   } catch(e) { res.status(500).json({ error: '读取失败' }); }
 });
 
+const CORE_KEYS = ['schedules', 'contents', 'kols', 'settlements', 'samples', 'bds', 'supervisors'];
+function hasCoreData(d) {
+  return d && typeof d === 'object' && CORE_KEYS.some(k => Array.isArray(d[k]) && d[k].length > 0);
+}
 app.post('/api/data', requireAuth, (req, res) => {
   try {
+    // 防清空：现有数据非空时，拒绝用空数据整体覆盖（防止空缓存浏览器误推）
+    if (!hasCoreData(req.body) && hasCoreData(readDbSafe())) {
+      console.warn('⛔ 拒绝空数据覆盖（防清空保护）');
+      return res.status(409).json({ error: '拒绝保存：提交的数据为空，已保护服务器现有数据' });
+    }
     createDailyBackup(req.body);
     fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
     res.json({ ok: true });

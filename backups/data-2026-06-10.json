@@ -1,0 +1,14 @@
+{
+  "schedules": [
+    {
+      "id": "s1"
+    }
+  ],
+  "bds": [
+    {
+      "id": "bd_1",
+      "name": "测试",
+      "password": "p"
+    }
+  ]
+}

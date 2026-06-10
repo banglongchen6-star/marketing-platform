@@ -111,7 +111,11 @@
       "Bash(perl -i -pe \"s#app\\\\.get\\\\\\('/api/backups', \\\\\\(req, res\\\\\\)#app.get\\('/api/backups', requireAuth, \\(req, res\\)#\" server.js)",
       "Bash(perl -i -pe \"s#app\\\\.get\\\\\\('/api/backups/:filename', \\\\\\(req, res\\\\\\)#app.get\\('/api/backups/:filename', requireAuth, \\(req, res\\)#\" server.js)",
       "Bash(perl -i -pe \"s#app\\\\.get\\\\\\('/api/email-config', \\\\\\(req, res\\\\\\)#app.get\\('/api/email-config', requireAuth, \\(req, res\\)#\" server.js)",
-      "Bash(perl -i -pe \"s#app\\\\.post\\\\\\('/api/email-config', \\\\\\(req, res\\\\\\)#app.post\\('/api/email-config', requireAuth, \\(req, res\\)#\" server.js)"
+      "Bash(perl -i -pe \"s#app\\\\.post\\\\\\('/api/email-config', \\\\\\(req, res\\\\\\)#app.post\\('/api/email-config', requireAuth, \\(req, res\\)#\" server.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://8.218.189.74:3002/api/login-options)",
+      "Bash(curl -s http://8.218.189.74:3002/api/login-options)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://8.218.189.74:3002/api/data)",
+      "Bash(curl -s -X POST http://8.218.189.74:3002/api/login -H \"Content-Type: application/json\" -d '{\"identity\":\"admin\",\"password\":\"admin123\"}')"
     ]
   }
 }
