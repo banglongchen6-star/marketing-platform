@@ -765,6 +765,23 @@
     };
     syncKolHomepage(DB.schedules[idx]);
 
+    // 平台结构变更 → 同步关联「内容发布」的平台行（保留同平台已填的链接/数据，只增删平台）
+    const _oldPlats = Array.isArray(before.platforms) ? before.platforms : (before.platform ? [before.platform] : []);
+    const _newPlats = Array.isArray(DB.schedules[idx].platforms) ? DB.schedules[idx].platforms : [];
+    if (JSON.stringify(_oldPlats) !== JSON.stringify(_newPlats) && _newPlats.length) {
+      (DB.contents || []).forEach(c => {
+        if (c.schedule_id !== id) return;
+        const oldPubs = c.publications || [];
+        c.publications = _newPlats.map((plat, i) => {
+          const ex = oldPubs.find(p => p.platform === plat);
+          if (ex) return ex; // 平台没变的：原样保留（链接、播放、赞、评论等都留着）
+          // 新增平台：建空行，主平台带排期日期
+          return normalizePublication({ platform: plat, date: i === 0 ? (DB.schedules[idx].schedule_date || '') : '' });
+        });
+        c.updated_at = nowISO();
+      });
+    }
+
     // 日期变更处理（_fromContent：日期来自内容发布的回写，已是统一日期，跳过反向同步副作用）
     const newDate = realPatch.schedule_date || before.schedule_date;
     if (realPatch.schedule_date && !_fromContent) {

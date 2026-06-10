@@ -103,7 +103,8 @@
       "Bash(awk -F: '$1>=4940 && $1<=5260')",
       "Bash(awk 'NR>=4843 && NR<=5270' index.html)",
       "Bash(awk 'NR<=__TRACKED_VAR__ && /function _inlineEdit/{f=$0} END{print f}' js/schedule/communication.js)",
-      "Bash(perl -i -pe 's/>点击填写…<\\\\/span>/>-<\\\\/span>/g' js/schedule/communication.js)"
+      "Bash(perl -i -pe 's/>点击填写…<\\\\/span>/>-<\\\\/span>/g' js/schedule/communication.js)",
+      "Bash(awk -F: '$1>=732 && $1<=800')"
     ]
   }
 }
