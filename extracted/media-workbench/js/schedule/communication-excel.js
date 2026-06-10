@@ -254,7 +254,7 @@
         if (i === 0) {
           // 主行
           data.push([
-            r.talent, r.price, content.fans != null ? (content.fans/10000).toFixed(1) : '', r.category,
+            r.talent, r.price, content.fans != null ? (content.fans/10000).toFixed(1) : '', r.work_type,
             p.platform, p.date, p.link,
             p.views, p.likes, p.comments, p.completion, p.interaction,
             p.search_views, p.search_rate,
