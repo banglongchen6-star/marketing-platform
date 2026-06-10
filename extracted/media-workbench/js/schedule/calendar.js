@@ -152,8 +152,8 @@
     const bdStyle = ''; // 不再用 BD 颜色覆盖左边框，左边框恢复为「状态颜色」
     // 金额提示：≥1万 淡金色（大单）；5000~1万 淡蓝色（中单）
     const _amt = Number(s.amount) || 0;
-    const bigStyle = _amt >= 10000 ? 'background:#fff7e6;'
-                   : _amt >= 5000  ? 'background:#eff6ff;' : '';
+    const bigStyle = _amt >= 10000 ? 'background:#fef3c7;'
+                   : _amt >= 5000  ? 'background:#dbeafe;' : '';
     const frozenStyle = frozen ? 'opacity:.55;filter:grayscale(0.4);cursor:not-allowed;' : '';
     const bdChip = bd ? `<span class="sched-card-chip" style="background:${bd.color}20;color:${bd.color};font-weight:500" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>` : '';
     const titleAttr = [
