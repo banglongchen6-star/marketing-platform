@@ -244,9 +244,12 @@
     const list = SD.listContents({ year, month, mainPlatform, bd_id });
     if (!list.length) return null;
     const data = [COLUMNS.map(c => c.header)];
+    const merges = [];   // 同一达人多平台时，合并前4列（昵称/价格/粉丝量/作品类型）
+    let rowIdx = 1;      // 数据从第 1 行开始（第 0 行是表头）
     list.forEach(content => {
       const r = SD.resolveContent(content);
       const pubs = content.publications || [];
+      const n = pubs.length;
       pubs.forEach((p, i) => {
         if (i === 0) {
           // 主行
@@ -268,9 +271,17 @@
           ]);
         }
       });
+      // 多平台 → 把前 4 列纵向合并成一个格子（和网页 rowspan 一致）
+      if (n > 1) {
+        for (let col = 0; col < 4; col++) {
+          merges.push({ s: { r: rowIdx, c: col }, e: { r: rowIdx + n - 1, c: col } });
+        }
+      }
+      rowIdx += n;
     });
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = COLUMNS.map(c => ({ wch: Math.max(c.header.length * 2 + 2, 14) }));
+    if (merges.length) ws['!merges'] = merges;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${year}-${String(month).padStart(2,'0')}`);
     return wb;
