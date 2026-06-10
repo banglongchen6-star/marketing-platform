@@ -188,7 +188,15 @@
         <div class="sched-card-row2">
           <span class="sched-card-amount ${statusClass(s.status)}">${amountText}</span>
         </div>
-        ${(dirChip || platChip || tierChip || bdChip) ? `<div class="sched-card-meta">${dirChip}${platChip}${tierChip}${bdChip}</div>` : ''}
+        ${(() => {
+          const _sep = '<span style="color:var(--text-muted);margin:0 4px;opacity:.55">·</span>';
+          const parts = [];
+          if (s.category_direction) parts.push(`<span title="达人类型">${escapeHtml(s.category_direction)}</span>`);
+          if (mainPlat) parts.push(`<span title="主平台">${escapeHtml(mainPlat)}<sup style="font-size:.6rem;color:var(--primary);font-weight:600;margin-left:1px;vertical-align:super">主</sup></span>`);
+          syncPlats.forEach(p => parts.push(`<span title="同步平台">${escapeHtml(p)}</span>`));
+          if (bd) parts.push(`<span style="color:${bd.color};font-weight:500" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>`);
+          return parts.length ? `<div class="sched-card-meta" style="display:block;font-size:.7rem;color:var(--text-secondary);line-height:1.5">${parts.join(_sep)}</div>` : '';
+        })()}
       </div>
     `;
   }
