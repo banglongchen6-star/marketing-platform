@@ -295,12 +295,15 @@
   border-radius: 3px;
   line-height: 1;
   transition: all var(--transition);
-  opacity: .55;
+  opacity: .2;            /* 平时几乎隐形 */
+  filter: grayscale(1);   /* 去掉 emoji 自带的彩色 */
 }
+.sched-card:hover .sched-card-link { opacity: .7; }  /* 鼠标移到卡片：提示可见 */
 .sched-card-link:hover {
   background: var(--primary-light);
   color: var(--primary);
   opacity: 1;
+  filter: none;
   transform: scale(1.15);
 }
 .sched-card-row2 {
