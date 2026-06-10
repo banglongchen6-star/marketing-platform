@@ -6193,6 +6193,12 @@ function initApp() {
       _polling = true;
       try {
         const res = await fetch('/api/data');
+        if (res.status === 401) {
+          // 令牌缺失/失效：不是服务器断开，回登录页重新登录
+          try { localStorage.removeItem(AUTH_TOKEN_KEY); localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          location.reload();
+          return;
+        }
         if (!res.ok) throw new Error('服务器响应异常');
         const serverData = await res.json();
 
