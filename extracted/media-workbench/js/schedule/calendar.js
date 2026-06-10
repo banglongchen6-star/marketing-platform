@@ -150,6 +150,8 @@
     ].filter(Boolean).join('');
     const bd = s.bd_id ? SD.findBdPersonById(s.bd_id) : null;
     const bdStyle = ''; // 不再用 BD 颜色覆盖左边框，左边框恢复为「状态颜色」
+    // 金额 ≥ 1万：淡金色背景提示大单
+    const bigStyle = (Number(s.amount) || 0) >= 10000 ? 'background:#fff7e6;' : '';
     const frozenStyle = frozen ? 'opacity:.55;filter:grayscale(0.4);cursor:not-allowed;' : '';
     const bdChip = bd ? `<span class="sched-card-chip" style="background:${bd.color}20;color:${bd.color};font-weight:500" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>` : '';
     const titleAttr = [
@@ -174,7 +176,7 @@
       : `onclick="event.stopPropagation();openScheduleEditor('${s.id}')"
            oncontextmenu="event.preventDefault();event.stopPropagation();SchedulePage._openStatusMenu(event,'${s.id}')"`;
     return `
-      <div class="sched-card" data-status="${s.status || 'planned'}" style="${bdStyle}${frozenStyle}${draftStyle}"
+      <div class="sched-card" data-status="${s.status || 'planned'}" style="${bdStyle}${bigStyle}${frozenStyle}${draftStyle}"
            ${dragAttrs} ${clickHandler}
            title="${escapeHtml(titleAttr)}">
         <div class="sched-card-row1">
