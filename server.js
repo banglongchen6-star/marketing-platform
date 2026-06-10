@@ -7,6 +7,8 @@ const cron      = require('node-cron');
 const app = express();
 const PORT       = process.env.PORT || 3002;
 const BUILD_ID   = Date.now(); // 进程启动时间，作为版本标识（pm2 restart 后变化 → 前端旧标签自动刷新）
+const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
+const AUTH_TOKEN = process.env.AUTH_TOKEN || 'mw-7f3a9c2e8b1d4f6a0e5c9b2d8a4f1e6c'; // 接口访问令牌（server.js 不对外暴露，登录后下发）
 const DATA_FILE  = path.join(__dirname, 'db.json');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const EMAIL_CFG  = path.join(__dirname, 'email-config.json');
@@ -112,8 +114,48 @@ function scheduleDailyEmail() {
   console.log(`📧 每日邮件备份已启动，发送时间: ${cfg.sendTime || '22:00'}`);
 }
 
+/* ========== 鉴权 ========== */
+function readDbSafe() {
+  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch(e) { return {}; }
+}
+// 公开：登录身份下拉（只给名字，绝不含密码）
+app.get('/api/login-options', (req, res) => {
+  const d = readDbSafe();
+  const opts = [{ value: 'admin', label: '👑 管理员' }];
+  (d.bds || []).filter(b => b.is_active !== false && b.password).forEach(b =>
+    opts.push({ value: 'bd__' + b.id, label: '👤 ' + b.name + '（商务BD）' }));
+  (d.supervisors || []).filter(s => s.password).forEach(s =>
+    opts.push({ value: 'sv__' + s.id, label: '🎯 ' + s.name + '（品宣主管）' }));
+  res.json(opts);
+});
+// 公开：登录校验（密码在服务端比对），成功下发令牌
+app.post('/api/login', (req, res) => {
+  const { identity, password } = req.body || {};
+  const d = readDbSafe();
+  let user = null;
+  if (identity === 'admin') {
+    if (password === ADMIN_PASS) user = { identity:'admin', name:'管理员', role:'管理员', bd_id:null };
+  } else if (identity && identity.indexOf('bd__') === 0) {
+    const bd = (d.bds||[]).find(b => b.id === identity.slice(4));
+    if (bd && bd.password && bd.password === password) user = { identity:'bd', name:bd.name, role:'商务BD', bd_id:bd.id };
+  } else if (identity && identity.indexOf('sv__') === 0) {
+    const sv = (d.supervisors||[]).find(s => s.id === identity.slice(4));
+    if (sv && sv.password && sv.password === password) user = { identity:'supervisor', name:sv.name, role:'品宣主管', bd_id:sv.id, sv_id:sv.id };
+  }
+  if (!user) return res.status(401).json({ error: '账号或密码错误' });
+  res.json({ token: AUTH_TOKEN, user });
+});
+// 中间件：受保护接口必须带正确令牌
+function requireAuth(req, res, next) {
+  const t = req.headers['x-auth-token'] || req.query.t || '';
+  if (t !== AUTH_TOKEN) {
+    return res.status(401).json({ error: '未授权，请重新登录' });
+  }
+  next();
+}
+
 /* ========== 数据 API ========== */
-app.get('/api/data', (req, res) => {
+app.get('/api/data', requireAuth, (req, res) => {
   try {
     if (!fs.existsSync(DATA_FILE)) return res.json({ _build: BUILD_ID });
     const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
@@ -122,7 +164,7 @@ app.get('/api/data', (req, res) => {
   } catch(e) { res.status(500).json({ error: '读取失败' }); }
 });
 
-app.post('/api/data', (req, res) => {
+app.post('/api/data', requireAuth, (req, res) => {
   try {
     createDailyBackup(req.body);
     fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
@@ -131,7 +173,7 @@ app.post('/api/data', (req, res) => {
 });
 
 /* ========== 备份 API ========== */
-app.get('/api/backups', (req, res) => {
+app.get('/api/backups', requireAuth, (req, res) => {
   try {
     ensureBackupDir();
     const files = fs.readdirSync(BACKUP_DIR)
@@ -145,7 +187,7 @@ app.get('/api/backups', (req, res) => {
   } catch(e) { res.status(500).json({ error: '读取备份列表失败' }); }
 });
 
-app.get('/api/backups/:filename', (req, res) => {
+app.get('/api/backups/:filename', requireAuth, (req, res) => {
   try {
     const filename = path.basename(req.params.filename);
     const filepath = path.join(BACKUP_DIR, filename);
@@ -157,13 +199,13 @@ app.get('/api/backups/:filename', (req, res) => {
 });
 
 /* ========== 邮件配置 API ========== */
-app.get('/api/email-config', (req, res) => {
+app.get('/api/email-config', requireAuth, (req, res) => {
   const cfg = loadEmailCfg() || {};
   // 返回时隐藏密码（前端只显示是否已配置）
   res.json({ ...cfg, senderPass: cfg.senderPass ? '••••••••' : '' });
 });
 
-app.post('/api/email-config', (req, res) => {
+app.post('/api/email-config', requireAuth, (req, res) => {
   try {
     const existing = loadEmailCfg() || {};
     const body = req.body;
@@ -176,7 +218,7 @@ app.post('/api/email-config', (req, res) => {
   } catch(e) { res.status(500).json({ error: '保存配置失败' }); }
 });
 
-app.post('/api/email-test', async (req, res) => {
+app.post('/api/email-test', requireAuth, async (req, res) => {
   try {
     const cfg = loadEmailCfg();
     if (!cfg || !cfg.senderEmail) return res.status(400).json({ error: '请先配置邮件信息' });

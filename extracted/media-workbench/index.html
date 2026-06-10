@@ -1276,6 +1276,22 @@
 <script>
 /* ==================== Data ==================== */
 const STORE_KEY = 'pxw_v2';
+/* ==================== 接口令牌（登录后下发，所有 /api 请求自动携带） ==================== */
+const AUTH_TOKEN_KEY = 'mw_token';
+(function patchFetch(){
+  const _f = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    try {
+      if (typeof url === 'string' && url.indexOf('/api/') === 0 && url.indexOf('/api/login') !== 0) {
+        opts = opts || {};
+        const h = new Headers(opts.headers || {});
+        h.set('x-auth-token', localStorage.getItem(AUTH_TOKEN_KEY) || '');
+        opts.headers = h;
+      }
+    } catch(e) {}
+    return _f(url, opts);
+  };
+})();
 
 // 自然月选择器状态
 let naturalMonthMode = false;
@@ -1439,27 +1455,16 @@ let currentUser = null;
 const SESSION_KEY = 'mw_session_v2';
 
 // 填充登录页身份下拉（DB 已加载后调用）
-function populateLoginIdentities() {
+async function populateLoginIdentities() {
   const sel = document.getElementById('login-identity');
   if (!sel) return;
-  // 清除旧选项，保留管理员
-  Array.from(sel.options).filter(o => o.value !== 'admin').forEach(o => o.remove());
-  // 商务BD
-  const bds = (window.DB?.bds || []).filter(b => b.is_active !== false && b.password);
-  bds.forEach(b => {
-    const opt = document.createElement('option');
-    opt.value = 'bd__' + b.id;
-    opt.textContent = '👤 ' + b.name + '（商务BD）';
-    sel.appendChild(opt);
-  });
-  // 品宣主管
-  const svs = (window.DB?.supervisors || []).filter(sv => sv.password);
-  svs.forEach(sv => {
-    const opt = document.createElement('option');
-    opt.value = 'sv__' + sv.id;
-    opt.textContent = '🎯 ' + sv.name + '（品宣主管）';
-    sel.appendChild(opt);
-  });
+  try {
+    const res = await fetch('/api/login-options');
+    const opts = await res.json();
+    sel.innerHTML = (opts || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="admin">👑 管理员</option>';
+  }
 }
 
 function _applyLogin(userInfo) {
@@ -1483,33 +1488,28 @@ function _applyLogin(userInfo) {
   initApp();
 }
 
-function doLogin() {
+async function doLogin() {
   const identity = document.getElementById('login-identity').value;
   const p = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  if (identity === 'admin') {
-    if (p !== ADMIN_PASS) { errEl.textContent = '密码错误'; return; }
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: 'admin', at: Date.now() })); } catch(e) {}
-    _applyLogin({ identity: 'admin', name: '管理员', role: '管理员', bd_id: null });
-  } else if (identity.startsWith('bd__')) {
-    const bdId = identity.slice(4);
-    const bd = (window.DB?.bds || []).find(b => b.id === bdId);
-    if (!bd) { errEl.textContent = '账号不存在'; return; }
-    if (!bd.password) { errEl.textContent = '该账号尚未设置密码，请联系管理员'; return; }
-    if (bd.password !== p) { errEl.textContent = '密码错误'; return; }
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: 'bd', bd_id: bd.id, at: Date.now() })); } catch(e) {}
-    _applyLogin({ identity: 'bd', name: bd.name, role: '商务BD', bd_id: bd.id });
-  } else if (identity.startsWith('sv__')) {
-    const svId = identity.slice(4);
-    const sv = (window.DB?.supervisors || []).find(s => s.id === svId);
-    if (!sv) { errEl.textContent = '账号不存在'; return; }
-    if (!sv.password) { errEl.textContent = '该账号尚未设置密码，请联系管理员'; return; }
-    if (sv.password !== p) { errEl.textContent = '密码错误'; return; }
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: 'supervisor', sv_id: sv.id, at: Date.now() })); } catch(e) {}
-    _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.id, sv_id: sv.id });
-  } else {
-    errEl.textContent = '请选择登录身份';
+  if (!identity) { errEl.textContent = '请选择登录身份'; return; }
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identity, password: p })
+    });
+    if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
+    const { token, user } = await res.json();
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    const sess = { identity: user.identity, at: Date.now() };
+    if (user.identity === 'bd') sess.bd_id = user.bd_id;
+    if (user.identity === 'supervisor') sess.sv_id = user.sv_id;
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(sess)); } catch(e) {}
+    // 重新加载：带令牌拉取全部数据并自动恢复登录态
+    location.reload();
+  } catch(e) {
+    errEl.textContent = '登录失败，请重试';
   }
 }
 
@@ -1668,7 +1668,7 @@ async function openBackupPanel() {
               <div style="font-weight:500;font-size:.88rem">${b.date}</div>
               <div style="font-size:.75rem;color:var(--text-muted)">${(b.size/1024).toFixed(1)} KB</div>
             </div>
-            <a href="/api/backups/${b.filename}" download="${b.filename}"
+            <a href="/api/backups/${b.filename}?t=${localStorage.getItem(AUTH_TOKEN_KEY)||''}" download="${b.filename}"
                style="font-size:.78rem;padding:4px 12px;border:1px solid var(--primary);border-radius:4px;color:var(--primary);text-decoration:none">
               下载
             </a>
@@ -1696,7 +1696,7 @@ async function openBackupPanel() {
 }
 
 function doLogout() {
-  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  try { localStorage.removeItem(SESSION_KEY); localStorage.removeItem(AUTH_TOKEN_KEY); } catch(e) {}
   currentUser = null;
   window.currentUser = null;
   populateLoginIdentities();
@@ -1708,6 +1708,7 @@ function doLogout() {
 
 function tryRestoreSession() {
   try {
+    if (!localStorage.getItem(AUTH_TOKEN_KEY)) return false; // 没令牌不恢复，强制重新登录
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
@@ -6071,6 +6072,12 @@ function initApp() {
   (async function syncFromServer() {
     try {
       const res = await fetch('/api/data');
+      if (res.status === 401) {
+        // 令牌缺失/失效 → 清除并回到登录页
+        try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch(e) {}
+        await populateLoginIdentities();
+        return;
+      }
       if (!res.ok) throw new Error('no server');
       const serverData = await res.json();
       // 服务器是唯一数据源，直接用服务器数据，不做任何本地与服务器的合并比较

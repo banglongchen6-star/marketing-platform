@@ -105,7 +105,13 @@
       "Bash(awk 'NR<=__TRACKED_VAR__ && /function _inlineEdit/{f=$0} END{print f}' js/schedule/communication.js)",
       "Bash(perl -i -pe 's/>点击填写…<\\\\/span>/>-<\\\\/span>/g' js/schedule/communication.js)",
       "Bash(awk -F: '$1>=732 && $1<=800')",
-      "Bash(node -c js/schedule/communication-excel.js)"
+      "Bash(node -c js/schedule/communication-excel.js)",
+      "Bash(grep -n \"tryRestoreSession\\\\|login-screen\\\\|syncFromServer\\\\|_serverOffline\\\\|fetch\\('/api/data'\\\\|fetch\\(\\\\\"/api/data\\\\\"\\\\|fetch\\(\\\\`/api\" index.html)",
+      "Bash(perl -i -pe \"s#app\\\\.post\\\\\\('/api/data', \\\\\\(req, res\\\\\\)#app.post\\('/api/data', requireAuth, \\(req, res\\)#\" server.js)",
+      "Bash(perl -i -pe \"s#app\\\\.get\\\\\\('/api/backups', \\\\\\(req, res\\\\\\)#app.get\\('/api/backups', requireAuth, \\(req, res\\)#\" server.js)",
+      "Bash(perl -i -pe \"s#app\\\\.get\\\\\\('/api/backups/:filename', \\\\\\(req, res\\\\\\)#app.get\\('/api/backups/:filename', requireAuth, \\(req, res\\)#\" server.js)",
+      "Bash(perl -i -pe \"s#app\\\\.get\\\\\\('/api/email-config', \\\\\\(req, res\\\\\\)#app.get\\('/api/email-config', requireAuth, \\(req, res\\)#\" server.js)",
+      "Bash(perl -i -pe \"s#app\\\\.post\\\\\\('/api/email-config', \\\\\\(req, res\\\\\\)#app.post\\('/api/email-config', requireAuth, \\(req, res\\)#\" server.js)"
     ]
   }
 }
