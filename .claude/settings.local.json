@@ -116,7 +116,10 @@
       "Bash(curl -s http://8.218.189.74:3002/api/login-options)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://8.218.189.74:3002/api/data)",
       "Bash(curl -s -X POST http://8.218.189.74:3002/api/login -H \"Content-Type: application/json\" -d '{\"identity\":\"admin\",\"password\":\"admin123\"}')",
-      "Bash(node -c js/schedule/calendar.js)"
+      "Bash(node -c js/schedule/calendar.js)",
+      "Bash(curl -s \"http://8.218.189.74:3002/js/schedule/calendar.js?v=67\")",
+      "Bash(curl -s 'http://8.218.189.74:3002/js/schedule/calendar.js?v=67&_=__CMDSUB_OUTPUT__')",
+      "Bash(curl -sI \"http://8.218.189.74:3002/js/schedule/calendar.js?v=67\")"
     ]
   }
 }
