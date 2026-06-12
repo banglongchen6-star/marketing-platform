@@ -1006,6 +1006,8 @@
       // 不关联排期时，达人类型/作品类型存在内容上（关联排期则从排期带，不冗余）
       category_direction: data.schedule_id ? '' : (data.category_direction || ''),
       work_type: data.schedule_id ? '' : (data.work_type || ''),
+      // 不关联排期时价格存在内容上（关联排期则从排期 amount 反查，不冗余）
+      price: data.schedule_id ? null : (data.price != null && data.price !== '' ? Number(data.price) : null),
       fans: data.fans != null && data.fans !== '' ? Number(data.fans) : null,
       publications: (data.publications || []).map(normalizePublication),
       created_at: nowISO(),
