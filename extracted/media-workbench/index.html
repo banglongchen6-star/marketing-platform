@@ -4715,7 +4715,7 @@ function exportPendingToExcel() {
 
   const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => s.schedule_id));
   const scheds = (DB.schedules||[])
-    .filter(s => !s.deleted_at && !settledIds.has(s.id))
+    .filter(s => !s.deleted_at && !settledIds.has(String(s.id)))
     .filter(s => !search || (s.kol_name||s.talent||'').toLowerCase().includes(search))
     .filter(s => !dateStart || (s.schedule_date && s.schedule_date >= dateStart))
     .filter(s => !dateEnd   || (s.schedule_date && s.schedule_date <= dateEnd))
@@ -4726,7 +4726,7 @@ function exportPendingToExcel() {
   const rows = [];
 
   scheds.forEach(sched => {
-    const st = (DB.settlements||[]).find(s => s.schedule_id === sched.id && !s.settled);
+    const st = (DB.settlements||[]).find(s => String(s.schedule_id) === String(sched.id) && !s.settled);
     const talent = sched.kol_name || sched.talent || '-';
     const date   = sched.schedule_date || '-';
 
@@ -4781,26 +4781,13 @@ function setStTab(tab) {
   renderSettlement();
 }
 
-function stQuickPay(settlementId, payIdx) {
-  const s = DB.settlements.find(x => String(x.id) === String(settlementId));
-  if (!s || !s.payments) return;
-  const p = s.payments[payIdx];
-  if (!p) return;
-  p.status = 'paid';
-  if (!p.paid_date) p.paid_date = new Date().toISOString().slice(0, 10);
-  s.status = s.payments.every(x => x.status === 'paid') ? '已付款'
-           : s.payments.some(x => x.status === 'paid')  ? '部分已付' : '待结算';
-  saveData();
-  renderSettlement();
-  toast('已标记为已付款', 'success');
-}
-
 /** 内联保存付款时间 */
 function stSetActualPaidDate(settlementId, payIndex, dateValue) {
-  const s = (DB.settlements||[]).find(x => x.id === settlementId);
+  const s = (DB.settlements||[]).find(x => String(x.id) === String(settlementId));
   if (!s || !s.payments || !s.payments[payIndex]) return;
   s.payments[payIndex].actual_paid_date = dateValue;
   saveData();
+  _updateStBadges();   // 付款状态变化会影响三个 tab 角标，需同步刷新
   _renderPendingArea();
 }
 
@@ -4863,22 +4850,22 @@ function rollbackFromSettled(settlementId) {
 function _updateStBadges() {
   const sets = DB.settlements || [];
   const isApplied = st => !!(st && (st.payments||[]).some(p => p.paid_date));
-  const hasLink = sid => (DB.contents||[]).some(c => c.schedule_id === sid && (((c.publications||[])[0]||{}).link||'').trim());
-  const settledSchedIds   = new Set(sets.filter(s => s.settled).map(s => s.schedule_id).filter(Boolean));
-  const settledContentIds = new Set(sets.filter(s => s.settled && s.content_id).map(s => s.content_id));
+  const hasLink = sid => (DB.contents||[]).some(c => String(c.schedule_id) === String(sid) && (((c.publications||[])[0]||{}).link||'').trim());
+  const settledSchedIds   = new Set(sets.filter(s => s.settled).map(s => String(s.schedule_id)).filter(Boolean));
+  const settledContentIds = new Set(sets.filter(s => s.settled && s.content_id).map(s => String(s.content_id)));
   let pending = 0, applied = 0;
   (DB.schedules||[]).forEach(s => {
-    if (s.deleted_at || settledSchedIds.has(s.id)) return;
+    if (s.deleted_at || settledSchedIds.has(String(s.id))) return;
     if ((Number(s.amount)||0) <= 0) return;
-    if (!hasLink(s.id) && !sets.some(x => x.schedule_id === s.id)) return;
-    isApplied(sets.find(x => x.schedule_id === s.id && !x.settled)) ? applied++ : pending++;
+    if (!hasLink(s.id) && !sets.some(x => String(x.schedule_id) === String(s.id))) return;
+    isApplied(sets.find(x => String(x.schedule_id) === String(s.id) && !x.settled)) ? applied++ : pending++;
   });
   (DB.contents||[]).forEach(c => {
-    if (c.schedule_id || settledContentIds.has(c.id)) return;
+    if (c.schedule_id || settledContentIds.has(String(c.id))) return;
     if ((Number(c.price)||0) <= 0) return;
     const mp = (c.publications||[])[0];
-    if (!(mp && mp.link && mp.link.trim()) && !sets.some(x => x.content_id === c.id)) return;
-    isApplied(sets.find(x => x.content_id === c.id && !x.settled)) ? applied++ : pending++;
+    if (!(mp && mp.link && mp.link.trim()) && !sets.some(x => String(x.content_id) === String(c.id))) return;
+    isApplied(sets.find(x => String(x.content_id) === String(c.id) && !x.settled)) ? applied++ : pending++;
   });
   sets.forEach(s => {
     if (s.settled || s.schedule_id || s.content_id) return;
@@ -4931,21 +4918,21 @@ function _renderPendingArea() {
   // 「付款时间」「可转结算」两列只在「已申请付款」tab 显示（待结算阶段还没到付款，无意义）
   const showPayCols = mode === 'applied';
   const _isApplied = (st) => !!(st && (st.payments||[]).some(p => p.paid_date));
-  const _schedAppliedF   = (sid) => _isApplied((DB.settlements||[]).find(s => s.schedule_id === sid && !s.settled));
-  const _contentAppliedF = (cid) => _isApplied((DB.settlements||[]).find(s => s.content_id === cid && !s.settled));
+  const _schedAppliedF   = (sid) => _isApplied((DB.settlements||[]).find(s => String(s.schedule_id) === String(sid) && !s.settled));
+  const _contentAppliedF = (cid) => _isApplied((DB.settlements||[]).find(s => String(s.content_id) === String(cid) && !s.settled));
   const _matchMode = (applied) => mode === 'applied' ? applied : !applied;
 
   // 所有未软删排期，过滤掉已结算的
-  const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => s.schedule_id).filter(Boolean));
+  const settledIds = new Set((DB.settlements||[]).filter(s => s.settled).map(s => String(s.schedule_id)).filter(Boolean));
   // 只显示「主平台链接已填」或「已手动建结算记录(兜底)」的排期
   const _schedHasMainLink = (sid) => (DB.contents||[]).some(c => {
-    if (c.schedule_id !== sid) return false;
+    if (String(c.schedule_id) !== String(sid)) return false;
     const mp = (c.publications||[])[0];
     return mp && mp.link && mp.link.trim();
   });
-  const _schedHasSettle = (sid) => (DB.settlements||[]).some(s => s.schedule_id === sid);
+  const _schedHasSettle = (sid) => (DB.settlements||[]).some(s => String(s.schedule_id) === String(sid));
   let scheds = (DB.schedules||[])
-    .filter(s => !s.deleted_at && !settledIds.has(s.id))
+    .filter(s => !s.deleted_at && !settledIds.has(String(s.id)))
     .filter(s => (Number(s.amount) || 0) > 0)  // 0元（置换/免费）不进待结算
     .filter(s => _schedHasMainLink(s.id) || _schedHasSettle(s.id))
     .filter(s => !search || (s.kol_name||s.talent||'').toLowerCase().includes(search))
@@ -4954,14 +4941,14 @@ function _renderPendingArea() {
     .sort((a,b) => (b.schedule_date||'').localeCompare(a.schedule_date||''));
 
   // 不关联排期的内容（来自内容发布，无论是否有结算记录）
-  const settledContentIds = new Set((DB.settlements||[]).filter(s => s.settled && s.content_id).map(s => s.content_id));
+  const settledContentIds = new Set((DB.settlements||[]).filter(s => s.settled && s.content_id).map(s => String(s.content_id)));
   let unscheduledContents = (DB.contents||[])
-    .filter(c => !c.schedule_id && !settledContentIds.has(c.id))
+    .filter(c => !c.schedule_id && !settledContentIds.has(String(c.id)))
     .filter(c => (Number(c.price) || 0) > 0)  // 0元（置换/免费）不进待结算
     .filter(c => {
       const mp = (c.publications||[])[0];
       const hasLink = mp && mp.link && mp.link.trim();
-      const hasSettle = (DB.settlements||[]).some(s => s.content_id === c.id);
+      const hasSettle = (DB.settlements||[]).some(s => String(s.content_id) === String(c.id));
       return hasLink || hasSettle;
     })
     .filter(c => !search || (c.kol_name||'').toLowerCase().includes(search))
@@ -4997,7 +4984,7 @@ function _renderPendingArea() {
   // 统计（排期来源）
   let totalAmt = 0, paidAmt = 0, pendingAmt = 0;
   scheds.forEach(sched => {
-    const st = (DB.settlements||[]).find(s => s.schedule_id === sched.id && !s.settled);
+    const st = (DB.settlements||[]).find(s => String(s.schedule_id) === String(sched.id) && !s.settled);
     if (!st) return;
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
@@ -5009,7 +4996,7 @@ function _renderPendingArea() {
   });
   // 统计（不关联排期来源，来自内容发布）
   unscheduledContents.forEach(c => {
-    const st = (DB.settlements||[]).find(s => s.content_id === c.id && !s.settled);
+    const st = (DB.settlements||[]).find(s => String(s.content_id) === String(c.id) && !s.settled);
     if (!st) return;
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
@@ -5061,7 +5048,7 @@ function _renderPendingArea() {
   const gb = { basic:'#eff6ff', pay:'#fef3c7', act:'#f0fdf4' };
 
   const bodyRows = scheds.map(sched => {
-    const st = (DB.settlements||[]).find(s => s.schedule_id === sched.id && !s.settled);
+    const st = (DB.settlements||[]).find(s => String(s.schedule_id) === String(sched.id) && !s.settled);
     const talent  = sched.kol_name || sched.talent || '-';
     const _mp = sched.platform||(Array.isArray(sched.platforms)?sched.platforms[0]:'')||'';
     const _sp = Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]);
@@ -5096,7 +5083,7 @@ function _renderPendingArea() {
     const _ps = window.ScheduleData.getSettlementPayStatus(st);
     const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
-    const hasLink = (DB.contents||[]).some(c => c.schedule_id === sched.id && (c.publications||[]).some(p => p.link && p.link.trim()));
+    const hasLink = (DB.contents||[]).some(c => String(c.schedule_id) === String(sched.id) && (c.publications||[]).some(p => p.link && p.link.trim()));
     // 有主链接即视为已发布（不看发布日期）；付清=已付金额≥应付总额
     const canTransfer = hasLink && _ps.status === 'paid';
 
@@ -5154,7 +5141,7 @@ function _renderPendingArea() {
     const date   = firstPub.date || (c.created_at||'').slice(0,10) || '—';
     const pubTag = `<span style="padding:1px 7px;border-radius:10px;font-size:.72rem;background:#fef9c3;color:#854d0e">内容发布手动</span>`;
 
-    const st = (DB.settlements||[]).find(s => s.content_id === c.id && !s.settled);
+    const st = (DB.settlements||[]).find(s => String(s.content_id) === String(c.id) && !s.settled);
     if (!st) {
       const cAmt = Number(c.price) || 0;
       const amtHtml = (c.price != null && c.price !== '')
@@ -5327,7 +5314,7 @@ function _renderSettledArea() {
   let list = (DB.settlements||[]).filter(s => {
     if (!s.settled) return false;
     const sched = s.schedule_id ? (DB.schedules||[]).find(x => String(x.id) === String(s.schedule_id)) : null;
-    const dateRef = sched?.schedule_date || s.settled_at || '';
+    const dateRef = sched?.schedule_date || s.publish_date || s.settled_at || '';
     if (hasDateRange) {
       if (dateRef) {
         if (dateStart && dateRef < dateStart) return false;
@@ -5447,18 +5434,18 @@ function _renderSettledArea() {
 function openSettlementForSchedule(scheduleId) {
   editingSettlementId = null;
   // 先看是否已有结算记录
-  const existing = (DB.settlements||[]).find(s => s.schedule_id === scheduleId && !s.settled);
+  const existing = (DB.settlements||[]).find(s => String(s.schedule_id) === String(scheduleId) && !s.settled);
   if (existing) { openSettlementModal(existing.id); return; }
   // 新建
   document.getElementById('settlement-modal-title').textContent = '填写结算信息';
   document.getElementById('settlement-del-btn').style.display = 'none';
   _stInit(null);
   _st.schedule_id = scheduleId;
-  const sched = (DB.schedules||[]).find(x => x.id === scheduleId);
+  const sched = (DB.schedules||[]).find(x => String(x.id) === String(scheduleId));
   if (sched) {
     _st.kol_name = sched.kol_name || '';
     // 结算金额取「内容发布显示的价格」：挂排期的内容其价格就是排期金额（内容自身price字段为空）
-    const content = (DB.contents||[]).find(c => c.schedule_id === scheduleId);
+    const content = (DB.contents||[]).find(c => String(c.schedule_id) === String(scheduleId));
     const amt = (content && content.price != null && content.price !== '')
       ? Number(content.price)
       : (sched.amount != null && sched.amount !== '' ? Number(sched.amount) : null);
@@ -5471,7 +5458,7 @@ function openSettlementForSchedule(scheduleId) {
 
 /** 从内容发布「转结算」入口：支持关联排期 & 不关联排期两种情况 */
 function openSettlementForContent(contentId) {
-  const c = (DB.contents || []).find(x => x.id === contentId);
+  const c = (DB.contents || []).find(x => String(x.id) === String(contentId));
   if (!c) { toast('内容记录不存在', 'error'); return; }
 
   // 先跳转到达人结算页
