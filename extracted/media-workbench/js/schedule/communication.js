@@ -37,16 +37,20 @@
   ];
   // 默认全部显示
   const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.map(c => c.key));
-  const COL_PREF_KEY = 'comm_visible_cols_v2';
-  function loadVisible() {
-    try {
-      const raw = localStorage.getItem(COL_PREF_KEY);
-      if (raw) return new Set(JSON.parse(raw));
-    } catch(e) {}
+  // 列偏好：按平台分别存到服务器（DB.comm_col_prefs[平台] = [列key...]），全公司共用一套
+  function _colPrefs() {
+    const DB = window.DB || {};
+    if (!DB.comm_col_prefs || typeof DB.comm_col_prefs !== 'object') DB.comm_col_prefs = {};
+    return DB.comm_col_prefs;
+  }
+  function loadVisible(platform) {
+    const arr = _colPrefs()[platform];
+    if (Array.isArray(arr)) return new Set(arr);
     return new Set(DEFAULT_VISIBLE);
   }
-  function saveVisible(s) {
-    try { localStorage.setItem(COL_PREF_KEY, JSON.stringify([...s])); } catch(e) {}
+  function saveVisible(platform, s) {
+    _colPrefs()[platform] = [...s];
+    if (window.saveData) window.saveData(); // 持久化并同步到服务器
   }
 
   const state = {
@@ -55,8 +59,8 @@
     mainPlatform: '全部',
     bd_id: '',
     q: '',
-    // 自定义列
-    visibleCols: loadVisible(),
+    // 自定义列（按当前平台 tab 加载，render 时会按 state.mainPlatform 重载）
+    visibleCols: new Set(DEFAULT_VISIBLE),
     colPopOpen: false,
     // 多选删除
     selectedIds: new Set(),
@@ -119,6 +123,8 @@
   /* ------------------------- 渲染：页面主入口 ------------------------- */
   function render() {
     initState();
+    // 列偏好按当前平台 tab 加载（服务器全公司共用，切 tab / 同步后自动反映）
+    state.visibleCols = loadVisible(state.mainPlatform);
     const page = document.getElementById('page-contents');
     if (!page) return;
     // 记录滚动位置（重渲染后恢复，避免操作后跳回顶部）
@@ -258,7 +264,8 @@
     visible.forEach(c => { (groups[c.group] = groups[c.group] || []).push(c); });
     return `
       <div class="sched-add-dir-pop" id="__col-pop__" style="right:0;top:38px;width:280px;left:auto;padding:10px;display:flex;flex-direction:column;max-height:min(480px,70vh)">
-        <div style="font-size:.82rem;font-weight:500;margin-bottom:8px;color:var(--text-primary);flex-shrink:0">自定义列（${state.visibleCols.size}/${visible.length}）</div>
+        <div style="font-size:.82rem;font-weight:500;margin-bottom:2px;color:var(--text-primary);flex-shrink:0">自定义列 · ${escapeHtml(state.mainPlatform)}（${state.visibleCols.size}/${visible.length}）</div>
+        <div style="font-size:.68rem;color:var(--text-muted);margin-bottom:8px;flex-shrink:0">各平台独立设置，全公司共用</div>
         <div id="__col-pop-list__" style="overflow-y:auto;flex:1;margin-bottom:8px">
           ${Object.entries(groups).map(([g, cols]) => `
             <div style="margin-bottom:8px">
@@ -303,7 +310,7 @@
   function _toggleCol(key, on) {
     const scrollTop = document.getElementById('__col-pop-list__')?.scrollTop || 0;
     if (on) state.visibleCols.add(key); else state.visibleCols.delete(key);
-    saveVisible(state.visibleCols);
+    saveVisible(state.mainPlatform, state.visibleCols);
     render();
     requestAnimationFrame(() => {
       const el = document.getElementById('__col-pop-list__');
@@ -313,7 +320,7 @@
   function _showAllCols() {
     const scrollTop = document.getElementById('__col-pop-list__')?.scrollTop || 0;
     ALL_COLUMNS.forEach(c => state.visibleCols.add(c.key));
-    saveVisible(state.visibleCols);
+    saveVisible(state.mainPlatform, state.visibleCols);
     render();
     requestAnimationFrame(() => {
       const el = document.getElementById('__col-pop-list__');
@@ -323,7 +330,7 @@
   function _resetCols() {
     const scrollTop = document.getElementById('__col-pop-list__')?.scrollTop || 0;
     state.visibleCols = new Set(DEFAULT_VISIBLE);
-    saveVisible(state.visibleCols);
+    saveVisible(state.mainPlatform, state.visibleCols);
     render();
     requestAnimationFrame(() => {
       const el = document.getElementById('__col-pop-list__');
