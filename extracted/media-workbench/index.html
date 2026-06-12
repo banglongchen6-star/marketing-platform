@@ -5377,8 +5377,8 @@ function _renderSettledArea() {
   const bodyRows = list.map(s => {
     const sched = s.schedule_id ? (DB.schedules||[]).find(x => String(x.id) === String(s.schedule_id)) : null;
     const talent = sched?.kol_name || s.kol_name || s.talent || '-';
-    const plat = (() => { if (!sched) return '-'; const mp=sched.platform||(Array.isArray(sched.platforms)?sched.platforms[0]:'')||''; const sp=Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]); return mp?(sp.length?`${mp}（主）· ${sp.join(' · ')}`:mp):'-'; })();
-    const date   = sched?.schedule_date || '-';
+    const plat = (() => { if (sched) { const mp=sched.platform||(Array.isArray(sched.platforms)?sched.platforms[0]:'')||''; const sp=Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]); return mp?(sp.length?`${mp}（主）· ${sp.join(' · ')}`:mp):'-'; } return s.platform || '-'; })();
+    const date   = sched?.schedule_date || s.publish_date || '-';
     const base   = parseFloat(s.contract_amount ?? s.amount) || 0;
     const bonus  = s.bonus_enabled ? (parseFloat(s.bonus_amount)||0) : 0;
     const pays   = s.payments?.length ? s.payments : [];
