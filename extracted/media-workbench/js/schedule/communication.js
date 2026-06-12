@@ -275,7 +275,7 @@
         <div id="__col-pop-list__" style="overflow-y:auto;flex:1;margin-bottom:8px">
           ${Object.entries(groups).map(([g, cols]) => `
             <div style="margin-bottom:8px">
-              <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px">${escapeHtml(g)}</div>
+              <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px">${escapeHtml(GROUP_LABEL[g] || g)}</div>
               ${cols.map(c => `
                 <label style="display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;font-size:.82rem">
                   <input type="checkbox" ${state.visibleCols.has(c.key)?'checked':''}
@@ -439,7 +439,7 @@
 
   // 分组表头样式/标签
   const GROUP_BG = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '其他数据':'#ecfeff', '看后搜':'#fce7f3', '归因':'#ede9fe', '投流':'#fef2f2' };
-  const GROUP_LABEL = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '其他数据':'其他数据', '看后搜':'看后搜数据', '归因':'归因数据', '投流':'投流（抖音）' };
+  const GROUP_LABEL = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '其他数据':'其他数据（小红书）', '看后搜':'看后搜数据', '归因':'归因数据', '投流':'投流（抖音）' };
   /**
    * 按 activeCols 的「实际顺序」切分分组（同组列在 ALL_COLUMNS 里本就连续）。
    * 直接由列顺序生成分组表头 → colspan 永远与下方列对齐，杜绝错位。
