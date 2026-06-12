@@ -24,6 +24,8 @@
     { key: 'comments',     label: '评论',     group: '第7天' },
     { key: 'completion',   label: '完播率',   group: '第7天' },
     { key: 'interaction',  label: '互动率',   group: '第7天' },
+    { key: 'promo_views',  label: '投流播放(万)', group: '投流', douyinOnly: true },
+    { key: 'promo_cost',   label: '投流费(元)',   group: '投流', douyinOnly: true },
     { key: 'nat_exposure', label: '自然曝光', group: '其他数据' },
     { key: 'nat_reads',    label: '自然阅读', group: '其他数据' },
     { key: 'collects',     label: '收藏',     group: '其他数据' },
@@ -37,8 +39,6 @@
     { key: 'attr_audience',label: '人群获取', group: '归因', douyinOnly: true },
     { key: 'attr_store',   label: '店铺表现', group: '归因', douyinOnly: true },
     { key: 'cpa3',         label: 'CPA3',     group: '归因', douyinOnly: true },
-    { key: 'promo_views',  label: '投流播放(万)', group: '投流', douyinOnly: true },
-    { key: 'promo_cost',   label: '投流费(元)',   group: '投流', douyinOnly: true },
   ];
   // 默认全部显示
   const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.map(c => c.key));
