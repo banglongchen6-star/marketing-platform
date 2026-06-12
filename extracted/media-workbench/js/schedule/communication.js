@@ -597,8 +597,8 @@
     // 分组统计
     const groupCounts = {};
     activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
-    const groupOrder = ['基本', '发布', '第7天', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
-    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
+    const groupOrder = ['基本', '发布', '第7天', '其他数据', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
+    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '其他数据':'#ecfeff', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
     // 操作列需要 1 列（非冻结），tfoot colspan = activeCols.length + 1（昵称） + 1（操作）
     const realList = list.filter(c => !c._placeholder);
     return `
@@ -620,6 +620,7 @@
                 const gLabel = g === '基本' ? '基本信息'
                   : g === '发布' ? '发布信息'
                   : g === '第7天' ? '第7天数据'
+                  : g === '其他数据' ? '其他数据'
                   : g === '投流' ? '投流（抖音）'
                   : g + '数据';
                 return `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${gLabel}</th>`;
@@ -848,9 +849,9 @@
     const activeCols = getActiveColumns();
     const groupCounts = {};
     activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
-    const groupOrder = ['基本', '发布', '第7天', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
-    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
-    const groupLabel = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '投流':'投流（抖音）', '看后搜':'看后搜数据', '归因':'归因数据' };
+    const groupOrder = ['基本', '发布', '第7天', '其他数据', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
+    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '其他数据':'#ecfeff', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
+    const groupLabel = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '其他数据':'其他数据', '投流':'投流（抖音）', '看后搜':'看后搜数据', '归因':'归因数据' };
 
     // 以内容记录 ID 为 key 分组，保证同一笔合同的所有平台永远在一个 block
     const kolFans = {};
