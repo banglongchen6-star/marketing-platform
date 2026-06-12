@@ -328,15 +328,16 @@
   }
 
   function _delete(id) {
-    if (!confirm('删除这条置换记录？不可恢复。')) return;
-    try {
-      SD.deleteReplacement(id);
-      window.toast && window.toast('已删除', 'info');
-      closeEditor();
-      render();
-    } catch (e) {
-      window.toast && window.toast(e.message, 'error');
-    }
+    window.appConfirm('删除这条置换记录？不可恢复。', () => {
+      try {
+        SD.deleteReplacement(id);
+        window.toast && window.toast('已删除', 'info');
+        closeEditor();
+        render();
+      } catch (e) {
+        window.toast && window.toast(e.message, 'error');
+      }
+    }, { okText: '删除', danger: true });
   }
 
   function escapeHtml(s) {

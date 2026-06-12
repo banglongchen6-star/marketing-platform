@@ -318,21 +318,23 @@
   /* ========================= 6. 删除 ========================= */
   /* 删除该达人类型的预算行 */
   function _deleteRow(id) {
-    if (!confirm('确认删除该达人类型的预算配置？')) return;
-    try { SD.deleteBudget(id); paint(); }
-    catch (e) { window.toast && window.toast(e.message, 'error'); }
+    window.appConfirm('确认删除该达人类型的预算配置？', () => {
+      try { SD.deleteBudget(id); paint(); }
+      catch (e) { window.toast && window.toast(e.message, 'error'); }
+    }, { okText: '删除', danger: true });
   }
 
   /* ========================= 7. 复制上月预算 ========================= */
   function _copyLastMonth() {
-    if (!confirm(`将 ${prevLabel()} 的预算配置复制到 ${state.year} 年 ${state.month} 月？\n（已存在的行不会被覆盖）`)) return;
-    const r = SD.copyBudgetsFromLastMonth(state.year, state.month);
-    if (r.copied === 0) {
-      window.toast && window.toast(r.total === 0 ? '上月无预算可复制' : '上月预算行均已存在，无需复制', 'info');
-    } else {
-      window.toast && window.toast(`已复制 ${r.copied} 行预算`, 'success');
-    }
-    paint();
+    window.appConfirm(`将 ${prevLabel()} 的预算配置复制到 ${state.year} 年 ${state.month} 月？\n（已存在的行不会被覆盖）`, () => {
+      const r = SD.copyBudgetsFromLastMonth(state.year, state.month);
+      if (r.copied === 0) {
+        window.toast && window.toast(r.total === 0 ? '上月无预算可复制' : '上月预算行均已存在，无需复制', 'info');
+      } else {
+        window.toast && window.toast(`已复制 ${r.copied} 行预算`, 'success');
+      }
+      paint();
+    }, { okText: '复制' });
   }
   function prevLabel() {
     const p = SD.prevMonth(state.year, state.month);

@@ -136,22 +136,24 @@
   }
   function _purge(id) {
     const s = window.DB.schedules.find(x => x.id === id);
-    if (!confirm(`永久删除「${s?.kol_name || '此条排期'}」？\n该操作不可恢复。`)) return;
-    try {
-      SD.permanentlyDeleteSchedule(id);
-      window.toast && window.toast('已永久删除', 'info');
-      paint();
-    } catch (e) {
-      window.toast && window.toast(e.message, 'error');
-    }
+    window.appConfirm(`永久删除「${s?.kol_name || '此条排期'}」？\n该操作不可恢复。`, () => {
+      try {
+        SD.permanentlyDeleteSchedule(id);
+        window.toast && window.toast('已永久删除', 'info');
+        paint();
+      } catch (e) {
+        window.toast && window.toast(e.message, 'error');
+      }
+    }, { okText: '永久删除', danger: true });
   }
   function _emptyAll() {
     const n = SD.listDeletedSchedules().length;
     if (n === 0) return;
-    if (!confirm(`清空回收站？\n${n} 条排期将被永久删除，不可恢复。`)) return;
-    const r = SD.emptyRecycleBin();
-    window.toast && window.toast(`已清空回收站（${r.removed} 条）`, 'success');
-    paint();
+    window.appConfirm(`清空回收站？\n${n} 条排期将被永久删除，不可恢复。`, () => {
+      const r = SD.emptyRecycleBin();
+      window.toast && window.toast(`已清空回收站（${r.removed} 条）`, 'success');
+      paint();
+    }, { okText: '清空', danger: true });
   }
 
   function humanAgo(iso) {

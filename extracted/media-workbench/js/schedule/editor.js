@@ -1069,8 +1069,7 @@
     if (typeof window._schedImpactWarning === 'function') {
       window._schedImpactWarning(state.id, 'delete', { title: '确认删除排期' }, doDelete);
     } else {
-      if (!confirm('确认删除此条排期？此操作不可撤销。')) return;
-      doDelete();
+      window.appConfirm('确认删除此条排期？此操作不可撤销。', doDelete, { okText: '删除', danger: true });
     }
   }
 

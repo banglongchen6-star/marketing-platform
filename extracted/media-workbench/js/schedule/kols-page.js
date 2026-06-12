@@ -646,15 +646,16 @@
     const linked = window.DB.schedules.filter(s => !s.deleted_at && s.kol_id === id).length;
     let msg = `删除达人「${k.name}」？\n`;
     if (linked) msg += `\n该达人当前关联 ${linked} 条排期；删除后排期会保留但解绑（kol_id 设为空）。`;
-    if (!confirm(msg)) return;
-    try {
-      const r = SD.deleteKol(id);
-      window.toast && window.toast(`已删除${r.unlinked?`（${r.unlinked} 条排期解绑）`:''}`, 'success');
-      closeEditor();
-      render();
-    } catch (e) {
-      window.toast && window.toast(e.message, 'error');
-    }
+    window.appConfirm(msg, () => {
+      try {
+        const r = SD.deleteKol(id);
+        window.toast && window.toast(`已删除${r.unlinked?`（${r.unlinked} 条排期解绑）`:''}`, 'success');
+        closeEditor();
+        render();
+      } catch (e) {
+        window.toast && window.toast(e.message, 'error');
+      }
+    }, { okText: '删除', danger: true });
   }
 
   /* ------------------------- 粉丝量自动抓取 ------------------------- */

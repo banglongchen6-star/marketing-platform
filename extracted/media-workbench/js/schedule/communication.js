@@ -409,19 +409,20 @@
       return;
     }
     const count = state.selectedIds.size;
-    if (!confirm(`确认删除选中的 ${count} 条内容发布记录？操作不可恢复。`)) return;
-    let deleted = 0, settlements = 0;
-    [...state.selectedIds].forEach(id => {
-      try {
-        const res = SD.deleteContent(id);
-        deleted++;
-        settlements += res.deletedSettlements || 0;
-      } catch(e) {}
-    });
-    state.selectedIds.clear();
-    const msg = settlements > 0 ? `已删除 ${deleted} 条（含 ${settlements} 条结算记录）` : `已删除 ${deleted} 条`;
-    window.toast && window.toast(msg, 'info');
-    render();
+    window.appConfirm(`确认删除选中的 ${count} 条内容发布记录？操作不可恢复。`, () => {
+      let deleted = 0, settlements = 0;
+      [...state.selectedIds].forEach(id => {
+        try {
+          const res = SD.deleteContent(id);
+          deleted++;
+          settlements += res.deletedSettlements || 0;
+        } catch(e) {}
+      });
+      state.selectedIds.clear();
+      const msg = settlements > 0 ? `已删除 ${deleted} 条（含 ${settlements} 条结算记录）` : `已删除 ${deleted} 条`;
+      window.toast && window.toast(msg, 'info');
+      render();
+    }, { okText: '删除', danger: true });
   }
 
   /* ------------------------- 列表（主行 + 子行） ------------------------- */
@@ -1664,16 +1665,17 @@
       window.toast && window.toast('该月已冻结，请先解冻再删除', 'error');
       return;
     }
-    if (!confirm('删除这条内容？关联的达人结算记录也会一并删除，不可恢复。')) return;
-    try {
-      const res = SD.deleteContent(id);
-      const msg = res.deletedSettlements > 0 ? `已删除（含 ${res.deletedSettlements} 条结算记录）` : '已删除';
-      window.toast && window.toast(msg, 'info');
-      closeEditor();
-      render();
-    } catch (e) {
-      window.toast && window.toast(e.message, 'error');
-    }
+    window.appConfirm('删除这条内容？关联的达人结算记录也会一并删除，不可恢复。', () => {
+      try {
+        const res = SD.deleteContent(id);
+        const msg = res.deletedSettlements > 0 ? `已删除（含 ${res.deletedSettlements} 条结算记录）` : '已删除';
+        window.toast && window.toast(msg, 'info');
+        closeEditor();
+        render();
+      } catch (e) {
+        window.toast && window.toast(e.message, 'error');
+      }
+    }, { okText: '删除', danger: true });
   }
 
   /* ------------------------- 工具 ------------------------- */

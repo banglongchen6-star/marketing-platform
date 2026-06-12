@@ -419,14 +419,16 @@
     if (toActive) {
       cfg.update(id, { is_active: true });
       window.toast && window.toast(`已启用「${d.name}」`, 'success');
+      paint();
     } else {
       const usage = cfg.countUsage(d.name);
       const msg = `停用「${d.name}」？\n（停用后不会清除关联数据，可随时重新启用）\n${cfg.usageLabel(usage)}`;
-      if (!confirm(msg)) return;
-      cfg.deactivate(id);
-      window.toast && window.toast(`已停用「${d.name}」`, 'info');
+      window.appConfirm(msg, () => {
+        cfg.deactivate(id);
+        window.toast && window.toast(`已停用「${d.name}」`, 'info');
+        paint();
+      }, { okText: '停用' });
     }
-    paint();
   }
 
   function _delete(id) {
@@ -434,10 +436,11 @@
     const d = cfg.list().find(x => x.id === id);
     if (!d) return;
     const usage = cfg.countUsage(d.name);
-    if (!confirm(cfg.deleteWarn(d.name, usage))) return;
-    const r = cfg.hardDelete(id);
-    window.toast && window.toast(`已删除「${d.name}」${r.cleared?'（清理 '+r.cleared+'）':''}`, 'success');
-    paint();
+    window.appConfirm(cfg.deleteWarn(d.name, usage), () => {
+      const r = cfg.hardDelete(id);
+      window.toast && window.toast(`已删除「${d.name}」${r.cleared?'（清理 '+r.cleared+'）':''}`, 'success');
+      paint();
+    }, { okText: '删除', danger: true });
   }
 
   function _move(id, dir) {

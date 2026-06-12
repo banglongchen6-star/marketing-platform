@@ -3186,8 +3186,7 @@ function deleteSchedule() {
   if (typeof _schedImpactWarning === 'function') {
     _schedImpactWarning(editingScheduleId, 'delete', { title: '确认删除排期' }, doDelete);
   } else {
-    if (!confirm('确认删除该排期？')) return;
-    doDelete();
+    appConfirm('确认删除该排期？', doDelete, { okText: '删除', danger: true });
   }
 }
 
@@ -4044,13 +4043,14 @@ function addSampleProduct() {
   } catch(e) { toast(e.message, 'error'); }
 }
 function deleteSampleProductItem(id) {
-  if (!confirm('确认删除该品类？')) return;
-  try {
-    ScheduleData.deleteSampleProduct(id);
-    renderSpdList();
-    renderSampleProductCheckboxes(Array.from(document.querySelectorAll('.sm-product-cb:checked')).map(cb=>cb.value));
-    toast('已删除', 'info', 1500);
-  } catch(e) { toast(e.message, 'error'); }
+  appConfirm('确认删除该品类？', () => {
+    try {
+      ScheduleData.deleteSampleProduct(id);
+      renderSpdList();
+      renderSampleProductCheckboxes(Array.from(document.querySelectorAll('.sm-product-cb:checked')).map(cb=>cb.value));
+      toast('已删除', 'info', 1500);
+    } catch(e) { toast(e.message, 'error'); }
+  }, { okText: '删除', danger: true });
 }
 
 // 达人类型字典管理弹窗
@@ -4081,14 +4081,15 @@ function addKolType() {
   } catch(e) { toast(e.message, 'error'); }
 }
 function deleteKolTypeItem(id) {
-  if (!confirm('确认删除该达人类型？')) return;
-  try {
-    ScheduleData.deactivateDirectionCascade(id);
-    renderKtdList();
-    if (window.KolsPage && document.getElementById('kols-drawer-body')) KolsPage.paintEditor();
-    if (window.ScheduleEditor) ScheduleEditor.refreshForm();
-    toast('已删除', 'info', 1500);
-  } catch(e) { toast(e.message, 'error'); }
+  appConfirm('确认删除该达人类型？', () => {
+    try {
+      ScheduleData.deactivateDirectionCascade(id);
+      renderKtdList();
+      if (window.KolsPage && document.getElementById('kols-drawer-body')) KolsPage.paintEditor();
+      if (window.ScheduleEditor) ScheduleEditor.refreshForm();
+      toast('已删除', 'info', 1500);
+    } catch(e) { toast(e.message, 'error'); }
+  }, { okText: '删除', danger: true });
 }
 
 function _clipboardCopy(text, msg) {
@@ -4134,11 +4135,12 @@ function copySampleInfo(id) {
 }
 
 function deleteSampleConfirm(id) {
-  if(!confirm('确认删除该样品记录？')) return;
-  DB.samples=DB.samples.filter(x=>x.id!==id);
-  saveData();
-  renderSamples();
-  toast('已删除', 'info');
+  appConfirm('确认删除该样品记录？', () => {
+    DB.samples=DB.samples.filter(x=>x.id!==id);
+    saveData();
+    renderSamples();
+    toast('已删除', 'info');
+  }, { okText: '删除', danger: true });
 }
 
 function deleteSample() {
@@ -4264,11 +4266,12 @@ function saveMaterial() {
 }
 
 function deleteMaterialConfirm(id) {
-  if(!confirm('确认删除？')) return;
-  DB.materials=DB.materials.filter(x=>x.id!==id);
-  saveData();
-  renderMaterials();
-  toast('已删除', 'info');
+  appConfirm('确认删除该素材？', () => {
+    DB.materials=DB.materials.filter(x=>x.id!==id);
+    saveData();
+    renderMaterials();
+    toast('已删除', 'info');
+  }, { okText: '删除', danger: true });
 }
 
 function deleteMaterial() {
@@ -5561,9 +5564,10 @@ function deleteSettlement() {
   if (!editingSettlementId) return;
   const s = DB.settlements.find(x => x.id === editingSettlementId);
   if (s?.settled) { toast('已结算记录不可删除', 'error'); return; }
-  if (!confirm('确认删除此结算记录？')) return;
-  DB.settlements = DB.settlements.filter(x => x.id !== editingSettlementId);
-  saveData(); closeModal('settlement-modal'); renderSettlement(); toast('已删除', 'info');
+  appConfirm('确认删除此结算记录？', () => {
+    DB.settlements = DB.settlements.filter(x => x.id !== editingSettlementId);
+    saveData(); closeModal('settlement-modal'); renderSettlement(); toast('已删除', 'info');
+  }, { okText: '删除', danger: true });
 }
 
 /* ==================== Admin Panel ==================== */
@@ -5957,11 +5961,12 @@ function saveCandidate() {
 }
 
 function deleteCandidateConfirm(id) {
-  if(!confirm('确认删除？')) return;
-  DB.candidates=DB.candidates.filter(x=>x.id!==id);
-  saveData();
-  renderCandidates();
-  toast('已删除', 'info');
+  appConfirm('确认删除该候选达人？', () => {
+    DB.candidates=DB.candidates.filter(x=>x.id!==id);
+    saveData();
+    renderCandidates();
+    toast('已删除', 'info');
+  }, { okText: '删除', danger: true });
 }
 
 function quickUpdateCandidate(id, field, value) {
