@@ -6091,6 +6091,41 @@ function initApp() {
         window.DB = DB;
         localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
         window.__syncReady = true; // 首次同步完成，允许上传
+        // 一次性回填：把内容发布里填过的粉丝量倒灌进达人库（达人名+主平台匹配，取最新一条），仅跑一次
+        if (!DB._fansBackfilled_v1) {
+          try {
+            const best = new Map(); // key: JSON([达人名,主平台]) -> { fans, when, name, plat }
+            (DB.contents || []).forEach(c => {
+              const fans = Number(c.fans);
+              if (c.fans == null || c.fans === '' || !Number.isFinite(fans)) return;
+              const mainPlat = (c.publications || [])[0] && (c.publications[0].platform || '');
+              if (!mainPlat) return;
+              let name = c.kol_name || '';
+              if (c.schedule_id) {
+                const s = (DB.schedules || []).find(x => x.id === c.schedule_id && !x.deleted_at);
+                if (s && s.kol_name) name = s.kol_name;
+              }
+              name = String(name).trim();
+              if (!name) return;
+              const key = JSON.stringify([name, mainPlat]);
+              const when = c.updated_at || c.created_at || '';
+              const prev = best.get(key);
+              if (!prev || when >= prev.when) best.set(key, { fans, when, name, plat: mainPlat });
+            });
+            let filled = 0;
+            best.forEach((v) => {
+              const k = (DB.kols || []).find(x => x.name === v.name && (x.platform || '') === v.plat);
+              if (k && k.followers !== v.fans) {
+                k.followers = v.fans;
+                k.followers_updated_at = v.when || new Date().toISOString();
+                filled++;
+              }
+            });
+            DB._fansBackfilled_v1 = true; // 打标记，避免下次重复回填
+            console.log('[backfill] 粉丝量回填完成，更新', filled, '位达人');
+            saveDataNow(); // 立即持久化（含标记）并上传服务器
+          } catch (e) { console.warn('[backfill] 粉丝量回填失败', e); }
+        }
       }
     } catch (e) {
       // 服务器不可达时才降级用本地缓存（离线模式）
