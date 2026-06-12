@@ -946,6 +946,48 @@
    *                   search_views, search_rate, attr_*（抖音独有）, day7_recorded_at }]
    *   fans 独立存（发布时粉丝量快照），不和 kol.followers 强绑
    */
+
+  /**
+   * 把内容发布里填的粉丝量反哺到达人库（单向：内容 → 达人库当前粉丝量）。
+   * - 匹配键：达人名 + 主平台（publications[0].platform）
+   * - 内容自身的 fans 快照不动，只刷新 kol.followers + followers_updated_at
+   * - 仅在「更新鲜」时覆盖：库里时间戳比本次内容保存时间还新则跳过
+   * - 匹配不到达人库记录：不写，仅提示，避免乱写
+   * 注意：只更新内存里的 kol，saveData() 由调用方统一执行。
+   */
+  function _syncContentFansToKol(content) {
+    const fansRaw = content && content.fans;
+    if (fansRaw == null || fansRaw === '' || !Number.isFinite(Number(fansRaw))) return;
+    const fans = Number(fansRaw);
+    const mainPlat = (content.publications || [])[0]?.platform || '';
+    if (!mainPlat) return;
+
+    // 达人名：关联排期则以排期为准，否则用内容自带的 kol_name
+    let talentName = content.kol_name || '';
+    if (content.schedule_id) {
+      const s = DB.schedules.find(x => x.id === content.schedule_id && !x.deleted_at);
+      if (s && s.kol_name) talentName = s.kol_name;
+    }
+    talentName = String(talentName).trim();
+    if (!talentName) return;
+
+    const matches = DB.kols.filter(k => k.name === talentName && (k.platform || '') === mainPlat);
+    if (matches.length === 1) {
+      const k = matches[0];
+      // 库里粉丝量更新鲜则不覆盖（content.updated_at 在保存时即为当前时间）
+      if (k.followers_updated_at && content.updated_at && k.followers_updated_at > content.updated_at) return;
+      if (k.followers !== fans) {
+        k.followers = fans;
+        k.followers_updated_at = nowISO();
+      }
+    } else if (matches.length === 0) {
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast(`「${talentName}·${mainPlat}」不在达人库，粉丝量未同步`, 'info', 3000);
+      }
+    }
+    // matches.length > 1（同名同平台，理论不会有）：保险起见不动
+  }
+
   function createContent(data) {
     // schedule_id 为 null 表示「不关联排期」，此时 kol_name 必填
     if (data.schedule_id) {
@@ -970,6 +1012,8 @@
       updated_at: nowISO(),
     };
     DB.contents.push(row);
+    // 粉丝量反哺达人库
+    _syncContentFansToKol(row);
     // 自动推进排期状态到 published（仅关联排期时）
     if (s && window.SchedulePicker) window.SchedulePicker.advanceStatus(s.id, 'published', '内容已发布');
     saveData();
@@ -983,6 +1027,10 @@
     const next = { ...before, ...patch, updated_at: nowISO() };
     if (patch.publications) next.publications = patch.publications.map(normalizePublication);
     DB.contents[idx] = next;
+    // 粉丝量被改动时才反哺达人库（避免无关编辑反复推旧值）
+    if ('fans' in patch && Number(patch.fans) !== Number(before.fans)) {
+      _syncContentFansToKol(next);
+    }
     saveData();
     return next;
   }
