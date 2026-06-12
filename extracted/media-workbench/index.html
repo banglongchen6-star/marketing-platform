@@ -4782,7 +4782,7 @@ function setStTab(tab) {
 }
 
 function stQuickPay(settlementId, payIdx) {
-  const s = DB.settlements.find(x => x.id === settlementId);
+  const s = DB.settlements.find(x => String(x.id) === String(settlementId));
   if (!s || !s.payments) return;
   const p = s.payments[payIdx];
   if (!p) return;
@@ -4806,12 +4806,13 @@ function stSetActualPaidDate(settlementId, payIndex, dateValue) {
 
 /** 结转：待结算 → 已结算（需满足：所有款已付 + 作品已发布） */
 function transferToSettled(scheduleId) {
-  const sched = (DB.schedules||[]).find(x => x.id === scheduleId);
-  const st    = (DB.settlements||[]).find(x => x.schedule_id === scheduleId && !x.settled);
+  // id 用类型无关比较：历史数据里排期/结算 id 有数字也有字符串，严格 === 会漏匹配
+  const sched = (DB.schedules||[]).find(x => String(x.id) === String(scheduleId));
+  const st    = (DB.settlements||[]).find(x => String(x.schedule_id) === String(scheduleId) && !x.settled);
   if (!sched || !st) { toast('未找到对应的结算记录，请刷新页面后重试', 'error'); return; }
 
   // 有主链接即视为已发布（不再看发布日期）
-  const published = (DB.contents||[]).some(c => c.schedule_id === scheduleId && (c.publications||[]).some(p => p.link && p.link.trim()));
+  const published = (DB.contents||[]).some(c => String(c.schedule_id) === String(scheduleId) && (c.publications||[]).some(p => p.link && p.link.trim()));
   const paidStatus = window.ScheduleData.getSettlementPayStatus(st).status;
 
   if (!published) { toast('内容未填主链接（视为未发布），无法结转', 'error'); return; }
@@ -4829,7 +4830,7 @@ function transferToSettled(scheduleId) {
 
 /** 不关联排期的结算单直接转已结算 */
 function transferSettlementById(settlementId) {
-  const st = (DB.settlements||[]).find(x => x.id === settlementId);
+  const st = (DB.settlements||[]).find(x => String(x.id) === String(settlementId));
   if (!st) { toast('未找到对应的结算记录，请刷新页面后重试', 'error'); return; }
   if (window.ScheduleData.getSettlementPayStatus(st).status !== 'paid') { toast('款项未付清（已付金额未达应付总额），无法结转', 'error'); return; }
   appConfirm(`确认将「${st.kol_name || '此记录'}」结转到已结算区？结转后不可删除。`, () => {
@@ -4844,9 +4845,9 @@ function transferSettlementById(settlementId) {
 
 /** 退回：已结算 → 待结算 */
 function rollbackFromSettled(settlementId) {
-  const st = (DB.settlements||[]).find(x => x.id === settlementId);
+  const st = (DB.settlements||[]).find(x => String(x.id) === String(settlementId));
   if (!st) { toast('未找到对应的结算记录，请刷新页面后重试', 'error'); return; }
-  const sched = st.schedule_id ? (DB.schedules||[]).find(x => x.id === st.schedule_id) : null;
+  const sched = st.schedule_id ? (DB.schedules||[]).find(x => String(x.id) === String(st.schedule_id)) : null;
   appConfirm(`确认将「${sched?.kol_name || st.talent || '此记录'}」退回待结算区？`, () => {
     st.settled    = false;
     delete st.settled_at;
@@ -5507,7 +5508,7 @@ function openSettlementModal(id = null) {
   document.getElementById('settlement-modal-title').textContent = id ? '编辑结算' : '新增结算';
   document.getElementById('settlement-del-btn').style.display = id ? 'block' : 'none';
   if (id) {
-    const s = DB.settlements.find(x => x.id === id);
+    const s = DB.settlements.find(x => String(x.id) === String(id));
     _stInit(s || null);
   } else {
     _stInit(null);
@@ -5544,7 +5545,7 @@ function saveSettlement() {
                      return s === 'paid' ? '已付款' : s === 'partial' ? '部分已付' : '待结算'; })(),
   };
   if (editingSettlementId != null) {
-    const idx = DB.settlements.findIndex(x => x.id === editingSettlementId);
+    const idx = DB.settlements.findIndex(x => String(x.id) === String(editingSettlementId));
     DB.settlements[idx] = { ...DB.settlements[idx], ...data, updated_at: new Date().toISOString() };
     toast('结算已更新');
   } else {
@@ -5562,10 +5563,10 @@ function saveSettlement() {
 function deleteSettlement() {
   // 只允许删除待结算区（未结转）的记录
   if (!editingSettlementId) return;
-  const s = DB.settlements.find(x => x.id === editingSettlementId);
+  const s = DB.settlements.find(x => String(x.id) === String(editingSettlementId));
   if (s?.settled) { toast('已结算记录不可删除', 'error'); return; }
   appConfirm('确认删除此结算记录？', () => {
-    DB.settlements = DB.settlements.filter(x => x.id !== editingSettlementId);
+    DB.settlements = DB.settlements.filter(x => String(x.id) !== String(editingSettlementId));
     saveData(); closeModal('settlement-modal'); renderSettlement(); toast('已删除', 'info');
   }, { okText: '删除', danger: true });
 }
