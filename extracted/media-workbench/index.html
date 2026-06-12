@@ -5326,7 +5326,7 @@ function _renderSettledArea() {
 
   let list = (DB.settlements||[]).filter(s => {
     if (!s.settled) return false;
-    const sched = s.schedule_id ? (DB.schedules||[]).find(x => x.id === s.schedule_id) : null;
+    const sched = s.schedule_id ? (DB.schedules||[]).find(x => String(x.id) === String(s.schedule_id)) : null;
     const dateRef = sched?.schedule_date || s.settled_at || '';
     if (hasDateRange) {
       if (dateRef) {
@@ -5337,7 +5337,7 @@ function _renderSettledArea() {
       const target = `${_stYear}-${String(_stMonth).padStart(2,'0')}`;
       if (dateRef.slice(0,7) !== target) return false;
     }
-    const name = sched?.kol_name || s.talent || '';
+    const name = sched?.kol_name || s.kol_name || s.talent || '';
     if (search && !name.toLowerCase().includes(search)) return false;
     return true;
   }).sort((a,b) => (b.settled_at||'').localeCompare(a.settled_at||''));
@@ -5375,8 +5375,8 @@ function _renderSettledArea() {
   const PAY_TYPE_LABEL = { full:'全款付清', installment:'分期付款' };
 
   const bodyRows = list.map(s => {
-    const sched = s.schedule_id ? (DB.schedules||[]).find(x => x.id === s.schedule_id) : null;
-    const talent = sched?.kol_name || s.talent || '-';
+    const sched = s.schedule_id ? (DB.schedules||[]).find(x => String(x.id) === String(s.schedule_id)) : null;
+    const talent = sched?.kol_name || s.kol_name || s.talent || '-';
     const plat = (() => { if (!sched) return '-'; const mp=sched.platform||(Array.isArray(sched.platforms)?sched.platforms[0]:'')||''; const sp=Array.isArray(sched.sync_platforms)&&sched.sync_platforms.length?sched.sync_platforms:(Array.isArray(sched.platforms)?sched.platforms.slice(1):[]); return mp?(sp.length?`${mp}（主）· ${sp.join(' · ')}`:mp):'-'; })();
     const date   = sched?.schedule_date || '-';
     const base   = parseFloat(s.contract_amount ?? s.amount) || 0;
