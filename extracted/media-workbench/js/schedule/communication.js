@@ -437,6 +437,28 @@
     return ALL_COLUMNS.filter(c => state.visibleCols.has(c.key));
   }
 
+  // 分组表头样式/标签
+  const GROUP_BG = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '其他数据':'#ecfeff', '看后搜':'#fce7f3', '归因':'#ede9fe', '投流':'#fef2f2' };
+  const GROUP_LABEL = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '其他数据':'其他数据', '看后搜':'看后搜数据', '归因':'归因数据', '投流':'投流（抖音）' };
+  /**
+   * 按 activeCols 的「实际顺序」切分分组（同组列在 ALL_COLUMNS 里本就连续）。
+   * 直接由列顺序生成分组表头 → colspan 永远与下方列对齐，杜绝错位。
+   */
+  function _colGroupSegments(cols) {
+    const segs = [];
+    cols.forEach(c => {
+      const last = segs[segs.length - 1];
+      if (last && last.group === c.group) last.count++;
+      else segs.push({ group: c.group, count: 1 });
+    });
+    return segs;
+  }
+  function _renderGroupHeaderCells(cols) {
+    return _colGroupSegments(cols).map(seg =>
+      `<th colspan="${seg.count}" class="comm-group" style="background:${GROUP_BG[seg.group] || '#f8fafc'}">${escapeHtml(GROUP_LABEL[seg.group] || seg.group)}</th>`
+    ).join('');
+  }
+
   /* 可内联编辑的字段（完播率起往后） */
   const INLINE_EDIT_KEYS = new Set([
     'likes', 'comments',
@@ -594,11 +616,6 @@
     }
     const isDouyin = state.mainPlatform === '抖音';
     const activeCols = getActiveColumns();
-    // 分组统计
-    const groupCounts = {};
-    activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
-    const groupOrder = ['基本', '发布', '第7天', '其他数据', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
-    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '其他数据':'#ecfeff', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
     // 操作列需要 1 列（非冻结），tfoot colspan = activeCols.length + 1（昵称） + 1（操作）
     const realList = list.filter(c => !c._placeholder);
     return `
@@ -616,15 +633,7 @@
                 })()}
               </th>
               <th rowspan="2" class="comm-fz2" style="background:#fafbfd;min-width:120px">${state.mainPlatform}昵称</th>
-              ${groupOrder.map(g => {
-                const gLabel = g === '基本' ? '基本信息'
-                  : g === '发布' ? '发布信息'
-                  : g === '第7天' ? '第7天数据'
-                  : g === '其他数据' ? '其他数据'
-                  : g === '投流' ? '投流（抖音）'
-                  : g + '数据';
-                return `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${gLabel}</th>`;
-              }).join('')}
+              ${_renderGroupHeaderCells(activeCols)}
               <th rowspan="2" colspan="3" style="text-align:center">操作</th>
             </tr>
             <tr>
@@ -847,11 +856,6 @@
 
     // 动态列（全部模式包含抖音字段）
     const activeCols = getActiveColumns();
-    const groupCounts = {};
-    activeCols.forEach(c => { groupCounts[c.group] = (groupCounts[c.group] || 0) + 1; });
-    const groupOrder = ['基本', '发布', '第7天', '其他数据', '投流', '看后搜', '归因'].filter(g => groupCounts[g]);
-    const groupBg = { '基本':'#eff6ff', '发布':'#f0fdf4', '第7天':'#fef3c7', '其他数据':'#ecfeff', '投流':'#fef2f2', '看后搜':'#fce7f3', '归因':'#ede9fe' };
-    const groupLabel = { '基本':'基本信息', '发布':'发布信息', '第7天':'第7天数据', '其他数据':'其他数据', '投流':'投流（抖音）', '看后搜':'看后搜数据', '归因':'归因数据' };
 
     // 以内容记录 ID 为 key 分组，保证同一笔合同的所有平台永远在一个 block
     const kolFans = {};
@@ -1015,7 +1019,7 @@
                 })()}
               </th>
               <th rowspan="2" class="comm-fz2" style="background:#fafbfd;min-width:130px">达人昵称</th>
-              ${groupOrder.map(g => `<th colspan="${groupCounts[g]}" class="comm-group" style="background:${groupBg[g]}">${groupLabel[g]||g}</th>`).join('')}
+              ${_renderGroupHeaderCells(activeCols)}
               <th rowspan="2" colspan="3" style="text-align:center">操作</th>
             </tr>
             <tr>
