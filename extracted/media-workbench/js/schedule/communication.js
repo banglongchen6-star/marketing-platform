@@ -24,6 +24,11 @@
     { key: 'comments',     label: '评论',     group: '第7天' },
     { key: 'completion',   label: '完播率',   group: '第7天' },
     { key: 'interaction',  label: '互动率',   group: '第7天' },
+    { key: 'nat_exposure', label: '自然曝光', group: '其他数据' },
+    { key: 'nat_reads',    label: '自然阅读', group: '其他数据' },
+    { key: 'collects',     label: '收藏',     group: '其他数据' },
+    { key: 'shares',       label: '分享',     group: '其他数据' },
+    { key: 'comp_exposure',label: '组件曝光', group: '其他数据' },
     { key: 'search_views', label: '看后搜量', group: '看后搜', douyinOnly: true },
     { key: 'search_rate',  label: '看后搜率', group: '看后搜', douyinOnly: true },
     { key: 'attr_direct',  label: '直接归因', group: '归因', douyinOnly: true },
@@ -106,6 +111,7 @@
       platform, date, link: '',
       views: '', likes: '', comments: '',
       completion: '', interaction: '',
+      nat_exposure: '', nat_reads: '', collects: '', shares: '', comp_exposure: '',
       search_views: '', search_rate: '',
       attr_direct: '', attr_indirect: '', attr_search: '',
       attr_audience: '', attr_store: '', cpa3: '',
@@ -435,6 +441,7 @@
   const INLINE_EDIT_KEYS = new Set([
     'likes', 'comments',
     'completion', 'interaction',
+    'nat_exposure', 'nat_reads', 'collects', 'shares', 'comp_exposure',
     'search_views', 'search_rate',
     'attr_direct', 'attr_indirect', 'attr_search', 'attr_audience', 'attr_store', 'cpa3',
     'promo_views', 'promo_cost',
@@ -655,6 +662,11 @@
       case 'comments':    return renderStatCell(p, 'comments');
       case 'completion':  return fmtPercent(p.completion);
       case 'interaction': return fmtPercent(p.interaction);
+      case 'nat_exposure':return fmtNullable(p.nat_exposure, '-');
+      case 'nat_reads':   return fmtNullable(p.nat_reads, '-');
+      case 'collects':    return fmtNullable(p.collects, '-');
+      case 'shares':      return fmtNullable(p.shares, '-');
+      case 'comp_exposure':return fmtNullable(p.comp_exposure, '-');
       case 'search_views':return fmtNullable(p.search_views, '-');
       case 'search_rate': return fmtPercent(p.search_rate);
       case 'attr_direct': return fmtNullable(p.attr_direct, '-');
@@ -1333,6 +1345,11 @@
           <div><label>评论</label><input type="number" min="0" value="${escapeAttr(p.comments)}" onchange="CommunicationPage._updatePub(${idx},'comments',this.value)"></div>
           <div><label>完播率(%)</label><input type="text" value="${escapeAttr(p.completion)}" onchange="CommunicationPage._updatePub(${idx},'completion',this.value)"></div>
           <div><label>互动率(%)</label><input type="text" value="${escapeAttr(p.interaction)}" onchange="CommunicationPage._updatePub(${idx},'interaction',this.value)"></div>
+          <div><label>自然曝光</label><input type="number" min="0" value="${escapeAttr(p.nat_exposure)}" onchange="CommunicationPage._updatePub(${idx},'nat_exposure',this.value)"></div>
+          <div><label>自然阅读</label><input type="number" min="0" value="${escapeAttr(p.nat_reads)}" onchange="CommunicationPage._updatePub(${idx},'nat_reads',this.value)"></div>
+          <div><label>收藏</label><input type="number" min="0" value="${escapeAttr(p.collects)}" onchange="CommunicationPage._updatePub(${idx},'collects',this.value)"></div>
+          <div><label>分享</label><input type="number" min="0" value="${escapeAttr(p.shares)}" onchange="CommunicationPage._updatePub(${idx},'shares',this.value)"></div>
+          <div><label>组件曝光</label><input type="number" min="0" value="${escapeAttr(p.comp_exposure)}" onchange="CommunicationPage._updatePub(${idx},'comp_exposure',this.value)"></div>
         </div>
         ${isDouyin ? `
           <button type="button" onclick="CommunicationPage._toggleDouyinExtra(this)"
