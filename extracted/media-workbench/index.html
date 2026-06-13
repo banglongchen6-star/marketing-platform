@@ -3614,10 +3614,7 @@ function saveStatusUpdate() {
   const action = document.querySelector('.sst-radio:checked')?.value;
   if (!action) { toast('请选择操作', 'error'); return; }
 
-  if (action === 'shooting') {
-    s.status = 'shooting';
-    toast('已更新为「拍摄中」', 'success');
-  } else if (action === 'keeping') {
+  if (action === 'keeping') {
     s.status = 'keeping';
     toast('已标记为「长期留存」', 'success');
   } else if (action === 'returned') {
@@ -3639,9 +3636,9 @@ function saveStatusUpdate() {
     const transferType = document.querySelector('input[name="sst-transfer-type"]:checked')?.value;
     let toTalent = '', scheduleId = null;
     if (transferType === 'scheduled') {
-      const schedId = parseInt(document.getElementById('sst-transfer-schedule-id').value);
+      const schedId = document.getElementById('sst-transfer-schedule-id').value;
       if (!schedId) { toast('请选择目标排期达人', 'error'); return; }
-      const sched = (DB.schedules || []).find(x => x.id === schedId);
+      const sched = (DB.schedules || []).find(x => String(x.id) === String(schedId));
       toTalent = sched?.kol_name || '';
       scheduleId = schedId;
     } else {
@@ -3693,8 +3690,10 @@ function renderSamples() {
   const sfSel = document.getElementById('sample-status-filter-select');
   if (sfSel) sfSel.value = sampleStatusFilter;
   const search = document.getElementById('sample-search').value.toLowerCase();
-  let list = DB.samples.filter(c => {
-    if (!(c.date||'').startsWith(monthStr)) return false;
+  // 本月全部样品（仅按月，不含搜索/状态筛选）—— 顶部统计基于它，避免被筛选带偏
+  const monthList = DB.samples.filter(c => (c.date||'').startsWith(monthStr));
+  // 表格展示用：在月份基础上再叠加状态筛选 + 搜索
+  let list = monthList.filter(c => {
     if (sampleStatusFilter && c.status !== sampleStatusFilter) return false;
     if (search) {
       // product 可能是数组（多个产品），拼成字符串再搜
@@ -3711,20 +3710,21 @@ function renderSamples() {
   });
   list.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
-  // 在外样品：已寄出待确认 或 已填写收件地址
-  const activeCount = list.filter(s => s.shipping_needed !== false && (s.status === 'awaiting' || s.address || s.recipient_name)).length;
+  const _SAMPLE_DONE = ['transferred','returned','gifted'];
+  // 在外样品（全量，不限月份）：有寄件信息/作业中、且未归还/赠送/流转
+  const activeCount = DB.samples.filter(s => s.shipping_needed !== false
+    && !_SAMPLE_DONE.includes(s.status)
+    && (s.status === 'awaiting' || s.status === 'keeping' || s.address || s.recipient_name)).length;
 
-  // 本月寄出（当前筛选月）
-  const sentThisMonth = list.filter(s => s.status === 'sent').length;
+  // 本月寄出（当前查看月，不受搜索/状态筛选影响）
+  const sentThisMonth = monthList.filter(s => s.status === 'sent').length;
 
   // 未排期（全量数据，不受月份筛选影响）
-  const noScheduleCount = DB.samples.filter(s => !s.schedule_id && !['transferred','returned','gifted'].includes(s.status)).length;
+  const noScheduleCount = DB.samples.filter(s => !s.schedule_id && !_SAMPLE_DONE.includes(s.status)).length;
 
-  // 本月置换费
-  const now = new Date();
-  const curMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const curMonthCost = DB.samples
-    .filter(s => s.status === 'gifted' && s.gift_cost > 0 && (s.date||'').startsWith(curMonthKey))
+  // 本月置换费（跟随当前查看的月份）
+  const curMonthCost = monthList
+    .filter(s => s.status === 'gifted' && s.gift_cost > 0)
     .reduce((sum, s) => sum + (s.gift_cost || 0), 0);
 
   const chip = (label, value, color) => `
@@ -3844,14 +3844,6 @@ function renderSamples() {
     if (_sWinY) window.scrollTo(0, _sWinY);
     if (_sScTop && _sPe) { for (const el of _sPe.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _sScTop; break; } } }
   });
-}
-
-function toggleSampleShipping(id) {
-  const s = DB.samples.find(x => x.id === id);
-  if (!s) return;
-  s.shipping_needed = s.shipping_needed === false ? true : false;
-  saveData();
-  renderSamples();
 }
 
 function toggleSampleReceived(id) {
@@ -4134,15 +4126,6 @@ function copySampleInfo(id) {
   _clipboardCopy(text, '已复制');
 }
 
-function deleteSampleConfirm(id) {
-  appConfirm('确认删除该样品记录？', () => {
-    DB.samples=DB.samples.filter(x=>x.id!==id);
-    saveData();
-    renderSamples();
-    toast('已删除', 'info');
-  }, { okText: '删除', danger: true });
-}
-
 function deleteSample() {
   if(!editingSampleId) return;
   DB.samples=DB.samples.filter(x=>x.id!==editingSampleId);
@@ -4150,20 +4133,6 @@ function deleteSample() {
   closeModal('sample-modal');
   renderSamples();
   toast('已删除', 'info');
-}
-
-function shipSample(link, tracking) {
-  if(link) { window.open(link, '_blank'); }
-  else if(tracking) { window.open('https://www.sf-express.com', '_blank'); }
-  else { toast('暂无发货链接', 'info'); }
-}
-
-function batchShipSample(talent) {
-  const items=DB.samples.filter(s=>s.talent===talent);
-  const withLink=items.filter(s=>s.shipLink);
-  if(withLink.length>0) { window.open(withLink[0].shipLink, '_blank'); }
-  else if(items.some(s=>s.tracking)) { window.open('https://www.sf-express.com', '_blank'); }
-  else { toast('该达人暂无发货信息', 'info'); }
 }
 
 /* ==================== Materials ==================== */
