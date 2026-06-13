@@ -10,6 +10,9 @@
   const SD = window.ScheduleData;
   if (!SD) { console.error('[CommunicationPage] ScheduleData 未就绪'); return; }
 
+  /** id 类型无关比较：历史数据 id 有数字也有字符串(uid)，严格 === 会漏匹配 */
+  const idEq = (a, b) => a != null && b != null && String(a) === String(b);
+
   /* ------------------------- 状态 ------------------------- */
   // 所有可选列（用户可在工具栏「自定义列」里勾选）
   const ALL_COLUMNS = [
@@ -20,14 +23,14 @@
     { key: 'date',         label: '发布时间', group: '发布' },
     { key: 'link',         label: '发布链接', group: '发布' },
     { key: 'views',        label: '播放量',   group: '第7天' },
+    { key: 'nat_exposure', label: '自然曝光', group: '第7天' },
+    { key: 'nat_reads',    label: '自然阅读', group: '第7天' },
     { key: 'likes',        label: '赞',       group: '第7天' },
     { key: 'comments',     label: '评论',     group: '第7天' },
     { key: 'completion',   label: '完播率',   group: '第7天' },
     { key: 'interaction',  label: '互动率',   group: '第7天' },
     { key: 'promo_views',  label: '投流播放(万)', group: '投流', douyinOnly: true },
     { key: 'promo_cost',   label: '投流费(元)',   group: '投流', douyinOnly: true },
-    { key: 'nat_exposure', label: '自然曝光', group: '其他数据' },
-    { key: 'nat_reads',    label: '自然阅读', group: '其他数据' },
     { key: 'collects',     label: '收藏',     group: '其他数据' },
     { key: 'shares',       label: '分享',     group: '其他数据' },
     { key: 'comp_exposure',label: '组件曝光', group: '其他数据' },
@@ -475,9 +478,9 @@
   function _inlineEditField(contentId, pubId, field, tdEl) {
     if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
     if (tdEl.querySelector('input')) return;
-    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    const content = (window.DB.contents || []).find(c => idEq(c.id, contentId));
     if (!content) return;
-    const pub = (content.publications || []).find(p => p.id === pubId);
+    const pub = (content.publications || []).find(p => idEq(p.id, pubId));
     if (!pub) return;
     const current = pub[field];
 
@@ -502,7 +505,7 @@
       if (!unchanged) {
         try {
           const newPubs = (content.publications || []).map(p =>
-            p.id === pubId ? { ...p, [field]: newVal } : p
+            idEq(p.id, pubId) ? { ...p, [field]: newVal } : p
           );
           SD.updateContent(contentId, { publications: newPubs });
           window.toast && window.toast('已保存', 'success');
@@ -695,15 +698,15 @@
 
   function _payStatusTag(scheduleId, contentId) {
     const list = (window.DB?.settlements || []).filter(s =>
-      scheduleId ? s.schedule_id === scheduleId : s.content_id === contentId);
+      scheduleId ? idEq(s.schedule_id, scheduleId) : idEq(s.content_id, contentId));
     const unpaidTag = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">未付款</span>`;
     const paidTag   = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-weight:600">已付款</span>`;
     const noneTag   = `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:.75rem;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb">无需付款</span>`;
     if (!list.length) {
       // 没有结算单：明确填了 0 元（置换/免费）→ 无需付款；没填金额 → 未付款
       let amt = null;
-      if (scheduleId) { const s = (window.DB?.schedules||[]).find(x => x.id === scheduleId); amt = s ? s.amount : null; }
-      else            { const c = (window.DB?.contents ||[]).find(x => x.id === contentId);  amt = c ? c.price  : null; }
+      if (scheduleId) { const s = (window.DB?.schedules||[]).find(x => idEq(x.id, scheduleId)); amt = s ? s.amount : null; }
+      else            { const c = (window.DB?.contents ||[]).find(x => idEq(x.id, contentId));  amt = c ? c.price  : null; }
       if (amt != null && amt !== '' && Number(amt) === 0) return noneTag;
       return unpaidTag;
     }
@@ -724,7 +727,7 @@
   // 无内容记录的排期"待填写"占位行
   function renderPlaceholderRow(c, activeCols) {
     const r = SD.resolveContent(c);
-    const s = (window.DB?.schedules || []).find(x => x.id === c.schedule_id);
+    const s = (window.DB?.schedules || []).find(x => idEq(x.id, c.schedule_id));
     if (!s) return '';
     const dateStr = s.schedule_date ? `📅 ${s.schedule_date}` : '日期未定';
     const mp = s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '';
@@ -1078,7 +1081,7 @@
       state.editor.mode = 'edit';
       state.editor.id = id;
       const pubs = c.publications || [];
-      const linkedSched = c.schedule_id ? (window.DB?.schedules || []).find(x => x.id === c.schedule_id) : null;
+      const linkedSched = c.schedule_id ? (window.DB?.schedules || []).find(x => idEq(x.id, c.schedule_id)) : null;
       state.editor.form = {
         schedule_id: c.schedule_id || 'none',
         kol_name: c.kol_name || '',
@@ -1632,7 +1635,8 @@
         publications: f.publications,
       };
       // 不关联排期时，把达人综合信息写入达人库（达人类型/粉丝/BD/平台），并回写 kol_id 以便统计合作次数/金额
-      if (f.schedule_id === 'none' && f.kol_name.trim()) {
+      // 仅「新增」时建/补达人；编辑时不再按名重建，避免改昵称产生孤儿达人
+      if (f.schedule_id === 'none' && f.kol_name.trim() && state.editor.mode !== 'edit') {
         try {
           const kol = SD.quickCreateKol({
             name: f.kol_name.trim(),
@@ -1650,9 +1654,9 @@
       // 同步排期金额（有关联排期 + 无结算记录 + 价格有变）
       const schedIdForPrice = data.schedule_id;
       if (schedIdForPrice && f.price !== '') {
-        const noSettlement = !(window.DB?.settlements || []).some(s => s.schedule_id === schedIdForPrice);
+        const noSettlement = !(window.DB?.settlements || []).some(s => idEq(s.schedule_id, schedIdForPrice));
         if (noSettlement) {
-          const sched = (window.DB?.schedules || []).find(x => x.id === schedIdForPrice);
+          const sched = (window.DB?.schedules || []).find(x => idEq(x.id, schedIdForPrice));
           const newAmt = Number(f.price) || 0;
           if (sched && sched.amount !== newAmt) {
             SD.updateSchedule(schedIdForPrice, { ...sched, amount: newAmt });
@@ -1670,7 +1674,7 @@
       const schedIdForDate = data.schedule_id;
       const mainPubDate = (f.publications[0] && f.publications[0].date) || '';
       if (schedIdForDate && mainPubDate) {
-        const sched = (window.DB?.schedules || []).find(x => x.id === schedIdForDate);
+        const sched = (window.DB?.schedules || []).find(x => idEq(x.id, schedIdForDate));
         if (sched && sched.schedule_date !== mainPubDate) {
           SD.updateSchedule(schedIdForDate, { schedule_date: mainPubDate, _fromContent: true });
         }
@@ -1712,9 +1716,9 @@
     if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
     if (tdEl.querySelector('input')) return; // 已在编辑中
 
-    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    const content = (window.DB.contents || []).find(c => idEq(c.id, contentId));
     if (!content) return;
-    const pub = (content.publications || []).find(p => p.id === pubId);
+    const pub = (content.publications || []).find(p => idEq(p.id, pubId));
     const currentLink = pub ? (pub.link || '') : '';
 
     const input = document.createElement('input');
@@ -1731,7 +1735,7 @@
       if (newLink === currentLink) { render(); return; }
       try {
         const newPubs = (content.publications || []).map(p =>
-          p.id === pubId ? { ...p, link: newLink } : p
+          idEq(p.id, pubId) ? { ...p, link: newLink } : p
         );
         // 填了真实链接 → 清除 auto_created 标记，变为真实记录
         const patch = { publications: newPubs };
@@ -1764,9 +1768,9 @@
     if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
     if (tdEl.querySelector('input')) return;
 
-    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    const content = (window.DB.contents || []).find(c => idEq(c.id, contentId));
     if (!content) return;
-    const pub = (content.publications || []).find(p => p.id === pubId);
+    const pub = (content.publications || []).find(p => idEq(p.id, pubId));
     const current = pub && pub.views != null ? pub.views : '';
 
     const input = document.createElement('input');
@@ -1786,7 +1790,7 @@
       if (newVal === current || (newVal == null && current === '')) { render(); return; }
       try {
         const newPubs = (content.publications || []).map(p =>
-          p.id === pubId ? { ...p, views: newVal } : p
+          idEq(p.id, pubId) ? { ...p, views: newVal } : p
         );
         SD.updateContent(contentId, { publications: newPubs });
         window.toast && window.toast('播放量已保存', 'success');
@@ -1811,9 +1815,9 @@
   function _inlineEditDate(contentId, pubId, tdEl) {
     if (SD.isMonthFrozen(state.year, state.month)) { toast('该月已冻结，请先解冻再编辑', 'error'); return; }
     if (tdEl.querySelector('input')) return;
-    const content = (window.DB.contents || []).find(c => c.id === contentId);
+    const content = (window.DB.contents || []).find(c => idEq(c.id, contentId));
     if (!content) return;
-    const pub = (content.publications || []).find(p => p.id === pubId);
+    const pub = (content.publications || []).find(p => idEq(p.id, pubId));
     const current = pub ? (pub.date || '') : '';
     const input = document.createElement('input');
     input.type = 'date';
@@ -1827,7 +1831,7 @@
       if (newVal === current) { render(); return; }
       try {
         const newPubs = (content.publications || []).map(p =>
-          p.id === pubId ? { ...p, date: newVal } : p
+          idEq(p.id, pubId) ? { ...p, date: newVal } : p
         );
         SD.updateContent(contentId, { publications: newPubs });
         window.toast && window.toast('发布日期已保存', 'success');

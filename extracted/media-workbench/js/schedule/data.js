@@ -227,6 +227,9 @@
 
   function nowISO() { return new Date().toISOString(); }
 
+  /** id 类型无关比较：历史数据 id 有数字也有字符串(uid)，严格 === 会漏匹配 */
+  function idEq(a, b) { return a != null && b != null && String(a) === String(b); }
+
   /** 返回本地今天日期字符串 YYYY-MM-DD（避免 toISOString 的 UTC 时区偏差）*/
   function todayLocal() {
     const d = new Date();
@@ -965,7 +968,7 @@
     // 达人名：关联排期则以排期为准，否则用内容自带的 kol_name
     let talentName = content.kol_name || '';
     if (content.schedule_id) {
-      const s = DB.schedules.find(x => x.id === content.schedule_id && !x.deleted_at);
+      const s = DB.schedules.find(x => idEq(x.id, content.schedule_id) && !x.deleted_at);
       if (s && s.kol_name) talentName = s.kol_name;
     }
     talentName = String(talentName).trim();
@@ -991,13 +994,13 @@
   function createContent(data) {
     // schedule_id 为 null 表示「不关联排期」，此时 kol_name 必填
     if (data.schedule_id) {
-      const s = DB.schedules.find(x => x.id === data.schedule_id && !x.deleted_at);
+      const s = DB.schedules.find(x => idEq(x.id, data.schedule_id) && !x.deleted_at);
       if (!s) throw new Error('关联的排期不存在');
     } else if (!data.kol_name || !String(data.kol_name).trim()) {
       throw new Error('不关联排期时，达人昵称为必填');
     }
     const s = data.schedule_id
-      ? DB.schedules.find(x => x.id === data.schedule_id && !x.deleted_at)
+      ? DB.schedules.find(x => idEq(x.id, data.schedule_id) && !x.deleted_at)
       : null;
     const row = {
       id: uid(),
@@ -1006,8 +1009,10 @@
       // 不关联排期时，达人类型/作品类型存在内容上（关联排期则从排期带，不冗余）
       category_direction: data.schedule_id ? '' : (data.category_direction || ''),
       work_type: data.schedule_id ? '' : (data.work_type || ''),
-      // 不关联排期时价格存在内容上（关联排期则从排期 amount 反查，不冗余）
+      // 不关联排期时价格/BD/达人库关联存在内容上（关联排期则从排期反查，不冗余）
       price: data.schedule_id ? null : (data.price != null && data.price !== '' ? Number(data.price) : null),
+      bd_id: data.schedule_id ? null : (data.bd_id || null),
+      kol_id: data.schedule_id ? null : (data.kol_id || null),
       fans: data.fans != null && data.fans !== '' ? Number(data.fans) : null,
       publications: (data.publications || []).map(normalizePublication),
       created_at: nowISO(),
@@ -1023,7 +1028,7 @@
   }
 
   function updateContent(id, patch) {
-    const idx = DB.contents.findIndex(x => x.id === id);
+    const idx = DB.contents.findIndex(x => idEq(x.id, id));
     if (idx < 0) throw new Error('内容记录不存在');
     const before = DB.contents[idx];
     const next = { ...before, ...patch, updated_at: nowISO() };
@@ -1039,8 +1044,8 @@
 
   function deleteContent(id) {
     const before = DB.contents.length;
-    if (!DB.contents.find(x => x.id === id)) throw new Error('内容记录不存在');
-    const linked = (DB.settlements || []).filter(s => s.content_id === id || (s.schedule_id && DB.contents.find(c => c.id === id)?.schedule_id === s.schedule_id));
+    if (!DB.contents.find(x => idEq(x.id, id))) throw new Error('内容记录不存在');
+    const linked = (DB.settlements || []).filter(s => idEq(s.content_id, id) || (s.schedule_id && idEq(DB.contents.find(c => idEq(c.id, id))?.schedule_id, s.schedule_id)));
     const hasPaid = linked.some(s => (s.payments || []).some(p => !!p.paid_date));
     if (hasPaid) throw new Error('达人结算中已有付款记录，无法删除该内容');
     DB.settlements = (DB.settlements || []).filter(s => !linked.find(l => l.id === s.id));
@@ -1282,9 +1287,10 @@
     }
     if (bd_id) {
       rows = rows.filter(c => {
-        if (!c.schedule_id) return false; // 不关联排期的记录不归属 BD，显示在全部
-        const s = DB.schedules.find(x => x.id === c.schedule_id);
-        return s && s.bd_id === bd_id;
+        // 不关联排期：按内容自身的 bd_id 归属（手动补录的内容也能按 BD 筛出来）
+        if (!c.schedule_id) return idEq(c.bd_id, bd_id);
+        const s = DB.schedules.find(x => idEq(x.id, c.schedule_id));
+        return s && idEq(s.bd_id, bd_id);
       });
     }
     if (q) {
@@ -1292,15 +1298,15 @@
       rows = rows.filter(c => {
         // 不关联排期：搜 kol_name
         if (!c.schedule_id) return (c.kol_name || '').toLowerCase().includes(lo);
-        const s = DB.schedules.find(x => x.id === c.schedule_id);
+        const s = DB.schedules.find(x => idEq(x.id, c.schedule_id));
         return s && (s.kol_name || '').toLowerCase().includes(lo);
       });
     }
 
     // 补充：无内容记录的排期作为"待填写"占位行
     if (withPlaceholders) {
-      const linkedIds = new Set(DB.contents.map(c => c.schedule_id).filter(Boolean));
-      let scheds = (DB.schedules || []).filter(s => !s.deleted_at && !linkedIds.has(s.id));
+      const linkedIds = new Set(DB.contents.map(c => c.schedule_id).filter(Boolean).map(String));
+      let scheds = (DB.schedules || []).filter(s => !s.deleted_at && !linkedIds.has(String(s.id)));
       if (year && month) {
         const monthStr = `${year}-${pad2(month)}`;
         scheds = scheds.filter(s => s.schedule_date && s.schedule_date.startsWith(monthStr));
@@ -1309,7 +1315,7 @@
         // 占位行同样只按排期主平台归属
         scheds = scheds.filter(s => (s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '')) === mainPlatform);
       }
-      if (bd_id) scheds = scheds.filter(s => s.bd_id === bd_id);
+      if (bd_id) scheds = scheds.filter(s => idEq(s.bd_id, bd_id));
       if (q) {
         const lo = String(q).toLowerCase().trim();
         scheds = scheds.filter(s => (s.kol_name || '').toLowerCase().includes(lo));
@@ -1328,7 +1334,7 @@
     rows.sort((a, b) => {
       const getDate = x => {
         if (x._placeholder) {
-          const s = DB.schedules.find(ss => ss.id === x.schedule_id);
+          const s = DB.schedules.find(ss => idEq(ss.id, x.schedule_id));
           return s?.schedule_date || '';
         }
         return (x.publications||[])[0]?.date || x.created_at || '';
@@ -1341,7 +1347,7 @@
   /** 给一条内容生成"主信息合并视图"：从 schedule 反查 talent/price/category/bd */
   function resolveContent(c) {
     if (!c) return null;
-    const s = c.schedule_id ? DB.schedules.find(x => x.id === c.schedule_id) : null;
+    const s = c.schedule_id ? DB.schedules.find(x => idEq(x.id, c.schedule_id)) : null;
     // 挂排期：BD 取排期的；不挂排期：取内容自己的 bd_id（录入账号自动带入）
     const effBdId = s ? s.bd_id : (c.bd_id || null);
     const bd = effBdId ? findBdPersonById(effBdId) : null;
