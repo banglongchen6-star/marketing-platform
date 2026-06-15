@@ -876,12 +876,25 @@
     _save();
   }
 
+  // 目标月已冻结 → 拦截（冻结锁应对所有入口生效，含新增/改日期入冻结月）
+  function _targetMonthFrozen() {
+    const sd = state.form.schedule_date || (state.mode === 'edit' ? '' : todayStr());
+    if (!sd) return false;
+    const [y, m] = sd.split('-').map(Number);
+    if (y && SD.isMonthFrozen(y, m)) {
+      window.toast && window.toast(`${y}年${m}月 已冻结，无法新增或保存到该月`, 'error');
+      return true;
+    }
+    return false;
+  }
+
   function _saveDraft() {
     const f = state.form;
     if (!f.kol_name || !f.kol_name.trim()) {
       window.toast && window.toast('请至少填写达人名称', 'error');
       return;
     }
+    if (_targetMonthFrozen()) return;
     const data = {
       schedule_date: f.schedule_date || todayStr(),
       kol_name: f.kol_name.trim(),
@@ -921,6 +934,7 @@
       window.toast && window.toast(msg, 'error');
       return;
     }
+    if (_targetMonthFrozen()) return;
     // 编辑模式 + 日期有变化 → 先弹影响预警
     if (!_skipImpact && state.mode === 'edit') {
       const oldSched = (window.DB.schedules||[]).find(x => x.id === state.id);
