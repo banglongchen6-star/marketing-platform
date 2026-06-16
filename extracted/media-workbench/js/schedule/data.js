@@ -1404,7 +1404,7 @@
       (c.publications || [])
         .filter(p => !mainPlatform || mainPlatform === '全部' || p.platform === mainPlatform)
         .forEach(p => {
-          totalViews      += (Number(p.views)       || 0) / 10000; // 个→万
+          totalViews      += Number(p.views)        || 0;          // p.views 已是「万」，与列表/ROI 口径一致，不再换算
           totalPromoViews += Number(p.promo_views)  || 0;          // 已是万
           totalPromoCost  += Number(p.promo_cost)   || 0;
           publicationCount++;
