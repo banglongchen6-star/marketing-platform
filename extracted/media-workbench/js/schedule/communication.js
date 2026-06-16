@@ -22,7 +22,7 @@
     { key: 'platform',     label: '平台',     group: '发布' },
     { key: 'date',         label: '发布时间', group: '发布' },
     { key: 'link',         label: '发布链接', group: '发布' },
-    { key: 'views',        label: '播放量',   group: '第7天' },
+    { key: 'views',        label: '播放量/阅读', group: '第7天' },
     { key: 'nat_exposure', label: '自然曝光', group: '第7天' },
     { key: 'likes',        label: '赞',       group: '第7天' },
     { key: 'comments',     label: '评论',     group: '第7天' },
@@ -1346,7 +1346,7 @@
           })()}
         </div>
         <div class="comm-pub-grid">
-          <div><label>播放量(万)</label><input type="text" value="${escapeAttr(p.views)}" onchange="CommunicationPage._updatePub(${idx},'views',this.value)"></div>
+          <div><label>播放量/阅读(万)</label><input type="text" value="${escapeAttr(p.views)}" onchange="CommunicationPage._updatePub(${idx},'views',this.value)"></div>
           <div><label>赞</label><input type="number" min="0" value="${escapeAttr(p.likes)}" onchange="CommunicationPage._updatePub(${idx},'likes',this.value)"></div>
           <div><label>评论</label><input type="number" min="0" value="${escapeAttr(p.comments)}" onchange="CommunicationPage._updatePub(${idx},'comments',this.value)"></div>
           <div><label>完播率(%)</label><input type="text" value="${escapeAttr(p.completion)}" onchange="CommunicationPage._updatePub(${idx},'completion',this.value)"></div>
