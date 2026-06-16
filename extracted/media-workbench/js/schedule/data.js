@@ -1142,9 +1142,8 @@
       comments: p.comments != null && p.comments !== '' ? Number(p.comments) : null,
       completion: p.completion != null && p.completion !== '' ? Number(p.completion) : null, // %
       interaction: p.interaction != null && p.interaction !== '' ? Number(p.interaction) : null, // %
-      // 其他数据（各平台通用：自然曝光/自然阅读/收藏/分享/组件曝光）
+      // 其他数据（各平台通用：自然曝光/收藏/分享/组件曝光）
       nat_exposure: p.nat_exposure != null && p.nat_exposure !== '' ? Number(p.nat_exposure) : null,
-      nat_reads: p.nat_reads != null && p.nat_reads !== '' ? Number(p.nat_reads) : null,
       collects: p.collects != null && p.collects !== '' ? Number(p.collects) : null,
       shares: p.shares != null && p.shares !== '' ? Number(p.shares) : null,
       comp_exposure: p.comp_exposure != null && p.comp_exposure !== '' ? Number(p.comp_exposure) : null,
