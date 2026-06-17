@@ -4280,6 +4280,20 @@ function _stInit(data) {
     note:           data?.note           || '',
     content_id:     data?.content_id     || null,
   };
+  // 结算金额「单一源头」：未付款且未结算时，关联结算实时取自排期/内容发布（避免显示存下来的旧值）
+  // 已实际付款 / 已结算的保留存量值（冻结，反映真实付款）
+  if (data) {
+    const _frozen = data.settled || (data.payments || []).some(p => p.actual_paid_date);
+    if (!_frozen) {
+      if (data.schedule_id) {
+        const sched = (window.DB?.schedules || []).find(x => String(x.id) === String(data.schedule_id));
+        if (sched && sched.amount != null && sched.amount !== '') { _st.contract_amount = Number(sched.amount); }
+      } else if (data.content_id) {
+        const c = (window.DB?.contents || []).find(x => String(x.id) === String(data.content_id));
+        if (c && c.price != null && c.price !== '') { _st.contract_amount = Number(c.price); }
+      }
+    }
+  }
 }
 
 function _stDefaultPayments(type) {
@@ -5413,11 +5427,8 @@ function openSettlementForSchedule(scheduleId) {
   const sched = (DB.schedules||[]).find(x => String(x.id) === String(scheduleId));
   if (sched) {
     _st.kol_name = sched.kol_name || '';
-    // 结算金额取「内容发布显示的价格」：挂排期的内容其价格就是排期金额（内容自身price字段为空）
-    const content = (DB.contents||[]).find(c => String(c.schedule_id) === String(scheduleId));
-    const amt = (content && content.price != null && content.price !== '')
-      ? Number(content.price)
-      : (sched.amount != null && sched.amount !== '' ? Number(sched.amount) : null);
+    // 关联排期的结算金额 = 排期实时金额（单一源头，排期改了这里跟着变；不读内容上可能残留的旧价）
+    const amt = (sched.amount != null && sched.amount !== '') ? Number(sched.amount) : null;
     if (amt != null) { _st.contract_amount = amt; _stSyncFullAmount(); }
   }
   _stFromContext = true;

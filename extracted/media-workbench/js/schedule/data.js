@@ -805,6 +805,21 @@
       }
     }
 
+    // 金额变更 → 同步「未付款且未结算」的关联结算单（结算金额始终跟随排期，单一源头）
+    // 已实际付款 / 已结转的不动，避免改乱已发生的账
+    if (realPatch.amount != null && Number(realPatch.amount) !== Number(before.amount)) {
+      const newAmt = Number(DB.schedules[idx].amount) || 0;
+      (DB.settlements || []).forEach(st => {
+        if (!idEq(st.schedule_id, id)) return;
+        if (st.settled) return;
+        if ((st.payments || []).some(p => p.actual_paid_date)) return;
+        st.contract_amount = newAmt;
+        const bonus = st.bonus_enabled ? (Number(st.bonus_amount) || 0) : 0;
+        st.amount = newAmt + bonus;
+        st.updated_at = nowISO();
+      });
+    }
+
     saveData();
     return DB.schedules[idx];
   }
@@ -1037,6 +1052,19 @@
     // 粉丝量被改动时才反哺达人库（避免无关编辑反复推旧值）
     if ('fans' in patch && Number(patch.fans) !== Number(before.fans)) {
       _syncContentFansToKol(next);
+    }
+    // 不关联排期的内容改价 → 同步「未付款且未结算」的关联结算单（结算金额跟随内容发布）
+    if (!next.schedule_id && 'price' in patch && Number(patch.price) !== Number(before.price)) {
+      const newP = next.price != null && next.price !== '' ? Number(next.price) : 0;
+      (DB.settlements || []).forEach(st => {
+        if (!idEq(st.content_id, id)) return;
+        if (st.settled) return;
+        if ((st.payments || []).some(p => p.actual_paid_date)) return;
+        st.contract_amount = newP;
+        const bonus = st.bonus_enabled ? (Number(st.bonus_amount) || 0) : 0;
+        st.amount = newP + bonus;
+        st.updated_at = nowISO();
+      });
     }
     saveData();
     return next;
