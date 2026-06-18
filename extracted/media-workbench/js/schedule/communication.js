@@ -656,7 +656,14 @@
   // 渲染单个 publication 的某一列单元格
   function renderPubCell(p, colKey, ctx) {
     switch (colKey) {
-      case 'price': return ctx.r.price != null && ctx.r.price !== '' ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
+      case 'price': {
+        // 同步平台 tab 不重复显示价格（合作费只归主平台；全部/主平台正常显示）
+        const _mp = (ctx.content.publications || [])[0]?.platform;
+        if (state.mainPlatform !== '全部' && _mp && _mp !== state.mainPlatform) {
+          return '<span style="color:var(--text-muted);font-size:.72rem" title="合作费在主平台计入">—<span style="margin-left:2px">主平台计</span></span>';
+        }
+        return ctx.r.price != null && ctx.r.price !== '' ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
+      }
       case 'fans':  return ctx.content.fans != null ? formatFans(ctx.content.fans) : '-';
       case 'category': return escapeHtml(ctx.r.category || '-');
       case 'work_type': return escapeHtml(ctx.r.work_type || '-');
@@ -760,7 +767,9 @@
 
   function renderContentRows(content, isDouyin, activeCols, readOnly = false, frozen = false) {
     const r = SD.resolveContent(content);
-    const pubs = content.publications || [];
+    const allPubs = content.publications || [];
+    // 单平台 tab：只显示该平台自己的发布行；全部：显示所有平台行
+    const pubs = state.mainPlatform === '全部' ? allPubs : allPubs.filter(p => p.platform === state.mainPlatform);
     if (!pubs.length) return '';
     const total = pubs.length;
     const ctx = { r, content };
@@ -814,20 +823,22 @@
   }
 
   function renderListFooter(list, colCount, readOnly = false) {
+    const plat = state.mainPlatform;
     let totalPrice = 0, totalViews = 0;
-    const uniqueKols = new Set();
     list.forEach(c => {
       const r = SD.resolveContent(c);
-      if (!uniqueKols.has(c.schedule_id)) {
-        uniqueKols.add(c.schedule_id);
-        totalPrice += Number(r.price) || 0;
-      }
-      (c.publications || []).forEach(p => { totalViews += Number(p.views) || 0; });
+      const mainPlat = (c.publications || [])[0]?.platform;
+      // 合作费只在主平台 tab / 全部 计入（避免同步平台 tab 重复）
+      if (plat === '全部' || mainPlat === plat) totalPrice += Number(r.price) || 0;
+      // 播放量只算当前平台的发布行
+      (c.publications || [])
+        .filter(p => plat === '全部' || p.platform === plat)
+        .forEach(p => { totalViews += Number(p.views) || 0; });
     });
     return `
       <tr class="comm-footer-row">
         <td colspan="${colCount + (readOnly ? 1 : 4)}">
-          <span style="color:var(--text-secondary)">合计 ${uniqueKols.size} 位达人 ·
+          <span style="color:var(--text-secondary)">合计 ${list.length} 条内容 ·
           价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
           播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
         </td>

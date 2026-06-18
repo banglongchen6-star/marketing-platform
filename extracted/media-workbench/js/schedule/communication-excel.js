@@ -246,15 +246,22 @@
     const data = [COLUMNS.map(c => c.header)];
     const merges = [];   // 同一达人多平台时，合并前4列（昵称/价格/粉丝量/作品类型）
     let rowIdx = 1;      // 数据从第 1 行开始（第 0 行是表头）
+    const _specificPlat = mainPlatform && mainPlatform !== '全部';
     list.forEach(content => {
       const r = SD.resolveContent(content);
-      const pubs = content.publications || [];
+      const allPubs = content.publications || [];
+      // 指定平台 tab：只导出该平台的发布行；全部：导出所有平台行
+      const pubs = _specificPlat ? allPubs.filter(p => p.platform === mainPlatform) : allPubs;
+      if (!pubs.length) return;
       const n = pubs.length;
+      // 合作费只在主平台/全部带出，同步平台 tab 留空（与页面口径一致，避免重复）
+      const _isMainTab = !_specificPlat || (allPubs[0]?.platform === mainPlatform);
+      const priceCell = _isMainTab ? r.price : '';
       pubs.forEach((p, i) => {
         if (i === 0) {
           // 主行
           data.push([
-            r.talent, r.price, content.fans != null ? content.fans : '', r.work_type,
+            r.talent, priceCell, content.fans != null ? content.fans : '', r.work_type,
             p.platform, p.date, p.link,
             p.views, p.likes, p.comments, p.completion, p.interaction,
             p.search_views, p.search_rate,

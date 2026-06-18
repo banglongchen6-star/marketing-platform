@@ -1309,8 +1309,8 @@
       });
     }
     if (mainPlatform && mainPlatform !== '全部') {
-      // 只按「主链接（第一条 publication）」所在平台归属，同步平台不在其它 tab 重复出现
-      rows = rows.filter(c => ((c.publications||[])[0]?.platform) === mainPlatform);
+      // 这条合作在哪些平台发过，就在哪些平台 tab 都出现（含同步平台）；各 tab 只看各自平台的行
+      rows = rows.filter(c => (c.publications||[]).some(p => p.platform === mainPlatform));
     }
     if (bd_id) {
       rows = rows.filter(c => {
@@ -1339,8 +1339,11 @@
         scheds = scheds.filter(s => s.schedule_date && s.schedule_date.startsWith(monthStr));
       }
       if (mainPlatform && mainPlatform !== '全部') {
-        // 占位行同样只按排期主平台归属
-        scheds = scheds.filter(s => (s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '')) === mainPlatform);
+        // 占位行在排期"计划发布的所有平台"tab 都出现（主+同步），与内容口径一致
+        scheds = scheds.filter(s => {
+          const plats = Array.isArray(s.platforms) && s.platforms.length ? s.platforms : (s.platform ? [s.platform] : []);
+          return plats.includes(mainPlatform);
+        });
       }
       if (bd_id) scheds = scheds.filter(s => idEq(s.bd_id, bd_id));
       if (q) {
@@ -1425,9 +1428,12 @@
     let totalPromoCost = 0;    // 投流花费
     let publicationCount = 0;
     list.forEach(c => {
-      // 一次合作的费用只算一次（在主行）
       const r = resolveContent(c);
-      totalPrice += Number(r.price) || 0;
+      // 合作费(price)只在「主平台 tab / 全部」计入，避免在同步平台 tab 重复计；投流费按平台各自计
+      const _mainPlat = (c.publications || [])[0]?.platform;
+      if (!mainPlatform || mainPlatform === '全部' || _mainPlat === mainPlatform) {
+        totalPrice += Number(r.price) || 0;
+      }
       (c.publications || [])
         .filter(p => !mainPlatform || mainPlatform === '全部' || p.platform === mainPlatform)
         .forEach(p => {
