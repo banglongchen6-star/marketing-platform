@@ -1110,7 +1110,7 @@
     if (window.SchedulePage && typeof window.SchedulePage.render === 'function') {
       window.SchedulePage.render();
     }
-    // 若月度规划页已挂载过则同步刷新（实际花费 / 数量随之更新）
+    // 若月度规划页已挂载过则同步刷新（排期金额 / 数量随之更新）
     if (window.MonthlyPlanPage && document.getElementById('sched-budget-host')) {
       window.MonthlyPlanPage.render();
     }

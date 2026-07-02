@@ -269,7 +269,7 @@
         <div class="sched-cal-header">
           <span>${year} 年 ${month} 月</span>
           <span class="sched-cal-month-stats" style="display:flex;align-items:center;gap:10px">
-            实际花费 <b>¥${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
+            排期金额 <b>¥${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
             ${freezeBtn}
           </span>
         </div>
