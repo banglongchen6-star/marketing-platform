@@ -3529,6 +3529,11 @@ function saveContent() {
 /* ==================== Samples ==================== */
 let sampleMonthYear = new Date().getFullYear(), sampleMonthMonth = new Date().getMonth() + 1;
 let sampleStatusFilter = '';
+let sampleQuickFilter = ''; // '' | 'active'(在外样品) | 'sent'(本月寄出) —— 点顶部卡片筛选
+function toggleSampleQuickFilter(key) {
+  sampleQuickFilter = (sampleQuickFilter === key) ? '' : key;
+  renderSamples();
+}
 let editingSampleId=null, editingStatusSampleId=null;
 
 const SAMPLE_STATUS = {
@@ -3695,6 +3700,13 @@ function renderSamples() {
   // 完结状态：已归还/已赠送/已流转/长期留存 —— 不再往后带（长期留存另进「长期留存台账」）
   const _LIST_DONE = ['transferred','returned','gifted','keeping'];
   const _isListDone = s => _LIST_DONE.includes(s.status);
+  // 在外样品：还悬着要盯的（未归还/赠送/流转/长期留存，且已有寄件动作）—— 长期留存已进台账，不计入
+  const _isActiveSample = s => s.shipping_needed !== false
+    && !_LIST_DONE.includes(s.status)
+    && (s.status === 'awaiting' || s.address || s.recipient_name);
+  // 本月寄出：寄出日期在本月、且填了寄件信息（真正发出去的）
+  const _isSentSample = s => (s.date || '').slice(0, 7) === monthStr
+    && !!(s.address || s.recipient_name || s.tracking);
   // 展示规则：完结的只在它自己月份；未完结的（含新建的无状态）从建立月起一直往后带，直到走到完结
   let list = DB.samples.filter(c => {
     const cm = (c.date || '').slice(0, 7);
@@ -3717,35 +3729,29 @@ function renderSamples() {
   // 极简版：整个列表统一按寄出日期倒序（最新在上），无日期的沉底
   list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-  const _SAMPLE_DONE = ['transferred','returned','gifted'];
-  // 在外样品（全量，不限月份）：有寄件信息/作业中、且未归还/赠送/流转
-  const activeCount = DB.samples.filter(s => s.shipping_needed !== false
-    && !_SAMPLE_DONE.includes(s.status)
-    && (s.status === 'awaiting' || s.status === 'keeping' || s.address || s.recipient_name)).length;
+  // 顶部卡片点击筛选：点「在外样品」只看在外的、点「本月寄出」只看本月寄出的
+  if (sampleQuickFilter === 'active')     list = list.filter(_isActiveSample);
+  else if (sampleQuickFilter === 'sent')  list = list.filter(_isSentSample);
 
-  // 本月寄出（当前查看月，不受搜索/状态筛选影响）
-  const sentThisMonth = monthList.filter(s => s.status === 'sent').length;
+  // 在外样品（全量，不限月份，排除长期留存）
+  const activeCount = DB.samples.filter(_isActiveSample).length;
+  // 本月寄出（当前查看月、按寄出日期+寄件信息算）
+  const sentThisMonth = DB.samples.filter(_isSentSample).length;
 
-  // 未排期（全量数据，不受月份筛选影响）
-  const noScheduleCount = DB.samples.filter(s => !s.schedule_id && !_SAMPLE_DONE.includes(s.status)).length;
-
-  // 本月置换费（跟随当前查看的月份）
-  const curMonthCost = monthList
-    .filter(s => s.status === 'gifted' && s.gift_cost > 0)
-    .reduce((sum, s) => sum + (s.gift_cost || 0), 0);
-
-  const chip = (label, value, color) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:${color}0d;border:1px solid ${color}2e">
-      <span style="font-size:.72rem;font-weight:600;color:${color};white-space:nowrap">${label}</span>
-      <span style="font-size:1.1rem;font-weight:700;color:${color}">${value}</span>
-    </div>`;
+  // 可点击筛选卡片：选中时反色高亮
+  const chipBtn = (label, value, color, key) => {
+    const on = sampleQuickFilter === key;
+    return `<button onclick="toggleSampleQuickFilter('${key}')" title="点击筛选/取消"
+      style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;cursor:pointer;background:${on?color:color+'0d'};border:1px solid ${on?color:color+'2e'}">
+      <span style="font-size:.72rem;font-weight:600;color:${on?'#fff':color};white-space:nowrap">${label}</span>
+      <span style="font-size:1.1rem;font-weight:700;color:${on?'#fff':color}">${value}</span>
+    </button>`;
+  };
 
   document.getElementById('sample-totals').innerHTML=`
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%">
-      ${chip('在外样品', activeCount + ' 件', '#1a56db')}
-      ${chip('本月寄出', sentThisMonth + ' 件', '#0891b2')}
-      ${chip('未排期', noScheduleCount + ' 件', '#d97706')}
-      ${chip('本月置换费', '¥' + fmtNum(curMonthCost), '#ec4899')}
+      ${chipBtn('在外样品', activeCount + ' 件', '#1a56db', 'active')}
+      ${chipBtn('本月寄出', sentThisMonth + ' 件', '#0891b2', 'sent')}
       <button onclick="openKeepingLedger()" style="margin-left:auto;border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">📋 长期留存台账</button>
       <button onclick="openSampleProductDict()" style="border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">⚙ 管理品类</button>
       <button class="btn btn-primary btn-sm" onclick="openSampleModal()">＋ 新增样品</button>
