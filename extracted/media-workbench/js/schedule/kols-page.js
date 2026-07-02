@@ -108,7 +108,7 @@
         </select>
         <select id="__kols-bd__" class="filter-select">
           <option value="">全部 BD</option>
-          ${SD.listBds().map(b => `<option value="${escapeAttr(b.id)}" ${state.bd_id===b.id?'selected':''}>${escapeHtml(b.name)}</option>`).join('')}
+          ${(SD.listBdPersonnel?SD.listBdPersonnel():SD.listBds()).map(b => `<option value="${escapeAttr(b.id)}" ${state.bd_id===b.id?'selected':''}>${escapeHtml(b.name)}${b._kind==='supervisor'?'（主管）':''}</option>`).join('')}
         </select>
         <select id="__kols-sort__" class="filter-select">
           <option value="created_desc" ${state.sort==='created_desc'?'selected':''}>最近添加</option>

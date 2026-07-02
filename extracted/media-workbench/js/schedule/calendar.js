@@ -304,10 +304,11 @@
   }
 
   function renderBdFilter() {
-    const bds = SD.listBds();
+    // 含品宣主管（主管也可作为排期负责人，需可被筛选）
+    const bds = SD.listBdPersonnel ? SD.listBdPersonnel() : SD.listBds();
     if (!bds.length) return '';
     const opts = ['<option value="">全部 BD</option>']
-      .concat(bds.map(b => `<option value="${escapeHtml(b.id)}" ${state.bd_id===b.id?'selected':''}>${escapeHtml(b.name)}</option>`));
+      .concat(bds.map(b => `<option value="${escapeHtml(b.id)}" ${state.bd_id===b.id?'selected':''}>${escapeHtml(b.name)}${b._kind==='supervisor'?'（主管）':''}</option>`));
     const cur = bds.find(b => b.id === state.bd_id);
     // 选中 BD 时左边加色块指示当前过滤 BD 颜色
     const dotStyle = cur ? `style="border-left:4px solid ${cur.color}"` : '';

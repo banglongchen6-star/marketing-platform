@@ -2291,7 +2291,7 @@ function renderDashboard_LEGACY_DISABLED() {
     { label:'CPM',        value:cpm, icon:'📊', cls:'purple' },
   ];
 
-  const bdList = (typeof ScheduleData !== 'undefined' && ScheduleData.listBds) ? ScheduleData.listBds() : [];
+  const bdList = (typeof ScheduleData !== 'undefined' && ScheduleData.listBdPersonnel) ? ScheduleData.listBdPersonnel() : [];
   const curBd = bdList.find(b => b.id === dashboardBdId);
   const bdSelStyle = curBd ? `style="border-left:4px solid ${curBd.color}"` : '';
   const bdSwitcher = bdList.length ? `
@@ -2299,7 +2299,7 @@ function renderDashboard_LEGACY_DISABLED() {
       <span style="font-size:.88rem;color:var(--text-secondary);font-weight:500">商务 BD 视角：</span>
       <select class="filter-select" ${bdSelStyle} onchange="setDashboardBd(this.value)">
         <option value="">全部 BD</option>
-        ${bdList.map(b => `<option value="${b.id}" ${dashboardBdId===b.id?'selected':''}>${b.name}</option>`).join('')}
+        ${bdList.map(b => `<option value="${b.id}" ${dashboardBdId===b.id?'selected':''}>${escapeHtml(b.name)}${b._kind==='supervisor'?'（主管）':''}</option>`).join('')}
       </select>
       ${curBd ? `
         <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:${curBd.color}1a;border-radius:14px;font-size:.82rem">
@@ -2536,7 +2536,7 @@ function renderDataDashboard() {
 
   const { start, end } = _ddDateRange();
   const kpi = _ddComputeKPI();
-  const bdList = (window.ScheduleData && ScheduleData.listBds) ? ScheduleData.listBds() : [];
+  const bdList = (window.ScheduleData && ScheduleData.listBdPersonnel) ? ScheduleData.listBdPersonnel() : [];
   const curBd = bdList.find(b => String(b.id) === String(_dd.bdId));
 
   function fmtWan(v) {
@@ -2564,7 +2564,7 @@ function renderDataDashboard() {
   const bdSwitcher = bdList.length ? `
     <select onchange="_ddSetBd(this.value)" style="height:32px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:.82rem;background:var(--bg-panel);cursor:pointer;color:var(--text-primary)">
       <option value="">全部 BD</option>
-      ${bdList.map(b => `<option value="${b.id}" ${String(_dd.bdId) === String(b.id) ? 'selected' : ''}>${escapeHtml(b.name)}</option>`).join('')}
+      ${bdList.map(b => `<option value="${b.id}" ${String(_dd.bdId) === String(b.id) ? 'selected' : ''}>${escapeHtml(b.name)}${b._kind==='supervisor'?'（主管）':''}</option>`).join('')}
     </select>` : '';
 
   const customPicker = _dd.filter === 'custom' ? `
@@ -2768,13 +2768,13 @@ function renderBrandRoiTable(year, month, bdId) {
     </tr>
   `;
   // BD 切换器
-  const bdList = (window.ScheduleData && ScheduleData.listBds) ? ScheduleData.listBds() : [];
+  const bdList = (window.ScheduleData && ScheduleData.listBdPersonnel) ? ScheduleData.listBdPersonnel() : [];
   const curBd = bdList.find(b => b.id === bdId);
   const bdSelStyle = curBd ? `style="border-left:4px solid ${curBd.color}"` : '';
   const bdSwitcher = bdList.length ? `
     <select class="filter-select" ${bdSelStyle} onchange="setDashboardBd(this.value)">
       <option value="">全部 BD</option>
-      ${bdList.map(b => `<option value="${b.id}" ${bdId===b.id?'selected':''}>${escapeHtml(b.name)}</option>`).join('')}
+      ${bdList.map(b => `<option value="${b.id}" ${bdId===b.id?'selected':''}>${escapeHtml(b.name)}${b._kind==='supervisor'?'（主管）':''}</option>`).join('')}
     </select>
   ` : '';
 

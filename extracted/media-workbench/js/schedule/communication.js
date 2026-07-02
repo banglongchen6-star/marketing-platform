@@ -215,9 +215,9 @@
   }
 
   function renderToolbar(kpi) {
-    const bdList = SD.listBds();
+    const bdList = SD.listBdPersonnel ? SD.listBdPersonnel() : SD.listBds();
     const bdOpts = ['<option value="">全部 BD</option>']
-      .concat(bdList.map(b => `<option value="${b.id}" ${state.bd_id === b.id ? 'selected' : ''}>${escapeHtml(b.name)}</option>`));
+      .concat(bdList.map(b => `<option value="${b.id}" ${state.bd_id === b.id ? 'selected' : ''}>${escapeHtml(b.name)}${b._kind==='supervisor'?'（主管）':''}</option>`));
     const monthLabel = `${state.year}-${String(state.month).padStart(2, '0')}`;
     const frozen = SD.isMonthFrozen(state.year, state.month);
     return `
