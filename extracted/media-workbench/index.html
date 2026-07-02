@@ -3714,13 +3714,8 @@ function renderSamples() {
     }
     return true;
   });
-  // 未完结排最上、最久没处理的在最前（提醒催收）；完结的按日期新→旧
-  list.sort((a, b) => {
-    const da = _isListDone(a), db_ = _isListDone(b);
-    if (da !== db_) return da ? 1 : -1;
-    if (!da) return (a.date || '').localeCompare(b.date || '');
-    return (b.date || '').localeCompare(a.date || '');
-  });
+  // 极简版：整个列表统一按寄出日期倒序（最新在上），无日期的沉底
+  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   const _SAMPLE_DONE = ['transferred','returned','gifted'];
   // 在外样品（全量，不限月份）：有寄件信息/作业中、且未归还/赠送/流转
