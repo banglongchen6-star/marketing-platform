@@ -1083,11 +1083,13 @@ textarea.sched-form-control { resize: vertical; min-height: 60px; }
 
 .sched-budget-del {
   background: none; border: none;
-  cursor: pointer; opacity: .5;
-  color: var(--danger); font-size: 1rem;
-  padding: 8px 10px; border-radius: 4px;
+  cursor: pointer; opacity: 0;              /* 默认隐藏 */
+  color: var(--danger); font-size: .92rem;
+  padding: 2px 6px; border-radius: 4px;
+  transition: opacity .15s;
 }
-.sched-budget-del:hover { opacity: 1; background: rgba(220, 38, 38, .08); }
+.sched-budget-table tbody tr:hover .sched-budget-del { opacity: .55; } /* 悬停整行才显示 */
+.sched-budget-del:hover { opacity: 1 !important; background: rgba(220, 38, 38, .08); }
 
 /* 「+ 添加层级」行 */
 .sched-add-tier-row td {

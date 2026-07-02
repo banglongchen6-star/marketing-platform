@@ -68,12 +68,12 @@
     // 每个达人类型一行
     const bodyHtml = rows.map(r => `
       <tr data-id="${escapeAttr(r.id)}">
-        <td style="vertical-align:middle;padding:8px 10px;background:#fafbfd;text-align:center">
-          <div style="font-weight:600;font-size:.88rem;color:var(--text-primary);margin-bottom:6px">
-            ${escapeHtml(r.category)}
+        <td style="vertical-align:middle;padding:8px 10px;background:#fafbfd">
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+            <span style="font-weight:600;font-size:.88rem;color:var(--text-primary)">${escapeHtml(r.category)}</span>
+            <button class="sched-budget-del" title="删除该达人类型"
+                    onclick="BudgetTable._deleteRow('${escapeAttr(r.id)}')">🗑</button>
           </div>
-          <button class="sched-budget-del" title="删除该达人类型"
-                  onclick="BudgetTable._deleteRow('${escapeAttr(r.id)}')">🗑</button>
         </td>
         ${renderDataCells(r)}
       </tr>
@@ -82,7 +82,7 @@
     /* "+ 添加达人类型" 行 */
     const addCatRow = `
       <tr class="sched-add-dir-row">
-        <td colspan="9" style="position:relative">
+        <td colspan="4" style="position:relative">
           <button class="sched-add-dir-trigger" onclick="BudgetTable._toggleAddDir(event)">
             ＋ 添加达人类型
           </button>
@@ -95,10 +95,7 @@
     const totalRow = `
       <tr class="sched-budget-total-row">
         <td>合计</td>
-        <td></td><td></td>
         <td>¥${(data.total.budget/10000).toFixed(1)} 万</td>
-        <td>${data.total.target || '—'}</td>
-        <td></td><td></td>
         <td>${(data.total.spent/10000).toFixed(1)} 万 · ${data.total.count} 条</td>
         <td><span class="${data.total.gap>=0?'sched-budget-gap-pos':'sched-budget-gap-neg'}">
           ¥${(data.total.gap/10000).toFixed(1)} 万</span></td>
@@ -108,31 +105,21 @@
     return `
       <table class="sched-budget-table">
         <colgroup>
-          <col style="width:100px"><!-- 达人类型 -->
-          <col style="width:90px"> <!-- 产品线 -->
-          <col style="width:80px"> <!-- 平台 -->
-          <col style="width:80px"> <!-- 预算 -->
-          <col style="width:58px"> <!-- 目标数 -->
-          <col style="width:90px"> <!-- 功能展示 -->
-          <col style="width:110px"><!-- 要求 -->
-          <col style="width:100px"><!-- 预估排期 -->
-          <col style="width:80px"> <!-- 缺口 -->
+          <col style="width:28%"><!-- 达人类型 -->
+          <col style="width:22%"><!-- 预算 -->
+          <col style="width:28%"><!-- 预估排期 -->
+          <col style="width:22%"><!-- 缺口 -->
         </colgroup>
         <thead>
           <tr>
             <th>达人类型</th>
-            <th>产品线</th>
-            <th>平台</th>
             <th>预算（万）</th>
-            <th>目标数</th>
-            <th>功能展示</th>
-            <th>要求</th>
             <th>预估排期（万/条）</th>
             <th>缺口</th>
           </tr>
         </thead>
         <tbody>
-          ${bodyHtml || `<tr><td colspan="9" class="sched-empty" style="padding:32px">
+          ${bodyHtml || `<tr><td colspan="4" class="sched-empty" style="padding:32px">
             本月暂无规划数据，点击下方「添加达人类型」开始</td></tr>`}
           ${addCatRow}
           ${totalRow}
@@ -147,12 +134,7 @@
     const gapClass = r.gap >= 0 ? 'sched-budget-gap-pos' : 'sched-budget-gap-neg';
     const budgetWan = r.budgetAmount ? (r.budgetAmount / 10000) : 0;
     return `
-      <td>${productCell(id, r.productLine)}</td>
-      <td>${platformCell(id, r.platform)}</td>
       <td>${cell(id, 'budget',       budgetWan ? budgetWan.toFixed(1) : '', budgetWan ? budgetWan.toFixed(1) : '—')}</td>
-      <td>${cell(id, 'target',       r.targetCount ?? '', r.targetCount != null ? r.targetCount : '—')}</td>
-      <td>${cell(id, 'function',     r.functionDisplay, r.functionDisplay || '—')}</td>
-      <td>${cell(id, 'requirements', r.requirements,    r.requirements    || '—')}</td>
       <td>
         <div class="sched-budget-cell readonly sched-budget-actual">
           ${(r.actualSpent/10000).toFixed(1)} 万
@@ -168,8 +150,7 @@
         </div>
       </td>
     `;
-    /* 注意：没有单行删除按钮（删除统一用达人类型格里的 🗑，或者用下面的 _deleteRow 方法） */
-    /* 如需单行删除：在上面添加 <td><button onclick="_deleteRow(id)">🗑</button></td> */
+    /* 产品线/平台/目标数/功能展示/要求 列已从展示中精简（数据字段保留，未删除）*/
   }
 
 
