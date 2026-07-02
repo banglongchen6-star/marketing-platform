@@ -3692,8 +3692,14 @@ function renderSamples() {
   const search = document.getElementById('sample-search').value.toLowerCase();
   // 本月全部样品（仅按月，不含搜索/状态筛选）—— 顶部统计基于它，避免被筛选带偏
   const monthList = DB.samples.filter(c => (c.date||'').startsWith(monthStr));
-  // 表格展示用：在月份基础上再叠加状态筛选 + 搜索
-  let list = monthList.filter(c => {
+  // 完结状态：已归还/已赠送/已流转/长期留存 —— 不再往后带（长期留存另进「长期留存台账」）
+  const _LIST_DONE = ['transferred','returned','gifted','keeping'];
+  const _isListDone = s => _LIST_DONE.includes(s.status);
+  // 展示规则：完结的只在它自己月份；未完结的（含新建的无状态）从建立月起一直往后带，直到走到完结
+  let list = DB.samples.filter(c => {
+    const cm = (c.date || '').slice(0, 7);
+    const inView = _isListDone(c) ? (cm === monthStr) : (!cm || cm <= monthStr);
+    if (!inView) return false;
     if (sampleStatusFilter && c.status !== sampleStatusFilter) return false;
     if (search) {
       // product 可能是数组（多个产品），拼成字符串再搜
@@ -3708,7 +3714,13 @@ function renderSamples() {
     }
     return true;
   });
-  list.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  // 未完结排最上、最久没处理的在最前（提醒催收）；完结的按日期新→旧
+  list.sort((a, b) => {
+    const da = _isListDone(a), db_ = _isListDone(b);
+    if (da !== db_) return da ? 1 : -1;
+    if (!da) return (a.date || '').localeCompare(b.date || '');
+    return (b.date || '').localeCompare(a.date || '');
+  });
 
   const _SAMPLE_DONE = ['transferred','returned','gifted'];
   // 在外样品（全量，不限月份）：有寄件信息/作业中、且未归还/赠送/流转
@@ -3739,7 +3751,8 @@ function renderSamples() {
       ${chip('本月寄出', sentThisMonth + ' 件', '#0891b2')}
       ${chip('未排期', noScheduleCount + ' 件', '#d97706')}
       ${chip('本月置换费', '¥' + fmtNum(curMonthCost), '#ec4899')}
-      <button onclick="openSampleProductDict()" style="margin-left:auto;border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">⚙ 管理品类</button>
+      <button onclick="openKeepingLedger()" style="margin-left:auto;border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">📋 长期留存台账</button>
+      <button onclick="openSampleProductDict()" style="border:1px solid var(--border);border-radius:6px;padding:6px 14px;background:var(--bg-primary);cursor:pointer;font-size:.82rem;color:var(--text-secondary)">⚙ 管理品类</button>
       <button class="btn btn-primary btn-sm" onclick="openSampleModal()">＋ 新增样品</button>
     </div>
   `;
@@ -3913,6 +3926,61 @@ function openSampleModal(id=null) {
 }
 
 function editSample(id) { openSampleModal(id); }
+
+/* 长期留存台账：全部年份/月份的长期留存样品（所有权属公司、实物在达人处），可改状态 */
+function openKeepingLedger() {
+  const list = DB.samples
+    .filter(s => s.status === 'keeping')
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '')); // 留存越久（日期越小）排越上
+  const bdMap = {};
+  (window.ScheduleData ? ScheduleData.listBds({ includeInactive: true }) : []).forEach(b => bdMap[b.id] = b);
+  (window.DB?.supervisors || []).forEach(sv => { if (sv.name) bdMap[sv.id] = { id: sv.id, name: sv.name }; });
+  const now = new Date();
+  const rowsHtml = list.length ? list.map(s => {
+    const products = Array.isArray(s.product) ? s.product.join('、') : (s.product || '-');
+    const bd = bdMap[s.contact];
+    const days = s.date ? Math.max(0, Math.round((now - new Date(s.date)) / 86400000)) : '';
+    return `<tr style="border-top:1px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:600">${escapeHtml(s.talent || '-')}</td>
+      <td style="padding:8px 10px">${escapeHtml(products)}</td>
+      <td style="padding:8px 10px;white-space:nowrap">${escapeHtml(s.date || '-')}${days !== '' ? `<span style="color:var(--text-muted);font-size:.75rem"> · 已留存 ${days} 天</span>` : ''}</td>
+      <td style="padding:8px 10px">${bd ? escapeHtml(bd.name) : '-'}</td>
+      <td style="padding:8px 10px;color:var(--text-secondary);font-size:.82rem">${escapeHtml(s.note || '')}</td>
+      <td style="padding:8px 10px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="_keepingChangeStatus(${s.id})">改状态</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="padding:36px;text-align:center;color:var(--text-muted)">暂无长期留存样品</td></tr>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = '__keeping-ledger__';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;width:860px;max-width:96vw;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border)">
+        <div style="font-size:1rem;font-weight:700">📋 长期留存台账 <span style="font-size:.82rem;color:var(--text-muted);font-weight:400;margin-left:8px">共 ${list.length} 件 · 覆盖全部年份/月份</span></div>
+        <button onclick="document.getElementById('__keeping-ledger__').remove()" style="border:none;background:none;font-size:1.4rem;line-height:1;cursor:pointer;color:var(--text-muted)">×</button>
+      </div>
+      <div style="padding:8px 22px 0;font-size:.75rem;color:var(--text-muted)">所有权仍属公司、样品在达人处的长期留存记录；留存越久排越上。点「改状态」后若改为已归还/赠送/流转，会从本台账移除。</div>
+      <div style="overflow:auto;flex:1;padding:12px 16px 18px">
+        <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+          <thead><tr style="background:#f9fafb">
+            <th style="padding:9px 10px;text-align:left;font-weight:500;color:var(--text-secondary)">达人</th>
+            <th style="padding:9px 10px;text-align:left;font-weight:500;color:var(--text-secondary)">品类</th>
+            <th style="padding:9px 10px;text-align:left;font-weight:500;color:var(--text-secondary)">寄出日期</th>
+            <th style="padding:9px 10px;text-align:left;font-weight:500;color:var(--text-secondary)">BD</th>
+            <th style="padding:9px 10px;text-align:left;font-weight:500;color:var(--text-secondary)">备注</th>
+            <th style="padding:9px 10px;text-align:center;font-weight:500;color:var(--text-secondary)">操作</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+function _keepingChangeStatus(id) {
+  const ov = document.getElementById('__keeping-ledger__'); if (ov) ov.remove();
+  openStatusModal(id);
+}
 
 function saveSample() {
   const talent=document.getElementById('sm-talent').value.trim();
@@ -4257,6 +4325,56 @@ let settlementRange = 30, editingSettlementId = null, _stFromContext = false;
 
 /* ---------- 编辑状态 ---------- */
 let _st = {};
+
+function _stPayments(st, opts) {
+  if (window.ScheduleData && typeof ScheduleData.normalizeSettlementPayments === 'function') {
+    return ScheduleData.normalizeSettlementPayments(st, opts);
+  }
+  if (!st) return [];
+  const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
+  const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
+  const due   = base + bonus;
+  if (Array.isArray(st.payments) && st.payments.length) {
+    return st.payments.map((p) => {
+      const amountNum = parseFloat(p.amount) || 0;
+      const shouldUseFullAmount = st.payments.length === 1 && due > 0 && amountNum <= 0;
+      const paidStatus = ['已付款', '已结算', 'paid', 'settled'].includes(p.status);
+      const normalized = {
+        ...p,
+        amount: shouldUseFullAmount ? due : p.amount,
+        actual_paid_date: p.actual_paid_date || p.actualPaidDate || (paidStatus ? (p.paid_date || p.plan_date || '') : ''),
+      };
+      if (opts && opts.mutate) Object.assign(p, normalized);
+      return normalized;
+    });
+  }
+  const appliedDate = st.payDate || st.paid_date || st.plan_date || '';
+  const paidStatus = ['已付款', '已结算', 'paid', 'settled'].includes(st.status);
+  const payments = [{
+    label: '全款',
+    amount: parseFloat(st.amount) || due || '',
+    plan_date: st.plan_date || appliedDate,
+    paid_date: appliedDate,
+    actual_paid_date: st.actual_paid_date || st.actualPaidDate || (paidStatus ? appliedDate : ''),
+    status: paidStatus ? 'paid' : 'pending',
+  }];
+  if (opts && opts.mutate) st.payments = payments;
+  return payments;
+}
+
+function _stPayStatus(st) {
+  if (!st) return { status: 'unpaid', paid: 0, due: 0 };
+  const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
+  const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
+  const due   = base + bonus;
+  const paid  = _stPayments(st).reduce((sum, p) => sum + (p.actual_paid_date ? (parseFloat(p.amount) || 0) : 0), 0);
+  let status;
+  if (due <= 0)               status = 'none';
+  else if (paid <= 0)         status = 'unpaid';
+  else if (paid + 0.01 < due) status = 'partial';
+  else                        status = 'paid';
+  return { status, paid, due };
+}
 
 function _stInit(data) {
   const legacyPayment = data ? [{
@@ -4721,8 +4839,7 @@ function exportPendingToExcel() {
 
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
-    const pays  = st.payments?.length ? st.payments
-      : [{ amount: st.amount||0, paid_date: st.payDate||'' }];
+    const pays  = _stPayments(st);
     const paidSum = pays.filter(p => !!p.actual_paid_date).reduce((s,p) => s+(parseFloat(p.amount)||0), 0);
 
     rows.push({
@@ -4767,7 +4884,9 @@ function setStTab(tab) {
 /** 内联保存付款时间 */
 function stSetActualPaidDate(settlementId, payIndex, dateValue) {
   const s = (DB.settlements||[]).find(x => String(x.id) === String(settlementId));
-  if (!s || !s.payments || !s.payments[payIndex]) return;
+  if (!s) return;
+  const payments = _stPayments(s, { mutate: true });
+  if (!payments[payIndex]) return;
   s.payments[payIndex].actual_paid_date = dateValue;
   saveData();
   _updateStBadges();   // 付款状态变化会影响三个 tab 角标，需同步刷新
@@ -4783,7 +4902,7 @@ function transferToSettled(scheduleId) {
 
   // 有主链接即视为已发布（不再看发布日期）
   const published = (DB.contents||[]).some(c => String(c.schedule_id) === String(scheduleId) && (c.publications||[]).some(p => p.link && p.link.trim()));
-  const paidStatus = window.ScheduleData.getSettlementPayStatus(st).status;
+  const paidStatus = _stPayStatus(st).status;
 
   if (!published) { toast('内容未填主链接（视为未发布），无法结转', 'error'); return; }
   if (paidStatus !== 'paid') { toast('款项未付清（已付金额未达应付总额），无法结转', 'error'); return; }
@@ -4802,7 +4921,7 @@ function transferToSettled(scheduleId) {
 function transferSettlementById(settlementId) {
   const st = (DB.settlements||[]).find(x => String(x.id) === String(settlementId));
   if (!st) { toast('未找到对应的结算记录，请刷新页面后重试', 'error'); return; }
-  if (window.ScheduleData.getSettlementPayStatus(st).status !== 'paid') { toast('款项未付清（已付金额未达应付总额），无法结转', 'error'); return; }
+  if (_stPayStatus(st).status !== 'paid') { toast('款项未付清（已付金额未达应付总额），无法结转', 'error'); return; }
   appConfirm(`确认将「${st.kol_name || '此记录'}」结转到已结算区？结转后不可删除。`, () => {
     st.settled    = true;
     st.settled_at = new Date().toISOString().slice(0,10);
@@ -4821,7 +4940,7 @@ function rollbackFromSettled(settlementId) {
   appConfirm(`确认将「${sched?.kol_name || st.talent || '此记录'}」退回待结算区？`, () => {
     st.settled    = false;
     delete st.settled_at;
-    const _rb = window.ScheduleData.getSettlementPayStatus(st).status;
+    const _rb = _stPayStatus(st).status;
     st.status = _rb === 'paid' ? '已付款' : _rb === 'partial' ? '部分已付' : '待结算';
     saveData();
     renderSettlement();
@@ -4832,7 +4951,7 @@ function rollbackFromSettled(settlementId) {
 /** 统一计算三个 tab 的 badge（待结算/已申请付款/已结算），与当前 tab 无关 */
 function _updateStBadges() {
   const sets = DB.settlements || [];
-  const isApplied = st => !!(st && (st.payments||[]).some(p => p.paid_date));
+  const isApplied = st => !!(st && _stPayments(st).some(p => p.paid_date));
   const hasLink = sid => (DB.contents||[]).some(c => String(c.schedule_id) === String(sid) && (((c.publications||[])[0]||{}).link||'').trim());
   const settledSchedIds   = new Set(sets.filter(s => s.settled).map(s => String(s.schedule_id)).filter(Boolean));
   const settledContentIds = new Set(sets.filter(s => s.settled && s.content_id).map(s => String(s.content_id)));
@@ -4900,7 +5019,7 @@ function _renderPendingArea() {
   const mode = _stTab === 'applied' ? 'applied' : 'pending';
   // 「付款时间」「可转结算」两列只在「已申请付款」tab 显示（待结算阶段还没到付款，无意义）
   const showPayCols = mode === 'applied';
-  const _isApplied = (st) => !!(st && (st.payments||[]).some(p => p.paid_date));
+  const _isApplied = (st) => !!(st && _stPayments(st).some(p => p.paid_date));
   const _schedAppliedF   = (sid) => _isApplied((DB.settlements||[]).find(s => String(s.schedule_id) === String(sid) && !s.settled));
   const _contentAppliedF = (cid) => _isApplied((DB.settlements||[]).find(s => String(s.content_id) === String(cid) && !s.settled));
   const _matchMode = (applied) => mode === 'applied' ? applied : !applied;
@@ -4972,7 +5091,7 @@ function _renderPendingArea() {
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
-    (st.payments||[]).forEach(p => {
+    _stPayments(st).forEach(p => {
       if (p.actual_paid_date)  paidAmt    += parseFloat(p.amount)||0;
       else                     pendingAmt += parseFloat(p.amount)||0;
     });
@@ -4984,7 +5103,7 @@ function _renderPendingArea() {
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
-    (st.payments||[]).forEach(p => {
+    _stPayments(st).forEach(p => {
       if (p.actual_paid_date)  paidAmt    += parseFloat(p.amount)||0;
       else                     pendingAmt += parseFloat(p.amount)||0;
     });
@@ -4994,7 +5113,7 @@ function _renderPendingArea() {
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
-    (st.payments||[]).forEach(p => {
+    _stPayments(st).forEach(p => {
       if (p.actual_paid_date)  paidAmt    += parseFloat(p.amount)||0;
       else                     pendingAmt += parseFloat(p.amount)||0;
     });
@@ -5060,10 +5179,9 @@ function _renderPendingArea() {
 
     const base   = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus  = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
-    const pays   = st.payments?.length ? st.payments
-      : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
+    const pays   = _stPayments(st);
     // 统一付款状态：已付金额(只算填了付款时间的) vs 应付总额
-    const _ps = window.ScheduleData.getSettlementPayStatus(st);
+    const _ps = _stPayStatus(st);
     const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
     const hasLink = (DB.contents||[]).some(c => String(c.schedule_id) === String(sched.id) && (c.publications||[]).some(p => p.link && p.link.trim()));
@@ -5144,9 +5262,8 @@ function _renderPendingArea() {
 
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
-    const pays  = st.payments?.length ? st.payments
-      : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
-    const _ps = window.ScheduleData.getSettlementPayStatus(st);
+    const pays  = _stPayments(st);
+    const _ps = _stPayStatus(st);
     const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
     // 内容发布手动：同样要求有主链接（=已发布）才可结转
@@ -5206,9 +5323,8 @@ function _renderPendingArea() {
 
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount)||0) : 0;
-    const pays  = st.payments?.length ? st.payments
-      : [{ label:'全款', amount:st.amount||0, plan_date:st.payDate||'', paid_date:st.payDate||'', status:st.status==='已付款'?'paid':'pending' }];
-    const _ps = window.ScheduleData.getSettlementPayStatus(st);
+    const pays  = _stPayments(st);
+    const _ps = _stPayStatus(st);
     const borderColor = _ps.status === 'paid' ? '#10b981' : _ps.status === 'partial' ? '#3b82f6' : '#f59e0b';
     const totalSettlement = base + bonus;
     // 独立结算不要求链接，付清即可结转
@@ -5351,7 +5467,7 @@ function _renderSettledArea() {
     const date   = sched?.schedule_date || s.publish_date || '-';
     const base   = parseFloat(s.contract_amount ?? s.amount) || 0;
     const bonus  = s.bonus_enabled ? (parseFloat(s.bonus_amount)||0) : 0;
-    const pays   = s.payments?.length ? s.payments : [];
+    const pays   = _stPayments(s);
     const total  = Math.max(pays.length, 1);
 
     const payRows = total === 0 ? [`<tr class="comm-main-row" style="border-left:3px solid #10b981">
@@ -5508,7 +5624,7 @@ function saveSettlement() {
     note:            _st.note,
     content_id:      _st.content_id || null,
     amount:          base + bonus,
-    status: (() => { const s = window.ScheduleData.getSettlementPayStatus(_st).status;
+    status: (() => { const s = _stPayStatus(_st).status;
                      return s === 'paid' ? '已付款' : s === 'partial' ? '部分已付' : '待结算'; })(),
   };
   if (editingSettlementId != null) {
@@ -6055,7 +6171,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=96"></script>
+<script src="js/schedule/data.js?v=97"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=69"></script>
 <script src="js/schedule/editor.js?v=84"></script>
