@@ -239,6 +239,11 @@ app.post('/api/email-test', requireAuth, async (req, res) => {
   }
 });
 
+/* ========== 部署流程说明：点击即下载 ========== */
+app.get('/download/deploy-guide', (req, res) => {
+  res.download(path.join(STATIC_DIR, '部署流程说明.md'), '部署流程说明.md');
+});
+
 /* ========== SPA 兜底 ========== */
 app.get('*', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'index.html'));
