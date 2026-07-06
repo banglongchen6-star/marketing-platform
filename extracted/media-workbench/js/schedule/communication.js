@@ -147,7 +147,7 @@
     page.innerHTML = `
       ${renderToolbar(kpi)}
       ${renderTabs()}
-      ${renderList()}
+      <div id="__comm-list-host__">${renderList()}</div>
     `;
     bindToolbar();
     // 全选框 indeterminate 状态（HTML 属性无法表达，需 JS 设置）
@@ -162,6 +162,22 @@
       // 恢复滚动位置
       if (_winY) window.scrollTo(0, _winY);
       if (_scTop) { for (const el of page.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _scTop; break; } } }
+    }, 0);
+  }
+
+  /* 只重渲染列表（搜索/筛选用）——不动工具栏搜索框，避免焦点丢失（对齐达人库做法） */
+  function paintList() {
+    const host = document.getElementById('__comm-list-host__');
+    if (!host) { render(); return; }
+    host.innerHTML = renderList();
+    setTimeout(() => {
+      const allCb = document.getElementById('__comm-sel-all__');
+      if (allCb) {
+        const allIds = _getAllVisibleContentIds();
+        const selCount = allIds.filter(id => state.selectedIds.has(id)).length;
+        allCb.indeterminate = selCount > 0 && selCount < allIds.length;
+      }
+      _alignFrozenCols();
     }, 0);
   }
 
@@ -357,13 +373,7 @@
     if (s) {
       let t; s.addEventListener('input', e => {
         clearTimeout(t);
-        t = setTimeout(() => {
-          const caret = e.target.selectionStart;   // 记住光标位置
-          state.q = e.target.value;
-          render();                                 // render 会重建搜索框，导致焦点丢失
-          const s2 = document.getElementById('__c-search__');
-          if (s2) { s2.focus(); try { s2.setSelectionRange(caret, caret); } catch(_) {} } // 还原焦点+光标
-        }, 200);
+        t = setTimeout(() => { state.q = e.target.value; paintList(); }, 200); // 只换列表，搜索框不重建、焦点不丢
       });
     }
     const b = document.getElementById('__c-bd__');
