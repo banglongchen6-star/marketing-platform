@@ -357,7 +357,13 @@
     if (s) {
       let t; s.addEventListener('input', e => {
         clearTimeout(t);
-        t = setTimeout(() => { state.q = e.target.value; render(); }, 200);
+        t = setTimeout(() => {
+          const caret = e.target.selectionStart;   // 记住光标位置
+          state.q = e.target.value;
+          render();                                 // render 会重建搜索框，导致焦点丢失
+          const s2 = document.getElementById('__c-search__');
+          if (s2) { s2.focus(); try { s2.setSelectionRange(caret, caret); } catch(_) {} } // 还原焦点+光标
+        }, 200);
       });
     }
     const b = document.getElementById('__c-bd__');
