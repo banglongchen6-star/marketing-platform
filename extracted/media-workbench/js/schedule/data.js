@@ -1397,6 +1397,49 @@
   }
 
   /**
+   * 统一结算付款明细结构。
+   * 旧结算记录可能只有 amount/payDate/status，没有 payments[]；列表显示曾经兼容旧字段，
+   * 但付款状态判断只认 payments[]，会造成“看起来已付款但不能结转”。
+   */
+  function normalizeSettlementPayments(st, { mutate = false } = {}) {
+    if (!st) return [];
+    const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
+    const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
+    const due = base + bonus;
+
+    if (Array.isArray(st.payments) && st.payments.length) {
+      return st.payments.map((p) => {
+        const amountNum = parseFloat(p.amount) || 0;
+        const shouldUseFullAmount = st.payments.length === 1 && due > 0 && amountNum <= 0;
+        const paidStatus = ['已付款', '已结算', 'paid', 'settled'].includes(p.status);
+        const normalized = {
+          ...p,
+          amount: shouldUseFullAmount ? due : p.amount,
+          actual_paid_date: p.actual_paid_date || p.actualPaidDate || (paidStatus ? (p.paid_date || p.plan_date || '') : ''),
+        };
+        if (mutate) Object.assign(p, normalized);
+        return normalized;
+      });
+    }
+
+    const fallbackAmount = parseFloat(st.amount) || base + bonus || '';
+    const appliedDate = st.payDate || st.paid_date || st.plan_date || '';
+    const paidStatus = ['已付款', '已结算', 'paid', 'settled'].includes(st.status);
+    const actualPaidDate = st.actual_paid_date || st.actualPaidDate || (paidStatus ? appliedDate : '');
+
+    const payments = [{
+      label: '全款',
+      amount: fallbackAmount,
+      plan_date: st.plan_date || appliedDate,
+      paid_date: appliedDate,
+      actual_paid_date: actualPaidDate,
+      status: paidStatus ? 'paid' : 'pending',
+    }];
+    if (mutate) st.payments = payments;
+    return payments;
+  }
+
+  /**
    * 统一的结算付款状态判定（内容发布 + 达人结算共用）
    * 规则：
    *   应付总额 = 基础金额 + 奖金
@@ -1409,7 +1452,7 @@
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     const due   = base + bonus;
-    const pays  = st.payments || [];
+    const pays  = normalizeSettlementPayments(st);
     const paid  = pays.reduce((s, p) => s + (p.actual_paid_date ? (parseFloat(p.amount) || 0) : 0), 0);
     let status;
     if (due <= 0)               status = 'none';     // 无需付款（0元，理论上不进结算）
@@ -1573,7 +1616,6 @@
     // 合计每天（数量 / 曝光（自然 + 投流，万）/ 费用（合作 + 投流 + 置换））
     const totalsPerDay = {};
     let monthCount = 0, monthExposure = 0, monthSpend = 0;
-    let brandSpendOnly = 0; // 品宣费 = 合作费 + 投流费（不含置换）
     let totalExposure = 0;
     allDays.forEach(d => {
       let count = 0, exposure = 0, spend = 0;
@@ -1582,15 +1624,15 @@
         exposure += pf.perDay[d].views + pf.promoPerDay[d].plays;
         spend += pf.perDay[d].cost + pf.promoPerDay[d].cost;
       });
-      brandSpendOnly += spend;
-      spend += replacementsPerDay[d]; // 加上置换
+      spend += replacementsPerDay[d]; // 置换是"用产品付的品宣费"，统一计入
       totalsPerDay[d] = { count, exposure, spend };
       monthCount += count;
       monthExposure += exposure;
       monthSpend += spend;
     });
     totalExposure = monthExposure; // 单位：万
-    const cpm = totalExposure > 0 ? (brandSpendOnly / (totalExposure * 10000) * 1000) : 0;
+    // 品宣费 = 合作费 + 投流费 + 置换（统一口径）；CPM 随之含置换
+    const cpm = totalExposure > 0 ? (monthSpend / (totalExposure * 10000) * 1000) : 0;
 
     return {
       year, month, daysInMonth, allDays,
@@ -1601,7 +1643,7 @@
       kpi: {
         contentCount: monthCount,
         totalExposure: monthExposure, // 万
-        brandSpend: brandSpendOnly,
+        brandSpend: monthSpend, // 含置换（合作费 + 投流费 + 置换）
         cpm: Number(cpm.toFixed(2)),
       },
     };
@@ -2127,7 +2169,7 @@
     createKol, updateKol, deleteKol, batchImportKols,
     // contents (传播执行)
     createContent, updateContent, deleteContent,
-    listContents, resolveContent, getCommunicationKPI, getSettlementPayStatus,
+    listContents, resolveContent, getCommunicationKPI, getSettlementPayStatus, normalizeSettlementPayments,
     autoPublishPastSchedules,
     getBrandRoiMatrix,
     // replacements (置换成本)
