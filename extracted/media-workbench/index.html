@@ -2421,7 +2421,7 @@ function _ddComputeKPI() {
   if (!start || !end || start > end) return {
     contentCount: 0, pubCount: 0,
     naturalViews: 0, promoViews: 0, totalViews: 0,
-    price: 0, promoCost: 0, totalCost: 0, cpm: 0,
+    price: 0, promoCost: 0, replacementCost: 0, totalCost: 0, cpm: 0,
     perDay: {}, perPlatform: {}, dates: [],
   };
 
@@ -2440,7 +2440,7 @@ function _ddComputeKPI() {
   while (cur <= endD) {
     const ds = _ddFmtDate(cur);
     dates.push(ds);
-    perDay[ds] = { naturalViews: 0, promoViews: 0, price: 0, promoCost: 0 };
+    perDay[ds] = { naturalViews: 0, promoViews: 0, price: 0, promoCost: 0, replacement: 0 };
     cur.setDate(cur.getDate() + 1);
   }
 
@@ -2523,11 +2523,25 @@ function _ddComputeKPI() {
   });
 
   const totalViews = naturalViews + promoViews;
-  const totalCost = price + promoCost;
+
+  // 置换成本（与品宣ROI同源：手动录入 roi_replacement_manual + 置换记录 replacements，落在日期范围内）
+  // 置换在系统里不分 BD，与品宣ROI 一致：无论是否筛选 BD 都全量计入
+  let replacementCost = 0;
+  const manualRep = DB.roi_replacement_manual || {};
+  dates.forEach(ds => { const v = Number(manualRep[ds]) || 0; perDay[ds].replacement += v; replacementCost += v; });
+  (DB.replacements || []).forEach(rep => {
+    if (rep.date && rep.date >= start && rep.date <= end) {
+      const v = Number(rep.total_cost) || 0;
+      if (perDay[rep.date]) perDay[rep.date].replacement += v;
+      replacementCost += v;
+    }
+  });
+
+  const totalCost = price + promoCost + replacementCost; // 统一口径：合作 + 投流 + 置换
   // totalViews 单位是万，CPM = 花费 / (播放量万 * 10000) * 1000
   const cpm = totalViews > 0 ? Number((totalCost / (totalViews * 10000) * 1000).toFixed(2)) : 0;
 
-  return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, totalCost, cpm, perDay, perPlatform, dates, details };
+  return { contentCount: contentSet.size, pubCount, naturalViews, promoViews, totalViews, price, promoCost, replacementCost, totalCost, cpm, perDay, perPlatform, dates, details };
 }
 
 function renderDataDashboard() {
@@ -2577,7 +2591,7 @@ function renderDataDashboard() {
   const kpiCards = [
     { label: '总作品数', value: kpi.pubCount, sub: `${kpi.contentCount} 个达人合作`, color: '#1e40af', bg: '#eff6ff', icon: '📝' },
     { label: '总播放量', value: fmtWan(kpi.totalViews), sub: `自然 ${fmtWan(kpi.naturalViews)} · 投流 ${fmtWan(kpi.promoViews)}`, color: '#166534', bg: '#f0fdf4', icon: '▶️' },
-    { label: '总花费', value: fmtMoney(kpi.totalCost), sub: `合作 ${fmtMoney(kpi.price)} · 投流 ${fmtMoney(kpi.promoCost)}`, color: '#9a3412', bg: '#fff7ed', icon: '💰' },
+    { label: '总花费', value: fmtMoney(kpi.totalCost), sub: `合作 ${fmtMoney(kpi.price)} · 投流 ${fmtMoney(kpi.promoCost)} · 置换 ${fmtMoney(kpi.replacementCost)}`, color: '#9a3412', bg: '#fff7ed', icon: '💰' },
     { label: 'CPM', value: kpi.cpm > 0 ? '¥' + kpi.cpm : '—', sub: '元/千次播放', color: '#6b21a8', bg: '#faf5ff', icon: '📊' },
   ].map(c => `
     <div style="flex:1;min-width:150px;background:${c.bg};border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:4px">
@@ -2607,7 +2621,7 @@ function renderDataDashboard() {
         </div>
       </div>
       <div style="margin-top:10px;font-size:.72rem;color:var(--text-muted)">
-        💡 播放量来源：内容发布填报 · 投流数据来源：品宣ROI表手动填入
+        💡 播放量来源：内容发布填报 · 投流数据来源：品宣ROI表手动填入 · 置换来源：品宣ROI置换模块（总花费=合作+投流+置换）
       </div>
 
     </div>`;
@@ -2624,7 +2638,7 @@ function _ddRenderCharts(kpi) {
   if (tCtx && kpi.dates && kpi.dates.length) {
     const labels = kpi.dates.map(d => d.slice(5));
     const totalViews = kpi.dates.map(d => (kpi.perDay[d]?.naturalViews || 0) + (kpi.perDay[d]?.promoViews || 0));
-    const totalCost  = kpi.dates.map(d => (kpi.perDay[d]?.price || 0) + (kpi.perDay[d]?.promoCost || 0));
+    const totalCost  = kpi.dates.map(d => (kpi.perDay[d]?.price || 0) + (kpi.perDay[d]?.promoCost || 0) + (kpi.perDay[d]?.replacement || 0));
     // 按 CPM=10 对齐双轴：1万次播放 ↔ 100元花费，等高代表 CPM=10
     const maxViews = Math.max(...totalViews, 0);
     const maxCost  = Math.max(...totalCost, 0);
