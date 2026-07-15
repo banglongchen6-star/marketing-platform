@@ -23,3 +23,10 @@ jobs:
             pm2 start server.js --name marketing-platform
             pm2 save
             echo "✅ Deploy done"
+            echo "===== NGINX 现有配置(排查用) ====="
+            nginx -T 2>&1 | grep -nE "configuration file|server_name|listen |proxy_pass|include " | head -80 || echo "nginx -T 读取失败(可能未装nginx)"
+            echo "===== 写入 pinxuan 反代配置(仅新增,不动其它站) ====="
+            printf 'server {\n    listen 80;\n    server_name pinxuan.shiganneibu.com;\n    location / {\n        proxy_pass http://127.0.0.1:3002;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_http_version 1.1;\n    }\n}\n' > /etc/nginx/conf.d/pinxuan-shiganneibu.conf
+            echo "----- 已写入内容 -----"; cat /etc/nginx/conf.d/pinxuan-shiganneibu.conf
+            echo "===== 测试并重载 nginx ====="
+            if nginx -t; then (nginx -s reload || systemctl reload nginx) && echo "✅ nginx 已重载,pinxuan 路由生效"; else echo "❌ nginx -t 未通过,已跳过重载(其它站不受影响)"; fi

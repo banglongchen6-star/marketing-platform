@@ -253,11 +253,5 @@ app.listen(PORT, () => {
   console.log(`✅ 达人营销工作台运行在 http://localhost:${PORT}`);
   scheduleDailyEmail(); // 启动时加载邮件定时任务
 });
-
-// 额外在 80 端口提供服务，让域名(如 pinxuan.shiganneibu.com)不带端口就能访问。
-// 保险：若无 root 权限或 80 被占用，仅打印告警并继续用上面的端口，绝不影响主服务/不崩溃。
-if (process.env.DISABLE_PORT80 !== '1' && PORT !== 80) {
-  const server80 = app.listen(80);
-  server80.on('listening', () => console.log('✅ 已在 80 端口提供服务（域名可直连，无需带端口）'));
-  server80.on('error', (e) => console.warn(`ℹ️ 80 端口未启用（${e.code}，可能无 root 权限或被占用），不影响 ${PORT} 端口正常运行`));
-}
+// 说明：域名 pinxuan.shiganneibu.com 由服务器上的 nginx 反向代理到本端口(3002)，
+// 本服务只需监听 3002，不再抢占 80 端口(80 已由 nginx 占用)。
