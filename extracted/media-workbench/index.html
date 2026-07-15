@@ -6358,6 +6358,8 @@ function initApp() {
     }
 
     async function pollServerData() {
+      // 未登录(停在登录页)时不轮询：否则 /api/data 返回 401 会触发 location.reload()，导致登录页每 10 秒反复刷新
+      if (!window.currentUser) return;
       if (_polling) return;
       _polling = true;
       try {
