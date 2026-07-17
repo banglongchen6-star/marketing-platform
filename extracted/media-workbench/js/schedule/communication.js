@@ -2024,6 +2024,7 @@
         </div>
 
         <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openAccountManager()">⚙ 账号管理</button>
           <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openCompanyEditor()">＋ 新增发布</button>
         </div>
       </div>
@@ -2167,19 +2168,24 @@
   function renderCompanyEditorForm() {
     const f = state.coEditor.form || coDefaultForm();
     const err = state.coEditor.errors || {};
-    const accounts = _companyAccounts();
     const plats = [...new Set([...(((SD.listPlatforms && SD.listPlatforms()) || []).map(p => p.name)), ..._companyPlatformsUsed()])].filter(Boolean);
-    const accList = `<datalist id="co-acc-list">${accounts.map(a => `<option value="${escapeAttr(a)}"></option>`).join('')}</datalist>`;
     const platList = `<datalist id="co-plat-list">${plats.map(p => `<option value="${escapeAttr(p)}"></option>`).join('')}</datalist>`;
+    // 账号：从预设列表下拉选（并把当前值并入，兼容历史/已删预设的记录）
+    const curAcc = f.account || '';
+    const accNames = [...new Set([..._companyAccountStore().map(a => a.name), ...(curAcc ? [curAcc] : [])])];
+    const accOptions = `<option value="">— 请选择账号 —</option>` +
+      accNames.map(n => `<option value="${escapeAttr(n)}" ${n === curAcc ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
     return `
-      ${accList}${platList}
+      ${platList}
       <div class="sched-form-group">
         <label class="sched-form-label">账号<span class="req">*</span></label>
-        <input id="co-f-account" list="co-acc-list" class="sched-form-control ${err.account ? 'error' : ''}" type="text"
-               placeholder="公司账号名，如 音乐密码官方号" value="${escapeAttr(f.account)}">
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="co-f-account" class="sched-form-control ${err.account ? 'error' : ''}" style="flex:1">${accOptions}</select>
+          <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap" onclick="CommunicationPage._coQuickAddAccount()">＋ 新建账号</button>
+        </div>
         ${err.account
           ? `<div class="sched-form-hint" style="color:var(--danger)">${err.account}</div>`
-          : `<div class="sched-form-hint">填过的账号下次可直接下拉选</div>`}
+          : `<div class="sched-form-hint">从预设账号里选；没有就点「＋ 新建账号」当场加，或用工具栏「⚙ 账号管理」维护</div>`}
       </div>
       <div class="sched-form-row">
         <div class="sched-form-group">
@@ -2285,11 +2291,160 @@
     });
   }
 
+  /* ---- 公司账号 · 预设账号管理（独立存 DB.company_accounts） ---- */
+  function _companyAccountStore() {
+    const DB = window.DB || (window.DB = {});
+    if (!Array.isArray(DB.company_accounts)) {
+      // 首次：把历史发布里用过的账号自动收进预设，避免重录
+      const seen = new Set();
+      const seeded = [];
+      (Array.isArray(DB.company_posts) ? DB.company_posts : []).forEach(p => {
+        const n = (p.account || '').trim();
+        if (n && !seen.has(n)) { seen.add(n); seeded.push({ id: 'ca-' + Math.random().toString(36).slice(2, 9), name: n }); }
+      });
+      DB.company_accounts = seeded;
+    }
+    return DB.company_accounts;
+  }
+  function openAccountManager() {
+    const modal = document.createElement('div');
+    modal.id = 'co-acct-mgr';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = _accountManagerHTML();
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    setTimeout(() => document.getElementById('co-new-acct')?.focus(), 0);
+  }
+  function _accountManagerHTML() {
+    const list = _companyAccountStore();
+    const rows = list.length
+      ? list.map(a => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <input class="sched-form-control" style="flex:1;padding:5px 9px" value="${escapeAttr(a.name)}"
+                 onchange="CommunicationPage._coRenameAccount('${a.id}', this.value)">
+          <button class="btn btn-danger btn-sm" style="padding:2px 10px" onclick="CommunicationPage._coDeleteAccount('${a.id}')">删除</button>
+        </div>`).join('')
+      : '<div style="padding:24px 8px;text-align:center;color:var(--text-muted)">还没有预设账号，在下面添加</div>';
+    return `
+      <div style="background:var(--bg-panel);border-radius:10px;width:400px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;font-size:.95rem">⚙ 公司账号管理</span>
+          <button onclick="this.closest('#co-acct-mgr').remove()" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted)">×</button>
+        </div>
+        <div style="overflow-y:auto;flex:1;padding:8px 18px">${rows}</div>
+        <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px">
+          <input id="co-new-acct" class="sched-form-control" style="flex:1" placeholder="新账号名，回车添加"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();CommunicationPage._coAddAccountFromInput();}">
+          <button class="btn btn-primary btn-sm" onclick="CommunicationPage._coAddAccountFromInput()">添加</button>
+        </div>
+        <div style="padding:0 18px 12px;font-size:.7rem;color:var(--text-muted)">删除预设账号不影响已录入的历史发布</div>
+      </div>`;
+  }
+  function _repaintAccountManager() {
+    const m = document.getElementById('co-acct-mgr');
+    if (m) { m.innerHTML = _accountManagerHTML(); setTimeout(() => document.getElementById('co-new-acct')?.focus(), 0); }
+  }
+  // 若发布编辑器开着，刷新其账号下拉（保留当前选中）
+  function _refreshEditorAccountSelect() {
+    const sel = document.getElementById('co-f-account');
+    if (!sel) return;
+    const cur = sel.value;
+    const names = [...new Set([..._companyAccountStore().map(a => a.name), ...(cur ? [cur] : [])])];
+    sel.innerHTML = `<option value="">— 请选择账号 —</option>` +
+      names.map(n => `<option value="${escapeAttr(n)}" ${n === cur ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    sel.value = cur;
+  }
+  function _coAddAccountFromInput() {
+    const inp = document.getElementById('co-new-acct');
+    const name = (inp?.value || '').trim();
+    if (!name) return;
+    const store = _companyAccountStore();
+    if (store.some(a => a.name === name)) { window.toast && window.toast('已存在同名账号', 'error'); return; }
+    store.push({ id: 'ca-' + Math.random().toString(36).slice(2, 9), name });
+    if (window.saveData) window.saveData();
+    _repaintAccountManager();
+    _refreshEditorAccountSelect();
+    window.toast && window.toast('已添加：' + name, 'success');
+  }
+  function _coRenameAccount(id, name) {
+    name = (name || '').trim();
+    const store = _companyAccountStore();
+    const a = store.find(x => x.id === id);
+    if (!a) return;
+    if (!name) { window.toast && window.toast('名称不能为空', 'error'); _repaintAccountManager(); return; }
+    if (store.some(x => x.id !== id && x.name === name)) { window.toast && window.toast('已存在同名账号', 'error'); _repaintAccountManager(); return; }
+    a.name = name;
+    if (window.saveData) window.saveData();
+    _refreshEditorAccountSelect();
+    window.toast && window.toast('已重命名', 'success');
+  }
+  function _coDeleteAccount(id) {
+    const store = _companyAccountStore();
+    const i = store.findIndex(x => x.id === id);
+    if (i < 0) return;
+    const nm = store[i].name;
+    window.appConfirm(`删除预设账号「${nm}」？已录入的历史发布不受影响。`, () => {
+      store.splice(i, 1);
+      if (window.saveData) window.saveData();
+      _repaintAccountManager();
+      _refreshEditorAccountSelect();
+      window.toast && window.toast('已删除', 'success');
+    });
+  }
+  // 发布表单内「＋ 新建账号」：现场加一个并选中，不打断已填的其它字段
+  function _coQuickAddAccount() {
+    _miniPrompt('新建账号', '输入公司账号名', name => {
+      name = (name || '').trim();
+      if (!name) return;
+      const store = _companyAccountStore();
+      if (!store.some(a => a.name === name)) {
+        store.push({ id: 'ca-' + Math.random().toString(36).slice(2, 9), name });
+        if (window.saveData) window.saveData();
+      }
+      const sel = document.getElementById('co-f-account');
+      if (sel) {
+        if (![...sel.options].some(o => o.value === name)) {
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = name;
+          sel.appendChild(opt);
+        }
+        sel.value = name;
+      }
+      window.toast && window.toast('已新增账号：' + name, 'success');
+    });
+  }
+  // 轻量自定义输入弹窗（原生 prompt 可能被浏览器拦截，故自建）
+  function _miniPrompt(title, placeholder, cb) {
+    const m = document.createElement('div');
+    m.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center';
+    m.innerHTML = `
+      <div style="background:var(--bg-panel);border-radius:10px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2);overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:.9rem">${escapeHtml(title)}</div>
+        <div style="padding:16px 18px"><input id="__mini-prompt-inp" class="sched-form-control" style="width:100%" placeholder="${escapeAttr(placeholder)}"></div>
+        <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-secondary btn-sm" id="__mini-prompt-cancel">取消</button>
+          <button class="btn btn-primary btn-sm" id="__mini-prompt-ok">确定</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+    const inp = m.querySelector('#__mini-prompt-inp');
+    const done = val => { m.remove(); if (val != null) cb(val); };
+    m.querySelector('#__mini-prompt-ok').onclick = () => done(inp.value);
+    m.querySelector('#__mini-prompt-cancel').onclick = () => done(null);
+    m.addEventListener('click', e => { if (e.target === m) done(null); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); done(inp.value); }
+      if (e.key === 'Escape') { done(null); }
+    });
+    setTimeout(() => inp.focus(), 0);
+  }
+
   /* ------------------------- 暴露 ------------------------- */
   window.CommunicationPage = {
     render, openEditor,
     // 公司账号（独立记录本）
     openCompanyEditor, _companySave, _companyDelete, _closeCompanyEditor: closeCompanyEditor,
+    openAccountManager, _coAddAccountFromInput, _coRenameAccount, _coDeleteAccount, _coQuickAddAccount,
     _setMainPlatform, _prevMonth, _nextMonth,
     _save, _delete, _closeEditor: closeEditor, _toSettlement, _schedToSettlement,
     _setEditorMainPlatform, _toggleSyncPlatform, _rebuildSyncWrap,
