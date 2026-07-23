@@ -1,18 +1,17 @@
 {
-  "name": "品宣运营工作台",
-  "short_name": "品宣工作台",
+  "name": "离火品宣",
+  "short_name": "离火品宣",
   "description": "达人合作、内容排期发布与品宣 ROI 一体化管理",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#db2777",
+  "theme_color": "#c81e1e",
   "lang": "zh-CN",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

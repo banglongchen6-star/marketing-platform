@@ -6,15 +6,14 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>品宣运营工作台 [V11-20260509-r2]</title>
+  <title>离火品宣 [V11-20260509-r2]</title>
   <!-- PWA：可安装成桌面/手机应用 -->
   <link rel="manifest" href="/manifest.json" />
-  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="/icon-180.png" sizes="180x180" />
-  <meta name="theme-color" content="#db2777" />
+  <meta name="theme-color" content="#c81e1e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="品宣工作台" />
+  <meta name="apple-mobile-web-app-title" content="离火品宣" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -28,9 +27,10 @@
       --bg-hover:   #f0f3f7;
       --border:     #e4e8ed;
       --border-lit: #d0d7e0;
-      --primary:    #1a56db;
-      --primary-dark:#1e40af;
-      --primary-light:rgba(26,86,219,.08);
+      --primary:    #c81e1e;
+      --primary-dark:#a01818;
+      --primary-light:rgba(200,30,17,.08);
+      --gold:       #b8860b;
       --success:    #059669;
       --warning:    #d97706;
       --danger:     #dc2626;
@@ -51,7 +51,7 @@
     body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-base);color:var(--text-primary);min-height:100vh;}
 
     /* ---- Login ---- */
-    #login-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#dbeafe 0%,#f0f4f8 100%);display:flex;align-items:center;justify-content:center;}
+    #login-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#fbe3e0 0%,#f6f1ee 100%);display:flex;align-items:center;justify-content:center;}
     .login-box{width:400px;background:var(--bg-panel);border-radius:var(--radius-lg);padding:40px;box-shadow:var(--shadow-lg);animation:fadeUp .4s ease;}
     .login-logo{font-size:1.6rem;font-weight:700;color:var(--primary);margin-bottom:4px;}
     .login-sub{color:var(--text-secondary);font-size:.85rem;margin-bottom:32px;}
@@ -288,7 +288,7 @@
 <!-- Login -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">品宣运营工作台</div>
+    <div class="login-logo">离火品宣</div>
     <div class="login-sub">内部管理系统 · Brand Operations</div>
     <label>选择身份</label>
     <select id="login-identity" style="width:100%;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:11px 14px;font-size:.95rem;font-family:inherit;outline:none;margin-bottom:16px;cursor:pointer">
@@ -306,7 +306,7 @@
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">品宣运营工作台<span>Brand Operations</span></div>
+    <div class="sidebar-logo">离火品宣<span>Brand Operations</span></div>
     <div class="nav-item" onclick="navigate('data-dashboard')"><span class="icon">📈</span> 数据看板</div>
     <div class="nav-item active" onclick="navigate('dashboard')"><span class="icon">📊</span> 品宣ROI</div>
     <div class="nav-item" onclick="navigate('monthly-plan')"><span class="icon">📋</span> 月度规划表</div>
