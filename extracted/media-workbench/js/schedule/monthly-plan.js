@@ -36,46 +36,42 @@
   function computeData() {
     const { year, month } = state;
     const roi = SD.getBrandRoiMatrix ? SD.getBrandRoiMatrix({ year, month }) : { kpi: {}, totalsPerDay: {}, allDays: [] };
-    const comm = SD.getCommunicationKPI ? SD.getCommunicationKPI({ year, month }) : {};
-    const contents = (SD.listContents ? SD.listContents({ year, month }) : []).filter(hasRealData);
-
     const platOrder = (SD.listPlatforms ? SD.listPlatforms() : []).map(p => p.name);
-    const typeMap = {};            // 类型 -> { exp(万), count(内容条数) }
+    const mStart = `${year}-${pad2(month)}-01`;
+    const mEnd = `${year}-${pad2(month)}-${pad2(new Date(year, month, 0).getDate())}`;
+    const inMonth = (d) => !!d && d >= mStart && d <= mEnd;
+
+    // 统一按「当月每条发布(publication)」统计：发布次数 & 平台分布，口径与数据看板一致
+    const typeMap = {};        // 类型 -> { exp(万), count(发布次数) }
+    const perPlatform = {};    // 平台 -> 发布次数
     const perContent = [];
+    const contentSet = new Set();
     let interactTotal = 0;
 
-    contents.forEach(c => {
+    ((window.DB && window.DB.contents) || []).forEach(c => {
+      const pubs = c.publications || [];
+      const monthPubs = pubs.filter(p => inMonth(p.date));
+      if (!monthPubs.length) return;
       const r = SD.resolveContent(c);
       const type = (r.category || '').trim() || '未标注';
-      const pubs = c.publications || [];
-      const mainPlat = (pubs[0] && pubs[0].platform) || '未知';
+      const mainPlat = (pubs[0] && pubs[0].platform) || '';
+      contentSet.add(c.id);
       let cExp = 0, cInter = 0, cPromo = 0;
-      pubs.forEach((p) => {
-        if (!p.platform) return;
-        cExp += (Number(p.views) || 0) + (Number(p.promo_views) || 0);   // 万
-        cInter += (Number(p.likes) || 0) + (Number(p.collects) || 0) + (Number(p.comments) || 0);
-        cPromo += (Number(p.promo_cost) || 0);
+      monthPubs.forEach(p => {
+        const exp = (Number(p.views) || 0) + (Number(p.promo_views) || 0);
+        const inter = (Number(p.likes) || 0) + (Number(p.collects) || 0) + (Number(p.comments) || 0);
+        cExp += exp; cInter += inter; cPromo += (Number(p.promo_cost) || 0);
+        interactTotal += inter;
+        const t = typeMap[type] || (typeMap[type] = { exp: 0, count: 0 });
+        t.exp += exp; t.count += 1;               // 发布次数：每条发布计1
+        const plat = p.platform || '其他';
+        perPlatform[plat] = (perPlatform[plat] || 0) + 1;
       });
-      interactTotal += cInter;
-      const t = typeMap[type] || (typeMap[type] = { exp: 0, count: 0 });
-      t.exp += cExp; t.count += 1;                       // 发布条数 = 内容条数（一条算1）
       perContent.push({ talent: r.talent, plat: mainPlat, exp: cExp, inter: cInter, cost: (Number(r.price) || 0) + cPromo });
     });
 
     const typeAgg = Object.entries(typeMap).map(([name, v]) => ({ name, exp: v.exp, count: v.count }))
       .sort((a, b) => b.exp - a.exp);
-    // 平台作品分布：与「数据看板」口径一致 —— 按 publication 统计（每条发布计1，落在当月日期），不按主平台归一
-    const mStart = `${year}-${pad2(month)}-01`;
-    const mEnd = `${year}-${pad2(month)}-${pad2(new Date(year, month, 0).getDate())}`;
-    const perPlatform = {};
-    ((window.DB && window.DB.contents) || []).forEach(c => {
-      (c.publications || []).forEach(p => {
-        if (p.date && p.date >= mStart && p.date <= mEnd) {
-          const plat = p.platform || '其他';
-          perPlatform[plat] = (perPlatform[plat] || 0) + 1;
-        }
-      });
-    });
     const platDist = Object.entries(perPlatform).map(([name, count]) => ({ name, count }))
       .sort((a, b) => {
         const ia = platOrder.indexOf(a.name), ib = platOrder.indexOf(b.name);
@@ -102,7 +98,7 @@
     const avgInterRate = exposureWan > 0 ? interactTotal / (exposureWan * 10000) * 100 : 0;
 
     return {
-      contentCount: contents.length,
+      contentCount: contentSet.size,
       pubCount: Number(roi.kpi.contentCount) || 0,
       exposureWan, brandSpend,
       cpm: Number(roi.kpi.cpm) || 0,
@@ -151,9 +147,9 @@
     return `
       <div class="mp-panel mp-split">
         <div class="mp-col" style="flex:1.5">
-          <h3 class="mp-h3">按达人类型</h3><div class="mp-hint">全平台总曝光 + 发布条数（一条内容算1）</div>
+          <h3 class="mp-h3">按达人类型</h3><div class="mp-hint">全平台总曝光 + 发布次数（每条发布计1）</div>
           <table class="mp-tbl">
-            <thead><tr><th>达人类型</th><th>总曝光</th><th>发布条数</th></tr></thead>
+            <thead><tr><th>达人类型</th><th>总曝光</th><th>发布次数</th></tr></thead>
             <tbody>${rows}
               <tr class="tot"><td>合计</td><td style="text-align:right">${fmtWan(totalExp)}</td><td style="text-align:right">${fmtInt(totalCnt)}</td></tr>
             </tbody>
