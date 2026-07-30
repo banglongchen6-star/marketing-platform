@@ -1947,14 +1947,34 @@
     if (!Array.isArray(DB.company_posts)) DB.company_posts = [];
     return DB.company_posts;
   }
-  function _companyAccounts() {
-    return [...new Set(_companyStore().map(p => p.account).filter(Boolean))];
+  function _coAccountsOf(p) {
+    if (Array.isArray(p.accounts) && p.accounts.length) return p.accounts;
+    return p.account ? [p.account] : [];
   }
-  function _companyPlatformsUsed() {
-    return [...new Set(_companyStore().map(p => p.platform).filter(Boolean))];
+  function _companyAccounts() {
+    const set = new Set();
+    _companyStore().forEach(p => _coAccountsOf(p).forEach(a => set.add(a)));
+    return [...set];
   }
   function _companyMonthKey() {
     return `${state.year}-${String(state.month).padStart(2, '0')}`;
+  }
+  // 一次性迁移：旧账号名补上平台后缀（账号库 + 已有发布记录同步）
+  function _migrateCompanyAccounts() {
+    const DB = window.DB || (window.DB = {});
+    if (DB._coAcctSuffix_v1) return;
+    const map = {
+      '音乐密码官方旗舰店': '音乐密码官方旗舰店（抖音）',
+      '音乐密码': '音乐密码（小红书）',
+      '音乐密码智能钢琴': '音乐密码智能钢琴（视频号）',
+    };
+    (DB.company_accounts || []).forEach(a => { if (map[a.name]) a.name = map[a.name]; });
+    (DB.company_posts || []).forEach(p => {
+      if (Array.isArray(p.accounts)) p.accounts = p.accounts.map(n => map[n] || n);
+      if (map[p.account]) p.account = map[p.account];
+    });
+    DB._coAcctSuffix_v1 = true;
+    if (window.saveData) window.saveData();
   }
   function _companyList() {
     const mk = _companyMonthKey();
@@ -1962,23 +1982,19 @@
     return _companyStore()
       .filter(p => {
         if ((p.date || '').slice(0, 7) !== mk) return false;
-        if (state.coPlatform && p.platform !== state.coPlatform) return false;
-        if (state.coAccount && p.account !== state.coAccount) return false;
-        if (q && !((p.account || '').toLowerCase().includes(q) || (p.title || '').toLowerCase().includes(q))) return false;
+        const accs = _coAccountsOf(p);
+        if (state.coAccount && !accs.includes(state.coAccount)) return false;
+        if (q && !(accs.join(' ').toLowerCase().includes(q) || (p.title || '').toLowerCase().includes(q))) return false;
         return true;
       })
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
   function _companyStats(list) {
-    const num = v => Number(v) || 0;
-    return {
-      count: list.length,
-      views: list.reduce((s, p) => s + num(p.views), 0),
-      inter: list.reduce((s, p) => s + num(p.likes) + num(p.collects) + num(p.comments), 0),
-    };
+    return { count: list.length, hot: list.filter(p => p.hot).length };
   }
 
   function renderCompany(page) {
+    _migrateCompanyAccounts();
     const list = _companyList();
     const stats = _companyStats(list);
     page.innerHTML = `
@@ -1994,8 +2010,6 @@
     const monthLabel = `${state.year}-${String(state.month).padStart(2, '0')}`;
     const accOpts = ['<option value="">全部账号</option>']
       .concat(_companyAccounts().map(a => `<option value="${escapeAttr(a)}" ${state.coAccount === a ? 'selected' : ''}>${escapeHtml(a)}</option>`));
-    const platOpts = ['<option value="">全部平台</option>']
-      .concat(_companyPlatformsUsed().map(p => `<option value="${escapeAttr(p)}" ${state.coPlatform === p ? 'selected' : ''}>${escapeHtml(p)}</option>`));
     return `
       <div class="sched-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="sched-month-btn" onclick="CommunicationPage._prevMonth()">‹</button>
@@ -2003,23 +2017,18 @@
         <button class="sched-month-btn" onclick="CommunicationPage._nextMonth()">›</button>
         <input id="__co-search__" class="search-input" style="width:120px"
                placeholder="🔍 搜账号/标题" value="${escapeAttr(state.q)}">
-        <select id="__co-acc__" class="filter-select" style="width:110px">${accOpts.join('')}</select>
-        <select id="__co-plat__" class="filter-select" style="width:100px">${platOpts.join('')}</select>
+        <select id="__co-acc__" class="filter-select" style="width:150px">${accOpts.join('')}</select>
 
-        <div style="display:flex;gap:14px;margin-left:16px;padding:0 14px;border-left:1px solid var(--border)">
+        <div style="display:flex;gap:18px;margin-left:16px;padding:0 14px;border-left:1px solid var(--border)">
           <div>
             <div style="font-size:.72rem;color:var(--text-muted)">发布条数</div>
             <div style="font-weight:600;color:var(--primary)">${stats.count} 条</div>
             <div style="font-size:.66rem;color:var(--text-muted)">当月</div>
           </div>
           <div>
-            <div style="font-size:.72rem;color:var(--text-muted)">总播放·曝光</div>
-            <div style="font-weight:600">${stats.views.toLocaleString()}</div>
-          </div>
-          <div>
-            <div style="font-size:.72rem;color:var(--text-muted)">总互动</div>
-            <div style="font-weight:600;color:var(--purple)">${stats.inter.toLocaleString()}</div>
-            <div style="font-size:.66rem;color:var(--text-muted)">赞+藏+评</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">爆款数</div>
+            <div style="font-weight:600;color:var(--danger)">${stats.hot} 条</div>
+            <div style="font-size:.66rem;color:var(--text-muted)">🔥 突出显示</div>
           </div>
         </div>
 
@@ -2039,39 +2048,38 @@
         <div style="font-size:.78rem;color:var(--text-muted);margin-top:6px">点击右上「＋ 新增发布」录入；这里是独立记录本，不影响其它模块</div>
       </div>`;
     }
-    const numCell = v => (v != null && v !== '') ? Number(v).toLocaleString() : '-';
-    const rows = list.map(p => `
-      <tr>
-        <td style="font-weight:500">${escapeHtml(p.account || '-')}</td>
-        <td>${p.platform ? `<span class="sched-card-chip platform">${escapeHtml(p.platform)}</span>` : '-'}</td>
-        <td style="white-space:nowrap">${escapeHtml(p.date || '-')}</td>
-        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeAttr(p.title || '')}">${escapeHtml(p.title || '-')}</td>
+    const accChips = accs => accs.length
+      ? accs.map(a => `<span style="display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:5px;background:var(--bg-hover);color:var(--text-secondary);margin:1px 2px">${escapeHtml(a)}</span>`).join('')
+      : '-';
+    const rows = list.map(p => {
+      const hot = !!p.hot;
+      const rowStyle = hot ? ' style="background:rgba(200,30,17,.09)"' : '';
+      const hotTxt = hot ? ';color:var(--danger)' : '';
+      return `
+      <tr${rowStyle}>
+        <td style="font-weight:500${hotTxt}">${accChips(_coAccountsOf(p))}</td>
+        <td style="white-space:nowrap${hotTxt}">${escapeHtml(p.date || '-')}</td>
+        <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${hotTxt}${hot ? ';font-weight:600' : ''}" title="${escapeAttr(p.title || '')}">${escapeHtml(p.title || '-')}</td>
         <td>${renderLink(p.link)}</td>
-        <td style="text-align:right">${numCell(p.views)}</td>
-        <td style="text-align:right">${numCell(p.likes)}</td>
-        <td style="text-align:right">${numCell(p.collects)}</td>
-        <td style="text-align:right">${numCell(p.comments)}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeAttr(p.note || '')}">${escapeHtml(p.note || '-')}</td>
+        <td style="text-align:center"><input type="checkbox" ${hot ? 'checked' : ''} onchange="CommunicationPage._companyToggleHot('${p.id}', this.checked)" title="标记为爆款" style="cursor:pointer;width:16px;height:16px"></td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${hotTxt}" title="${escapeAttr(p.note || '')}">${escapeHtml(p.note || '-')}</td>
         <td style="white-space:nowrap;text-align:center">
           <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="CommunicationPage.openCompanyEditor('${p.id}')">编辑</button>
           <button class="btn btn-danger btn-sm" style="padding:2px 8px" onclick="CommunicationPage._companyDelete('${p.id}')">删除</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
     return `
       <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 240px)">
         <table class="comm-table">
           <thead>
             <tr>
               <th>账号</th>
-              <th>平台</th>
               <th>发布日期</th>
               <th>标题/说明</th>
               <th>发布链接</th>
-              <th style="text-align:right">播放·曝光</th>
-              <th style="text-align:right">赞</th>
-              <th style="text-align:right">收藏</th>
-              <th style="text-align:right">评论</th>
+              <th style="text-align:center">爆款</th>
               <th>备注</th>
               <th style="text-align:center">操作</th>
             </tr>
@@ -2092,8 +2100,6 @@
     }
     const a = document.getElementById('__co-acc__');
     if (a) a.addEventListener('change', e => { state.coAccount = e.target.value; render(); });
-    const p = document.getElementById('__co-plat__');
-    if (p) p.addEventListener('change', e => { state.coPlatform = e.target.value; render(); });
   }
   function _paintCompanyList() {
     const host = document.getElementById('__comm-list-host__');
@@ -2105,7 +2111,7 @@
   function coDefaultForm() {
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return { account: '', platform: '', date: today, title: '', link: '', views: '', likes: '', collects: '', comments: '', note: '' };
+    return { accounts: [], date: today, title: '', link: '', note: '', hot: false };
   }
   function ensureCompanyEditorNode() {
     if (document.getElementById('co-drawer')) return;
@@ -2137,14 +2143,13 @@
       if (!p) return;
       state.coEditor.mode = 'edit';
       state.coEditor.id = id;
-      state.coEditor.form = { ...p };
+      state.coEditor.form = { ...p, accounts: _coAccountsOf(p), hot: !!p.hot };
     } else {
       state.coEditor.mode = 'create';
       state.coEditor.id = null;
       state.coEditor.form = coDefaultForm();
-      // 连续录入省事：带上当前筛选的账号/平台
-      if (state.coAccount) state.coEditor.form.account = state.coAccount;
-      if (state.coPlatform) state.coEditor.form.platform = state.coPlatform;
+      // 连续录入省事：带上当前筛选的账号
+      if (state.coAccount) state.coEditor.form.accounts = [state.coAccount];
     }
     state.coEditor.open = true;
     paintCompanyEditor();
@@ -2168,36 +2173,33 @@
   function renderCompanyEditorForm() {
     const f = state.coEditor.form || coDefaultForm();
     const err = state.coEditor.errors || {};
-    const plats = [...new Set([...(((SD.listPlatforms && SD.listPlatforms()) || []).map(p => p.name)), ..._companyPlatformsUsed()])].filter(Boolean);
-    const platList = `<datalist id="co-plat-list">${plats.map(p => `<option value="${escapeAttr(p)}"></option>`).join('')}</datalist>`;
-    // 账号：从预设列表下拉选（并把当前值并入，兼容历史/已删预设的记录）
-    const curAcc = f.account || '';
-    const accNames = [...new Set([..._companyAccountStore().map(a => a.name), ...(curAcc ? [curAcc] : [])])];
-    const accOptions = `<option value="">— 请选择账号 —</option>` +
-      accNames.map(n => `<option value="${escapeAttr(n)}" ${n === curAcc ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    const presets = _companyAccountStore().map(a => a.name);
+    (f.accounts || []).forEach(a => { if (!presets.includes(a)) presets.push(a); });
+    const checked = new Set(f.accounts || []);
+    const accBoxes = presets.length
+      ? presets.map(n => `<label class="co-acc-check"><input type="checkbox" value="${escapeAttr(n)}" ${checked.has(n) ? 'checked' : ''} onchange="CommunicationPage._coSyncForm()"><span>${escapeHtml(n)}</span></label>`).join('')
+      : `<div style="color:var(--text-muted);font-size:.8rem;padding:2px">还没有预设账号，点右侧「＋ 新建账号」添加</div>`;
     return `
-      ${platList}
+      <style>
+        #co-drawer .co-acc-list{flex:1;display:flex;flex-wrap:wrap;gap:8px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--bg-base);max-height:180px;overflow:auto}
+        #co-drawer .co-acc-list.error{border-color:var(--danger)}
+        #co-drawer .co-acc-check{display:inline-flex;align-items:center;gap:5px;font-size:.85rem;padding:4px 11px;border:1px solid var(--border);border-radius:16px;cursor:pointer;background:var(--bg-panel);user-select:none}
+        #co-drawer .co-hot-label{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:.9rem;padding:6px 0}
+      </style>
       <div class="sched-form-group">
-        <label class="sched-form-label">账号<span class="req">*</span></label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="co-f-account" class="sched-form-control ${err.account ? 'error' : ''}" style="flex:1">${accOptions}</select>
-          <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap" onclick="CommunicationPage._coQuickAddAccount()">＋ 新建账号</button>
+        <label class="sched-form-label">账号<span class="req">*</span>（可多选）</label>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div id="co-acc-checks" class="co-acc-list ${err.account ? 'error' : ''}">${accBoxes}</div>
+          <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="CommunicationPage._coQuickAddAccount()">＋ 新建账号</button>
         </div>
         ${err.account
           ? `<div class="sched-form-hint" style="color:var(--danger)">${err.account}</div>`
-          : `<div class="sched-form-hint">从预设账号里选；没有就点「＋ 新建账号」当场加，或用工具栏「⚙ 账号管理」维护</div>`}
+          : `<div class="sched-form-hint">勾选一个或多个已有账号；同发多平台就多勾，存成一条。没有的账号点「＋ 新建账号」加</div>`}
       </div>
-      <div class="sched-form-row">
-        <div class="sched-form-group">
-          <label class="sched-form-label">平台</label>
-          <input id="co-f-platform" list="co-plat-list" class="sched-form-control" type="text"
-                 placeholder="如 小红书 / 抖音 / 视频号" value="${escapeAttr(f.platform)}">
-        </div>
-        <div class="sched-form-group">
-          <label class="sched-form-label">发布日期<span class="req">*</span></label>
-          <input id="co-f-date" class="sched-form-control ${err.date ? 'error' : ''}" type="date" value="${escapeAttr(f.date)}">
-          ${err.date ? `<div class="sched-form-hint" style="color:var(--danger)">${err.date}</div>` : ''}
-        </div>
+      <div class="sched-form-group">
+        <label class="sched-form-label">发布日期<span class="req">*</span></label>
+        <input id="co-f-date" class="sched-form-control ${err.date ? 'error' : ''}" type="date" value="${escapeAttr(f.date)}">
+        ${err.date ? `<div class="sched-form-hint" style="color:var(--danger)">${err.date}</div>` : ''}
       </div>
       <div class="sched-form-group">
         <label class="sched-form-label">标题/说明</label>
@@ -2208,25 +2210,8 @@
         <label class="sched-form-label">发布链接</label>
         <input id="co-f-link" class="sched-form-control" type="text" placeholder="https://…" value="${escapeAttr(f.link)}">
       </div>
-      <div class="sched-form-row">
-        <div class="sched-form-group">
-          <label class="sched-form-label">播放·曝光</label>
-          <input id="co-f-views" class="sched-form-control" type="number" min="0" step="1" placeholder="0" value="${escapeAttr(f.views)}">
-        </div>
-        <div class="sched-form-group">
-          <label class="sched-form-label">赞</label>
-          <input id="co-f-likes" class="sched-form-control" type="number" min="0" step="1" placeholder="0" value="${escapeAttr(f.likes)}">
-        </div>
-      </div>
-      <div class="sched-form-row">
-        <div class="sched-form-group">
-          <label class="sched-form-label">收藏</label>
-          <input id="co-f-collects" class="sched-form-control" type="number" min="0" step="1" placeholder="0" value="${escapeAttr(f.collects)}">
-        </div>
-        <div class="sched-form-group">
-          <label class="sched-form-label">评论</label>
-          <input id="co-f-comments" class="sched-form-control" type="number" min="0" step="1" placeholder="0" value="${escapeAttr(f.comments)}">
-        </div>
+      <div class="sched-form-group">
+        <label class="co-hot-label"><input id="co-f-hot" type="checkbox" ${f.hot ? 'checked' : ''} style="width:16px;height:16px"> <span>🔥 标记为爆款（列表中该行会红色突出）</span></label>
       </div>
       <div class="sched-form-group">
         <label class="sched-form-label">备注</label>
@@ -2245,20 +2230,18 @@
   }
   function _companySave() {
     const g = id => (document.getElementById(id)?.value ?? '').trim();
-    const num = id => { const v = g(id); return v === '' ? '' : (Number(v.replace(/[,，\s]/g, '')) || 0); };
-    const account = g('co-f-account');
+    const accounts = [...document.querySelectorAll('#co-acc-checks input[type=checkbox]:checked')].map(c => c.value);
     const date = g('co-f-date');
     const errors = {};
-    if (!account) errors.account = '请填写账号';
+    if (!accounts.length) errors.account = '请至少勾选一个账号';
     if (!date) errors.date = '请选择发布日期';
     if (Object.keys(errors).length) { state.coEditor.errors = errors; paintCompanyEditor(); return; }
     const store = _companyStore();
     const now = new Date().toISOString();
     const rec = {
-      account, platform: g('co-f-platform'), date,
+      accounts, account: accounts[0], date,
       title: g('co-f-title'), link: g('co-f-link'),
-      views: num('co-f-views'), likes: num('co-f-likes'),
-      collects: num('co-f-collects'), comments: num('co-f-comments'),
+      hot: !!document.getElementById('co-f-hot')?.checked,
       note: g('co-f-note'),
     };
     const wasEdit = state.coEditor.mode === 'edit';
@@ -2401,17 +2384,35 @@
         store.push({ id: 'ca-' + Math.random().toString(36).slice(2, 9), name });
         if (window.saveData) window.saveData();
       }
-      const sel = document.getElementById('co-f-account');
-      if (sel) {
-        if (![...sel.options].some(o => o.value === name)) {
-          const opt = document.createElement('option');
-          opt.value = name; opt.textContent = name;
-          sel.appendChild(opt);
-        }
-        sel.value = name;
-      }
+      // 先把已填内容同步进 form，再把新账号勾上，重绘表单（不丢日期/标题/链接/备注）
+      _coSyncForm();
+      const f = state.coEditor.form || (state.coEditor.form = coDefaultForm());
+      if (!Array.isArray(f.accounts)) f.accounts = [];
+      if (!f.accounts.includes(name)) f.accounts.push(name);
+      paintCompanyEditor();
       window.toast && window.toast('已新增账号：' + name, 'success');
     });
+  }
+  // 把当前表单 DOM 值同步进 state（重绘前调用，避免丢失已填内容）
+  function _coSyncForm() {
+    const f = state.coEditor.form || (state.coEditor.form = coDefaultForm());
+    f.accounts = [...document.querySelectorAll('#co-acc-checks input[type=checkbox]:checked')].map(c => c.value);
+    const g = id => document.getElementById(id);
+    if (g('co-f-date')) f.date = g('co-f-date').value;
+    if (g('co-f-title')) f.title = g('co-f-title').value;
+    if (g('co-f-link')) f.link = g('co-f-link').value;
+    if (g('co-f-note')) f.note = g('co-f-note').value;
+    if (g('co-f-hot')) f.hot = g('co-f-hot').checked;
+  }
+  // 列表内直接勾选爆款
+  function _companyToggleHot(id, checked) {
+    const store = _companyStore();
+    const p = store.find(x => String(x.id) === String(id));
+    if (!p) return;
+    p.hot = !!checked;
+    p.updated_at = new Date().toISOString();
+    if (window.saveData) window.saveData();
+    render();   // 重绘整个 tab，让顶部「爆款数」也同步
   }
   // 轻量自定义输入弹窗（原生 prompt 可能被浏览器拦截，故自建）
   function _miniPrompt(title, placeholder, cb) {
@@ -2444,6 +2445,7 @@
     render, openEditor,
     // 公司账号（独立记录本）
     openCompanyEditor, _companySave, _companyDelete, _closeCompanyEditor: closeCompanyEditor,
+    _companyToggleHot, _coSyncForm,
     openAccountManager, _coAddAccountFromInput, _coRenameAccount, _coDeleteAccount, _coQuickAddAccount,
     _setMainPlatform, _prevMonth, _nextMonth,
     _save, _delete, _closeEditor: closeEditor, _toSettlement, _schedToSettlement,
