@@ -310,7 +310,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo"><img src="/icon-192.png" alt="离火品宣" class="sidebar-logo-icon" /><div class="sidebar-logo-txt">离火品宣<span>Brand Operations</span></div></div>
     <div class="nav-item active" onclick="navigate('dashboard')"><span class="icon">📊</span> 品宣ROI</div>
-    <div class="nav-item" onclick="navigate('monthly-plan')"><span class="icon">📊</span> 月度总结</div>
+    <div class="nav-item" onclick="navigate('monthly-plan')"><span class="icon">📊</span> 数据看板</div>
     <div class="nav-item" onclick="navigate('review-log')"><span class="icon">📝</span> 复盘总结</div>
     <div class="nav-item" onclick="navigate('samples')"><span class="icon">📦</span> 样品管理</div>
     <div class="nav-item" onclick="navigate('schedule')"><span class="icon">📅</span> 内容排期</div>
@@ -355,7 +355,7 @@
       <!-- 内容由 js/schedule/calendar.js 中的 SchedulePage.render() 注入 -->
     </div>
 
-    <!-- 月度总结：独立页面 -->
+    <!-- 数据看板：独立页面 -->
     <div class="page" id="page-monthly-plan">
       <!-- 内容由 js/schedule/monthly-plan.js 中的 MonthlyPlanPage.render() 注入 -->
     </div>
@@ -1752,7 +1752,7 @@ populateLoginIdentities();
 const PAGE_TITLES = {
   dashboard:        '',
   schedule:      '内容排期',
-  'monthly-plan':'月度总结',
+  'monthly-plan':'数据看板',
   'review-log':  '复盘总结',
   kols:          '达人库',
   contents:      '内容发布',
@@ -5865,7 +5865,7 @@ function initApp() {
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=69"></script>
 <script src="js/schedule/editor.js?v=85"></script>
-<script src="js/schedule/monthly-plan.js?v=61"></script>
+<script src="js/schedule/monthly-plan.js?v=62"></script>
 <script src="js/schedule/review-log.js?v=2"></script>
 <script src="js/schedule/dict.js?v=58"></script>
 <script src="js/schedule/recycle-bin.js?v=53"></script>
