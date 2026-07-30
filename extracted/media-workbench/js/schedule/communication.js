@@ -2060,7 +2060,7 @@
         <td style="white-space:nowrap${hotTxt}">${escapeHtml(p.date || '-')}</td>
         <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${hotTxt}${hot ? ';font-weight:600' : ''}" title="${escapeAttr(p.title || '')}">${escapeHtml(p.title || '-')}</td>
         <td>${renderLink(p.link)}</td>
-        <td${hot ? ' style="color:var(--danger)"' : ''}><div style="display:flex;flex-wrap:wrap;gap:3px;max-width:230px">${accChips(_coAccountsOf(p))}</div></td>
+        <td${hot ? ' style="color:var(--danger)"' : ''}><div style="display:flex;flex-wrap:nowrap;gap:4px;white-space:nowrap">${accChips(_coAccountsOf(p))}</div></td>
         <td style="text-align:center"><input type="checkbox" ${hot ? 'checked' : ''} onchange="CommunicationPage._companyToggleHot('${p.id}', this.checked)" title="标记为爆款" style="cursor:pointer;width:16px;height:16px"></td>
         <td style="white-space:nowrap;text-align:center">
           <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="CommunicationPage.openCompanyEditor('${p.id}')">编辑</button>
