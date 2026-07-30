@@ -697,7 +697,6 @@
       kol_homepage: data.kol_homepage || '',
       bd_id: data.bd_id || null,
       category_direction: data.category_direction || '',
-      tier: data.tier || '',
       work_type: data.work_type || '',
       amount: Number(data.amount) || 0,
       platform: data.platform || (Array.isArray(data.platforms) ? data.platforms[0] : '') || '',

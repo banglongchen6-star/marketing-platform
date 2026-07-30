@@ -50,7 +50,6 @@
       kol_homepage: '',
       bd_id: window.currentUser?.bd_id || null,
       category_direction: '',
-      tier: '',
       work_type: '',
       platform: '',
       sync_platforms: [],
@@ -111,7 +110,6 @@
         kol_homepage: s.kol_homepage || '',
         bd_id: s.bd_id || null,
         category_direction: s.category_direction || '',
-        tier: s.tier || '',
         work_type: s.work_type || '',
         platform: s.platform || (Array.isArray(s.platforms) ? s.platforms[0] : '') || '',
         sync_platforms: Array.isArray(s.sync_platforms) ? [...s.sync_platforms] : (Array.isArray(s.platforms) ? s.platforms.slice(1) : []),
@@ -306,13 +304,6 @@
     const dirs = SD.listDirections();
     const dirOptions = ['<option value="">— 请选择 —</option>']
       .concat(dirs.map(d => `<option value="${escapeHtml(d.name)}" ${f.category_direction===d.name?'selected':''}>${escapeHtml(d.name)}</option>`));
-    const tiers = SD.listTiers();
-    const tierOptions = ['<option value="">— 请选择 —</option>']
-      .concat(tiers.map(t => `<option value="${escapeHtml(t.name)}" ${f.tier===t.name?'selected':''}>${escapeHtml(t.name)}</option>`));
-    // 如果当前值不在字典里（老数据），保留作为额外选项
-    if (f.tier && !tiers.some(t => t.name === f.tier)) {
-      tierOptions.push(`<option value="${escapeAttr(f.tier)}" selected>${escapeHtml(f.tier)}（自由值）</option>`);
-    }
     const workTypes = SD.listWorkTypes();
     const workTypeOptions = ['<option value="">— 请选择 —</option>']
       .concat(workTypes.map(t => `<option value="${escapeHtml(t.name)}" ${f.work_type===t.name?'selected':''}>${escapeHtml(t.name)}</option>`));
@@ -902,7 +893,6 @@
       kol_homepage: (f.kol_homepage || '').trim(),
       bd_id: f.bd_id || null,
       category_direction: f.category_direction || '',
-      tier: f.tier || '',
       work_type: f.work_type || '',
       platform: f.platform || '',
       sync_platforms: f.sync_platforms || [],
@@ -977,7 +967,6 @@
       kol_homepage: f.kol_homepage.trim(),
       bd_id: f.bd_id || null,
       category_direction: f.category_direction || '',
-      tier: f.tier || '',
       work_type: f.work_type || '',
       platform: f.platform || '',
       sync_platforms: f.sync_platforms || [],
