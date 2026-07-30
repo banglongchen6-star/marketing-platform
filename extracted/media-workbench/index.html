@@ -4638,6 +4638,20 @@ function rollbackFromSettled(settlementId) {
   });
 }
 
+/** 在「已完成结算」区直接更新发票状态（仅此字段允许绕过退回） */
+function _stSetInvoice(settlementId, value) {
+  const st = (DB.settlements || []).find(x => String(x.id) === String(settlementId));
+  if (!st) { toast('未找到对应的结算记录，请刷新后重试', 'error'); return; }
+  st.invoice = value;
+  saveData();
+  toast('发票状态已更新', 'success', 1200);
+}
+function _stInvoiceSelect(s) {
+  const v = s.invoice || '未开票';
+  const opt = (val) => `<option value="${val}" ${v === val ? 'selected' : ''}>${val}</option>`;
+  return `<select onchange="_stSetInvoice('${s.id}', this.value)" style="font-size:.78rem;padding:3px 7px;border:1px solid var(--border);border-radius:5px;background:var(--bg-panel);cursor:pointer;color:var(--text-primary)">${opt('未开票')}${opt('已开票')}${opt('无需')}</select>`;
+}
+
 /** 统一计算三个 tab 的 badge（待结算/已申请付款/已结算），与当前 tab 无关 */
 function _updateStBadges() {
   const sets = DB.settlements || [];
@@ -5168,7 +5182,7 @@ function _renderSettledArea() {
         ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtNum(base)} · 奖金¥${fmtNum(bonus)}</div>`:''}
       </td>
       <td style="vertical-align:middle;font-size:.8rem;color:var(--text-muted)">—</td>
-      <td style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[s.payment_type]||'-'}</td>
+      <td style="vertical-align:middle;font-size:.8rem">${_stInvoiceSelect(s)}</td>
       <td class="comm-actions" style="vertical-align:middle">
         <button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;cursor:pointer" onclick="rollbackFromSettled(${s.id})">↩ 退回待结算</button>
       </td>
@@ -5183,7 +5197,7 @@ function _renderSettledArea() {
             ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtNum(base)} · 奖金¥${fmtNum(bonus)}</div>`:''}
           </td>
           <td style="font-size:.8rem">${paidTag}</td>
-          <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[s.payment_type]||'-'}</td>
+          <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${_stInvoiceSelect(s)}</td>
           <td rowspan="${total}" class="comm-actions" style="vertical-align:middle">
             <button class="btn btn-sm" style="font-size:.72rem;padding:3px 10px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;cursor:pointer" onclick="rollbackFromSettled(${s.id})">↩ 退回待结算</button>
             <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">结转：${s.settled_at||'-'}</div>
@@ -5198,7 +5212,7 @@ function _renderSettledArea() {
   container.innerHTML = `
     <div style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 220px)">
       <div style="padding:8px 14px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;font-size:.8rem;color:#065f46">
-        🔒 已结算区严禁删除，数据仅供查阅。如需修改请先退回待结算区。
+        🔒 已结算区严禁删除，数据仅供查阅。如需修改请先退回待结算区（发票状态可直接更新）。
       </div>
       <table class="comm-table">
         <thead>
@@ -5207,7 +5221,7 @@ function _renderSettledArea() {
             <th>发布日期</th>
             <th>结算金额</th>
             <th>状态/付款时间</th>
-            <th>付款方式</th>
+            <th>发票状态</th>
             <th>操作</th>
           </tr>
         </thead>
