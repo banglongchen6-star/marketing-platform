@@ -1,14 +1,14 @@
 /* =====================================================================
- * 离火品宣 · 心得月度复盘
+ * 离火品宣 · 复盘总结
  *
- * 汇总各月「本月复盘」（DB.monthly_reviews，与月度总结双向同步）。
- * 按月份从早到晚排列，只显示写过内容的月份；可在此直接编辑、失焦保存。
+ * 汇总各月「本月复盘」（DB.monthly_reviews）。按月份从早到晚排列，
+ * 只显示写过内容的月份。本版面仅供查看，不能修改；
+ * 如需修改，请到「月度总结」对应月份的「本月复盘」。
  *
- * 暴露：window.ReviewLogPage = { render, save }
+ * 暴露：window.ReviewLogPage = { render }
  * ===================================================================== */
 (function () {
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
-  const escAttr = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;');
   function monthLabel(key) {
     const m = /^(\d{4})-(\d{2})$/.exec(key || '');
     return m ? `${m[1]}年${Number(m[2])}月` : key;
@@ -21,12 +21,12 @@
     s.textContent = `
       #page-review-log .rl-wrap{padding:2px;max-width:860px}
       #page-review-log .rl-title{font-size:1.25rem;font-weight:700;margin:0 0 4px}
-      #page-review-log .rl-sub{font-size:.78rem;color:var(--text-secondary);margin-bottom:16px}
+      #page-review-log .rl-sub{font-size:.78rem;color:var(--text-secondary);margin-bottom:16px;line-height:1.7}
+      #page-review-log .rl-tip{color:var(--text-muted);font-size:.72rem}
       #page-review-log .rl-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:12px}
       #page-review-log .rl-h{font-size:.95rem;font-weight:700;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:8px}
       #page-review-log .rl-h::before{content:'';width:4px;height:15px;border-radius:3px;background:var(--primary);display:inline-block}
-      #page-review-log .rl-box{width:100%;box-sizing:border-box;min-height:64px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:.85rem;line-height:1.6;resize:vertical;outline:none;background:var(--bg-base);color:var(--text-primary)}
-      #page-review-log .rl-box:focus{border-color:var(--primary)}
+      #page-review-log .rl-text{white-space:pre-wrap;word-break:break-word;background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:.85rem;line-height:1.7;color:var(--text-primary)}
       #page-review-log .rl-empty{text-align:center;color:var(--text-muted);padding:48px 0;font-size:.9rem;line-height:1.8}`;
     document.head.appendChild(s);
   }
@@ -44,26 +44,17 @@
       ? keys.map(k => `
         <div class="rl-card">
           <div class="rl-h">${esc(monthLabel(k))}</div>
-          <textarea class="rl-box" onblur="ReviewLogPage.save('${escAttr(k)}', this.value)">${esc(reviews[k])}</textarea>
+          <div class="rl-text">${esc(reviews[k])}</div>
         </div>`).join('')
       : '<div class="rl-empty">还没有任何月度复盘。<br>去「月度总结」→「本月复盘」写下第一条，这里会自动收进来。</div>';
     page.innerHTML = `
       <div class="rl-wrap">
-        <div class="rl-title">📝 心得月度复盘</div>
-        <div class="rl-sub">汇总各月「本月复盘」，与月度总结双向同步${keys.length ? `　·　共 ${keys.length} 个月` : ''}</div>
+        <div class="rl-title">📝 复盘总结</div>
+        <div class="rl-sub">汇总各月「本月复盘」，此处仅供查看${keys.length ? `　·　共 ${keys.length} 个月` : ''}<br><span class="rl-tip">✏️ 如需修改，请到「月度总结」对应月份的「本月复盘」编辑</span></div>
         ${cards}
       </div>`;
   }
 
-  function save(key, v) {
-    const DB = window.DB || (window.DB = {});
-    if (!DB.monthly_reviews) DB.monthly_reviews = {};
-    const val = String(v || '').trim();
-    if (val) DB.monthly_reviews[key] = val; else delete DB.monthly_reviews[key];
-    if (window.saveData) window.saveData();
-    window.toast && window.toast('已保存', 'success', 1200);
-  }
-
-  window.ReviewLogPage = { render, save };
-  console.log('[ReviewLogPage] 心得月度复盘已就绪');
+  window.ReviewLogPage = { render };
+  console.log('[ReviewLogPage] 复盘总结已就绪');
 })();
