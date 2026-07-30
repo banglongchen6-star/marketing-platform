@@ -14,6 +14,7 @@
 
   const state = { year: 0, month: 0, _trendChart: null, _donutChart: null };
   const PLAT_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+  const REVIEW_MIN = 100;   // 本月复盘最少字数，达标才能进入下月
 
   function initState() {
     if (state.year) return;
@@ -190,6 +191,23 @@
       </div>`;
   }
 
+  function _isGatedMonth() {
+    // 只对「当前及以后的月份」强制满字数；历史旧月可自由回看
+    const now = new Date();
+    return (state.year * 12 + (state.month - 1)) >= (now.getFullYear() * 12 + now.getMonth());
+  }
+  function _reviewLen(v) { return [...String(v == null ? '' : v).trim()].length; }
+  function _countHtml(len) {
+    const ok = len >= REVIEW_MIN;
+    const color = ok ? 'var(--success)' : 'var(--danger)';
+    const tail = ok ? ' ✓ 已达标'
+      : (_isGatedMonth() ? `（还差 ${REVIEW_MIN - len} 字，达标才能进入下月）` : `（建议不少于 ${REVIEW_MIN} 字）`);
+    return `本月复盘：已写 <b style="color:${color}">${len}</b> / ${REVIEW_MIN} 字${tail}`;
+  }
+  function _updateCount(box) {
+    const el = document.getElementById('mp-review-count');
+    if (el) el.innerHTML = _countHtml(_reviewLen(box && box.value));
+  }
   function renderReview(d) {
     const key = `${state.year}-${pad2(state.month)}`;
     const DB = window.DB || {};
@@ -202,8 +220,9 @@
     return `
       <div class="mp-review">
         <div style="font-size:.82rem;color:var(--text-secondary);line-height:1.6">${auto}</div>
-        <textarea class="mp-review-box" placeholder="✍️ 写点本月复盘心得…（失焦自动保存）"
-          onblur="MonthlyPlanPage.saveReview(this.value)">${esc(saved)}</textarea>
+        <textarea class="mp-review-box" placeholder="✍️ 写点本月复盘心得（不少于 ${REVIEW_MIN} 字），达标才能进入下月…"
+          oninput="MonthlyPlanPage._updateCount(this)" onblur="MonthlyPlanPage.saveReview(this.value)">${esc(saved)}</textarea>
+        <div class="mp-review-count" id="mp-review-count">${_countHtml(_reviewLen(saved))}</div>
       </div>`;
   }
 
@@ -349,12 +368,31 @@
       #page-monthly-plan .mp-mt b{color:var(--primary);font-weight:700}
       #page-monthly-plan .mp-review{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
       #page-monthly-plan .mp-review-box{margin-top:9px;width:100%;box-sizing:border-box;min-height:60px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:.82rem;resize:vertical;outline:none;background:var(--bg-base);color:var(--text-primary)}
-      #page-monthly-plan .mp-review-box:focus{border-color:var(--primary)}`;
+      #page-monthly-plan .mp-review-box:focus{border-color:var(--primary)}
+      #page-monthly-plan .mp-review-count{font-size:.72rem;margin-top:6px;color:var(--text-secondary)}`;
     document.head.appendChild(s);
   }
 
   function prevMonth() { if (state.month === 1) { state.year--; state.month = 12; } else state.month--; render(); }
-  function nextMonthAction() { if (state.month === 12) { state.year++; state.month = 1; } else state.month++; render(); }
+  function nextMonthAction() {
+    if (_isGatedMonth()) {
+      const box = document.querySelector('#page-monthly-plan .mp-review-box');
+      const val = box ? String(box.value || '').trim()
+        : String((((window.DB && window.DB.monthly_reviews) || {})[`${state.year}-${pad2(state.month)}`]) || '').trim();
+      const len = _reviewLen(val);
+      if (len < REVIEW_MIN) {
+        window.toast && window.toast(`请先填写本月复盘（不少于 ${REVIEW_MIN} 字，当前 ${len} 字），才能进入下月`, 'error', 3500);
+        if (box) { _updateCount(box); box.focus(); }
+        return;
+      }
+      const DB = window.DB || (window.DB = {});
+      if (!DB.monthly_reviews) DB.monthly_reviews = {};
+      DB.monthly_reviews[`${state.year}-${pad2(state.month)}`] = val;
+      if (window.saveData) window.saveData();
+    }
+    if (state.month === 12) { state.year++; state.month = 1; } else state.month++;
+    render();
+  }
   function goToday() { const d = new Date(); state.year = d.getFullYear(); state.month = d.getMonth() + 1; render(); }
   function setMonth(y, m) { state.year = y; state.month = m; render(); }
   function saveReview(v) {
@@ -368,7 +406,7 @@
   }
 
   window.MonthlyPlanPage = {
-    render, prevMonth, nextMonth: nextMonthAction, goToday, setMonth, saveReview,
+    render, prevMonth, nextMonth: nextMonthAction, goToday, setMonth, saveReview, _updateCount,
     getState() { return { year: state.year, month: state.month }; },
   };
   console.log('[MonthlyPlanPage] 月度总结已就绪');
