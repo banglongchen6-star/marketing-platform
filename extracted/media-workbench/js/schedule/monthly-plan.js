@@ -87,7 +87,7 @@
     // 趋势：每日花费(元) + 每日播放(万)
     const days = roi.allDays || [];
     const trend = {
-      labels: days.map(dd => `${pad2(month)}-${dd}`),
+      labels: days.map(dd => String(Number(dd))),
       spend: days.map(dd => Math.round((roi.totalsPerDay[dd] && roi.totalsPerDay[dd].spend) || 0)),
       views: days.map(dd => Number(((roi.totalsPerDay[dd] && roi.totalsPerDay[dd].exposure) || 0).toFixed(2))),
     };
@@ -239,7 +239,7 @@
             tooltip: { callbacks: { afterBody: () => '— CPM=10 基准：等高时刚好1元/100次' } }
           },
           scales: {
-            x: { ticks: { font: { size: 8 }, autoSkip: false, maxRotation: 90, minRotation: 90 } },
+            x: { ticks: { font: { size: 9 }, autoSkip: false, maxRotation: 0, minRotation: 0 } },
             y: { position: 'left', min: 0, max: yMax, ticks: { font: { size: 10 }, color: '#3b82f6' }, title: { display: true, text: '播放量(万)', font: { size: 9 }, color: '#3b82f6' } },
             y1: { position: 'right', min: 0, max: yMax * 100, ticks: { font: { size: 10 }, color: '#d97706' }, title: { display: true, text: '花费(元)', font: { size: 9 }, color: '#d97706' }, grid: { drawOnChartArea: false } },
           }
