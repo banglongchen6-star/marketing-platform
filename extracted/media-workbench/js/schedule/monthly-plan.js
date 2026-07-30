@@ -104,18 +104,20 @@
       const type = (r.category || '').trim() || '未标注';
       const mainPlat = (pubs[0] && pubs[0].platform) || '';
       contentSet.add(c.id);
-      let cExp = 0, cInter = 0, cPromo = 0;
+      let cExp = 0, cInter = 0, cPromo = 0, cLikes = 0, cCollects = 0, cComments = 0;
       monthPubs.forEach(p => {
         const exp = (Number(p.views) || 0) + (Number(p.promo_views) || 0);
-        const inter = (Number(p.likes) || 0) + (Number(p.collects) || 0) + (Number(p.comments) || 0);
+        const likes = Number(p.likes) || 0, collects = Number(p.collects) || 0, comments = Number(p.comments) || 0;
+        const inter = likes + collects + comments;
         cExp += exp; cInter += inter; cPromo += (Number(p.promo_cost) || 0);
+        cLikes += likes; cCollects += collects; cComments += comments;
         interactTotal += inter;
         const t = typeMap[type] || (typeMap[type] = { exp: 0, count: 0 });
         t.exp += exp; t.count += 1;
         const plat = p.platform || '其他';
         perPlatform[plat] = (perPlatform[plat] || 0) + 1;
       });
-      perContent.push({ talent: r.talent, plat: mainPlat, exp: cExp, inter: cInter, cost: (Number(r.price) || 0) + cPromo });
+      perContent.push({ talent: r.talent, plat: mainPlat, exp: cExp, inter: cInter, likes: cLikes, collects: cCollects, comments: cComments, cost: (Number(r.price) || 0) + cPromo });
     });
 
     const typeAgg = Object.entries(typeMap).map(([name, v]) => ({ name, exp: v.exp, count: v.count })).sort((a, b) => b.exp - a.exp);
@@ -238,20 +240,35 @@
   }
 
   function renderRank(d) {
-    const hot = d.topHot.length ? d.topHot.map((x, i) => `
-      <div class="mp-row"><div class="mp-no ${i === 0 ? 'g1' : ''}">${i + 1}</div>
-        <div class="mp-nm">${esc(x.talent)} <span style="color:var(--text-muted)">· ${esc(x.plat || '-')}</span></div>
-        <div class="mp-mt"><b>${fmtWan(x.exp)}</b> · ${fmtInt(x.inter)}</div></div>`).join('')
+    const hot = d.topHot.length ? `
+      <table class="mp-rk-tbl">
+        <thead><tr><th class="l">达人 · 平台</th><th>播放量</th><th>点赞</th><th>收藏</th><th>评论</th></tr></thead>
+        <tbody>${d.topHot.map((x, i) => `
+          <tr>
+            <td class="l"><span class="mp-no ${i === 0 ? 'g1' : ''}">${i + 1}</span> <span class="mp-nm-in">${esc(x.talent)} <i>· ${esc(x.plat || '-')}</i></span></td>
+            <td class="hl">${fmtWan(x.exp)}</td>
+            <td>${fmtInt(x.likes)}</td>
+            <td>${fmtInt(x.collects)}</td>
+            <td>${fmtInt(x.comments)}</td>
+          </tr>`).join('')}</tbody>
+      </table>`
       : '<div style="color:var(--text-muted);font-size:.8rem;padding:10px 0">暂无数据</div>';
-    const val = d.topValue.length ? d.topValue.map((x, i) => `
-      <div class="mp-row"><div class="mp-no ${i === 0 ? 'g1' : ''}">${i + 1}</div>
-        <div class="mp-nm">${esc(x.talent)}</div>
-        <div class="mp-mt">${fmtYuan(x.cost)}·${fmtWan(x.exp)} <b>CPM ${x.cpm.toFixed(2)}</b></div></div>`).join('')
+    const val = d.topValue.length ? `
+      <table class="mp-rk-tbl">
+        <thead><tr><th class="l">达人</th><th>花费</th><th>曝光</th><th>CPM</th></tr></thead>
+        <tbody>${d.topValue.map((x, i) => `
+          <tr>
+            <td class="l"><span class="mp-no ${i === 0 ? 'g1' : ''}">${i + 1}</span> <span class="mp-nm-in">${esc(x.talent)}</span></td>
+            <td>${fmtYuan(x.cost)}</td>
+            <td>${fmtWan(x.exp)}</td>
+            <td class="hl">${x.cpm.toFixed(2)}</td>
+          </tr>`).join('')}</tbody>
+      </table>`
       : '<div style="color:var(--text-muted);font-size:.8rem;padding:10px 0">暂无付费内容</div>';
     return `
       <div class="mp-two">
-        <div class="mp-rank"><h3 class="mp-h3">🔥 爆款 Top5 <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">按曝光</span></h3>${hot}</div>
-        <div class="mp-rank"><h3 class="mp-h3">💰 性价比 Top5 <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">按CPM最低</span></h3>${val}</div>
+        <div class="mp-rank"><h3 class="mp-h3">🔥 爆款 Top5 <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">按曝光</span></h3><div style="overflow-x:auto">${hot}</div></div>
+        <div class="mp-rank"><h3 class="mp-h3">💰 性价比 Top5 <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">按CPM最低</span></h3><div style="overflow-x:auto">${val}</div></div>
       </div>`;
   }
 
@@ -409,6 +426,16 @@
       #page-monthly-plan .mp-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
       #page-monthly-plan .mp-mt{color:var(--text-secondary);font-variant-numeric:tabular-nums}
       #page-monthly-plan .mp-mt b{color:var(--primary);font-weight:700}
+      #page-monthly-plan .mp-rk-tbl{width:100%;border-collapse:collapse;font-size:.76rem}
+      #page-monthly-plan .mp-rk-tbl th{color:var(--text-muted);font-weight:600;text-align:right;padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:.66rem}
+      #page-monthly-plan .mp-rk-tbl th.l{text-align:left}
+      #page-monthly-plan .mp-rk-tbl td{padding:6px 6px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+      #page-monthly-plan .mp-rk-tbl td.l{text-align:left}
+      #page-monthly-plan .mp-rk-tbl td.hl{color:var(--primary);font-weight:700}
+      #page-monthly-plan .mp-rk-tbl tr:last-child td{border-bottom:none}
+      #page-monthly-plan .mp-rk-tbl .mp-no{display:inline-flex;vertical-align:middle;margin-right:5px}
+      #page-monthly-plan .mp-nm-in{font-weight:500}
+      #page-monthly-plan .mp-nm-in i{color:var(--text-muted);font-style:normal;font-size:.68rem}
       #page-monthly-plan .mp-review{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
       #page-monthly-plan .mp-review-box{margin-top:4px;width:100%;box-sizing:border-box;min-height:60px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:.82rem;resize:vertical;outline:none;background:var(--bg-base);color:var(--text-primary)}
       #page-monthly-plan .mp-review-box:focus{border-color:var(--primary)}
