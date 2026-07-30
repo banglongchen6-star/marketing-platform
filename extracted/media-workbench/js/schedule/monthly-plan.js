@@ -140,7 +140,7 @@
     const rows = d.typeAgg.map(t => `
       <tr>
         <td style="text-align:left"><span class="mp-chip">${esc(t.name)}</span></td>
-        <td><div class="mp-exp"><div class="mp-bartrack"><div class="mp-bar" style="width:${Math.max(2, Math.round(t.exp / maxExp * 100))}%"></div></div><span>${fmtWan(t.exp)}</span></div></td>
+        <td><div class="mp-exp"><div class="mp-bartrack"><div class="mp-bar" style="width:${Math.max(2, Math.round(t.exp / maxExp * 100))}%"></div></div><span class="mp-expval">${fmtWan(t.exp)}</span></div></td>
         <td style="text-align:right">${fmtInt(t.count)}</td>
       </tr>`).join('');
     const totalExp = d.typeAgg.reduce((s, t) => s + t.exp, 0);
@@ -239,7 +239,7 @@
             tooltip: { callbacks: { afterBody: () => '— CPM=10 基准：等高时刚好1元/100次' } }
           },
           scales: {
-            x: { ticks: { font: { size: 10 }, maxTicksLimit: 15 } },
+            x: { ticks: { font: { size: 8 }, autoSkip: false, maxRotation: 90, minRotation: 90 } },
             y: { position: 'left', min: 0, max: yMax, ticks: { font: { size: 10 }, color: '#3b82f6' }, title: { display: true, text: '播放量(万)', font: { size: 9 }, color: '#3b82f6' } },
             y1: { position: 'right', min: 0, max: yMax * 100, ticks: { font: { size: 10 }, color: '#d97706' }, title: { display: true, text: '花费(元)', font: { size: 9 }, color: '#d97706' }, grid: { drawOnChartArea: false } },
           }
@@ -334,7 +334,8 @@
       #page-monthly-plan .mp-tbl tr.tot td{border-bottom:none;font-weight:700;background:var(--bg-hover)}
       #page-monthly-plan .mp-chip{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:5px;background:var(--bg-hover);color:var(--text-secondary)}
       #page-monthly-plan .mp-exp{display:flex;align-items:center;gap:8px;justify-content:flex-end}
-      #page-monthly-plan .mp-bartrack{flex:1;max-width:96px;height:7px;border-radius:4px;background:var(--bg-hover);overflow:hidden}
+      #page-monthly-plan .mp-bartrack{width:84px;flex:none;height:7px;border-radius:4px;background:var(--bg-hover);overflow:hidden}
+      #page-monthly-plan .mp-expval{display:inline-block;min-width:58px;text-align:right}
       #page-monthly-plan .mp-bar{height:7px;border-radius:4px;background:var(--primary);opacity:.85}
       #page-monthly-plan .mp-dl{list-style:none;margin:0;padding:0;font-size:.78rem}
       #page-monthly-plan .mp-dl li{display:flex;align-items:center;gap:7px;padding:3px 0;color:var(--text-secondary);min-width:120px}
