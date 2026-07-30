@@ -41,7 +41,6 @@
 
     const platOrder = (SD.listPlatforms ? SD.listPlatforms() : []).map(p => p.name);
     const typeMap = {};            // 类型 -> { exp(万), count(内容条数) }
-    const platMap = {};            // 主平台 -> 内容条数
     const perContent = [];
     let interactTotal = 0;
 
@@ -60,13 +59,24 @@
       interactTotal += cInter;
       const t = typeMap[type] || (typeMap[type] = { exp: 0, count: 0 });
       t.exp += cExp; t.count += 1;                       // 发布条数 = 内容条数（一条算1）
-      platMap[mainPlat] = (platMap[mainPlat] || 0) + 1;  // 平台作品分布 = 按主平台的内容数
       perContent.push({ talent: r.talent, plat: mainPlat, exp: cExp, inter: cInter, cost: (Number(r.price) || 0) + cPromo });
     });
 
     const typeAgg = Object.entries(typeMap).map(([name, v]) => ({ name, exp: v.exp, count: v.count }))
       .sort((a, b) => b.exp - a.exp);
-    const platDist = Object.entries(platMap).map(([name, count]) => ({ name, count }))
+    // 平台作品分布：与「数据看板」口径一致 —— 按 publication 统计（每条发布计1，落在当月日期），不按主平台归一
+    const mStart = `${year}-${pad2(month)}-01`;
+    const mEnd = `${year}-${pad2(month)}-${pad2(new Date(year, month, 0).getDate())}`;
+    const perPlatform = {};
+    ((window.DB && window.DB.contents) || []).forEach(c => {
+      (c.publications || []).forEach(p => {
+        if (p.date && p.date >= mStart && p.date <= mEnd) {
+          const plat = p.platform || '其他';
+          perPlatform[plat] = (perPlatform[plat] || 0) + 1;
+        }
+      });
+    });
+    const platDist = Object.entries(perPlatform).map(([name, count]) => ({ name, count }))
       .sort((a, b) => {
         const ia = platOrder.indexOf(a.name), ib = platOrder.indexOf(b.name);
         if (ia !== -1 && ib !== -1) return ia - ib;
@@ -151,7 +161,7 @@
         </div>
         <div class="mp-divider"></div>
         <div class="mp-col" style="flex:1;display:flex;flex-direction:column">
-          <h3 class="mp-h3">🧩 平台作品分布</h3><div class="mp-hint">各平台作品数占比（按主平台）</div>
+          <h3 class="mp-h3">🧩 平台作品分布</h3><div class="mp-hint">各平台作品数占比（每条发布计1，与数据看板一致）</div>
           <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding:6px 0">
             <div style="position:relative;width:130px;height:130px;flex-shrink:0">
               <canvas id="mp-donut-canvas"></canvas>
