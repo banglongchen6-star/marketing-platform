@@ -33,7 +33,7 @@
   const fmtDate = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
   const fmtInt = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
   const fmtYuan = (n) => '¥' + fmtInt(n);
-  const fmtWan = (n) => { const v = Number(n) || 0; return (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)).replace(/\.?0+$/, '') + '万'; };
+  const fmtWan = (n) => { const v = Number(n) || 0; let s = Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2); if (s.indexOf('.') >= 0) s = s.replace(/\.?0+$/, ''); return s + '万'; };
   const monthOrd = (y, m) => y * 12 + (m - 1);
   const lastDay = (y, m) => new Date(y, m, 0).getDate();
 
