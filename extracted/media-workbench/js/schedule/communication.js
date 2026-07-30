@@ -2057,12 +2057,11 @@
       const hotTxt = hot ? ';color:var(--danger)' : '';
       return `
       <tr${rowStyle}>
-        <td style="font-weight:500${hotTxt}">${accChips(_coAccountsOf(p))}</td>
         <td style="white-space:nowrap${hotTxt}">${escapeHtml(p.date || '-')}</td>
         <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${hotTxt}${hot ? ';font-weight:600' : ''}" title="${escapeAttr(p.title || '')}">${escapeHtml(p.title || '-')}</td>
         <td>${renderLink(p.link)}</td>
+        <td${hot ? ' style="color:var(--danger)"' : ''}><div style="display:flex;flex-wrap:wrap;gap:3px;max-width:230px">${accChips(_coAccountsOf(p))}</div></td>
         <td style="text-align:center"><input type="checkbox" ${hot ? 'checked' : ''} onchange="CommunicationPage._companyToggleHot('${p.id}', this.checked)" title="标记为爆款" style="cursor:pointer;width:16px;height:16px"></td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${hotTxt}" title="${escapeAttr(p.note || '')}">${escapeHtml(p.note || '-')}</td>
         <td style="white-space:nowrap;text-align:center">
           <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="CommunicationPage.openCompanyEditor('${p.id}')">编辑</button>
           <button class="btn btn-danger btn-sm" style="padding:2px 8px" onclick="CommunicationPage._companyDelete('${p.id}')">删除</button>
@@ -2075,12 +2074,11 @@
         <table class="comm-table">
           <thead>
             <tr>
-              <th>账号</th>
               <th>发布日期</th>
               <th>标题/说明</th>
               <th>发布链接</th>
+              <th>账号</th>
               <th style="text-align:center">爆款</th>
-              <th>备注</th>
               <th style="text-align:center">操作</th>
             </tr>
           </thead>
@@ -2176,14 +2174,18 @@
     const presets = _companyAccountStore().map(a => a.name);
     (f.accounts || []).forEach(a => { if (!presets.includes(a)) presets.push(a); });
     const checked = new Set(f.accounts || []);
+    const allChecked = presets.length && presets.every(n => checked.has(n));
+    const realBoxes = presets.map(n => `<label class="co-acc-check"><input type="checkbox" class="co-acc-real" value="${escapeAttr(n)}" ${checked.has(n) ? 'checked' : ''} onchange="CommunicationPage._coAccChanged()"><span>${escapeHtml(n)}</span></label>`).join('');
+    const allBox = `<label class="co-acc-check co-acc-all-label"><input type="checkbox" id="co-acc-all" ${allChecked ? 'checked' : ''} onchange="CommunicationPage._coToggleAllAccounts(this.checked)"><span>全部平台</span></label>`;
     const accBoxes = presets.length
-      ? presets.map(n => `<label class="co-acc-check"><input type="checkbox" value="${escapeAttr(n)}" ${checked.has(n) ? 'checked' : ''} onchange="CommunicationPage._coSyncForm()"><span>${escapeHtml(n)}</span></label>`).join('')
+      ? (allBox + realBoxes)
       : `<div style="color:var(--text-muted);font-size:.8rem;padding:2px">还没有预设账号，点右侧「＋ 新建账号」添加</div>`;
     return `
       <style>
         #co-drawer .co-acc-list{flex:1;display:flex;flex-wrap:wrap;gap:8px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--bg-base);max-height:180px;overflow:auto}
         #co-drawer .co-acc-list.error{border-color:var(--danger)}
         #co-drawer .co-acc-check{display:inline-flex;align-items:center;gap:5px;font-size:.85rem;padding:4px 11px;border:1px solid var(--border);border-radius:16px;cursor:pointer;background:var(--bg-panel);user-select:none}
+        #co-drawer .co-acc-all-label{background:var(--primary-light);border-color:var(--primary);color:var(--primary);font-weight:600}
         #co-drawer .co-hot-label{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:.9rem;padding:6px 0}
       </style>
       <div class="sched-form-group">
@@ -2230,7 +2232,7 @@
   }
   function _companySave() {
     const g = id => (document.getElementById(id)?.value ?? '').trim();
-    const accounts = [...document.querySelectorAll('#co-acc-checks input[type=checkbox]:checked')].map(c => c.value);
+    const accounts = [...document.querySelectorAll('#co-acc-checks input.co-acc-real:checked')].map(c => c.value);
     const date = g('co-f-date');
     const errors = {};
     if (!accounts.length) errors.account = '请至少勾选一个账号';
@@ -2394,9 +2396,19 @@
     });
   }
   // 把当前表单 DOM 值同步进 state（重绘前调用，避免丢失已填内容）
+  function _coToggleAllAccounts(on) {
+    document.querySelectorAll('#co-acc-checks input.co-acc-real').forEach(c => { c.checked = !!on; });
+    _coSyncForm();
+  }
+  function _coAccChanged() {
+    _coSyncForm();
+    const reals = [...document.querySelectorAll('#co-acc-checks input.co-acc-real')];
+    const all = document.getElementById('co-acc-all');
+    if (all) all.checked = reals.length > 0 && reals.every(c => c.checked);
+  }
   function _coSyncForm() {
     const f = state.coEditor.form || (state.coEditor.form = coDefaultForm());
-    f.accounts = [...document.querySelectorAll('#co-acc-checks input[type=checkbox]:checked')].map(c => c.value);
+    f.accounts = [...document.querySelectorAll('#co-acc-checks input.co-acc-real:checked')].map(c => c.value);
     const g = id => document.getElementById(id);
     if (g('co-f-date')) f.date = g('co-f-date').value;
     if (g('co-f-title')) f.title = g('co-f-title').value;
@@ -2445,7 +2457,7 @@
     render, openEditor,
     // 公司账号（独立记录本）
     openCompanyEditor, _companySave, _companyDelete, _closeCompanyEditor: closeCompanyEditor,
-    _companyToggleHot, _coSyncForm,
+    _companyToggleHot, _coSyncForm, _coToggleAllAccounts, _coAccChanged,
     openAccountManager, _coAddAccountFromInput, _coRenameAccount, _coDeleteAccount, _coQuickAddAccount,
     _setMainPlatform, _prevMonth, _nextMonth,
     _save, _delete, _closeEditor: closeEditor, _toSettlement, _schedToSettlement,
