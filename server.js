@@ -1,6 +1,7 @@
 const express  = require('express');
 const fs        = require('fs');
 const path      = require('path');
+const merger    = require('./sync-merge');   // 三方合并 + 操作日志
 const nodemailer = require('nodemailer');
 const cron      = require('node-cron');
 
@@ -10,6 +11,7 @@ const BUILD_ID   = Date.now(); // 进程启动时间，作为版本标识（pm2 
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
 const AUTH_TOKEN = process.env.AUTH_TOKEN || 'mw-7f3a9c2e8b1d4f6a0e5c9b2d8a4f1e6c'; // 接口访问令牌（server.js 不对外暴露，登录后下发）
 const DATA_FILE  = path.join(__dirname, 'db.json');
+const LOG_FILE   = path.join(__dirname, 'logs.json');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const EMAIL_CFG  = path.join(__dirname, 'email-config.json');
 const STATIC_DIR = path.join(__dirname, 'extracted/media-workbench');
@@ -118,6 +120,26 @@ function scheduleDailyEmail() {
 function readDbSafe() {
   try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch(e) { return {}; }
 }
+
+/* ========== 版本 + 快照（供三方合并用） ==========
+ * 客户端拿数据时记下 _rev，保存时带回来。服务器用「那一版」做基准，
+ * 只把该客户端真正改动的部分合并进最新数据 —— 多人同时改互不覆盖。
+ * 快照只在内存（进程重启后清空 → 首次保存退化为直接覆盖，与旧行为一致，安全）。 */
+let CURRENT_REV = 0;
+const SNAPSHOTS = new Map();          // rev -> JSON 字符串（省内存，用时再 parse）
+const MAX_SNAPSHOTS = 20;
+function pushSnapshot(data) {
+  CURRENT_REV++;
+  try { SNAPSHOTS.set(CURRENT_REV, JSON.stringify(data)); } catch(e) {}
+  SNAPSHOTS.forEach((_, k) => { if (k <= CURRENT_REV - MAX_SNAPSHOTS) SNAPSHOTS.delete(k); });
+  return CURRENT_REV;
+}
+function getSnapshot(rev) {
+  const s = SNAPSHOTS.get(Number(rev));
+  if (!s) return null;
+  try { return JSON.parse(s); } catch(e) { return null; }
+}
+pushSnapshot(readDbSafe());           // 启动时以当前磁盘数据作为 rev=1
 // 公开：登录身份下拉（只给名字，绝不含密码）
 app.get('/api/login-options', (req, res) => {
   const d = readDbSafe();
@@ -160,6 +182,7 @@ app.get('/api/data', requireAuth, (req, res) => {
     if (!fs.existsSync(DATA_FILE)) return res.json({ _build: BUILD_ID });
     const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     data._build = BUILD_ID; // 附带版本标识（前端用于检测部署、自动刷新旧标签）
+    data._rev = CURRENT_REV; // 数据版本：客户端保存时带回，用于三方合并
     res.json(data);
   } catch(e) { res.status(500).json({ error: '读取失败' }); }
 });
@@ -175,10 +198,55 @@ app.post('/api/data', requireAuth, (req, res) => {
       console.warn('⛔ 拒绝空数据覆盖（防清空保护）');
       return res.status(409).json({ error: '拒绝保存：提交的数据为空，已保护服务器现有数据' });
     }
-    createDailyBackup(req.body);
-    fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
-    res.json({ ok: true });
+    const body    = req.body || {};
+    const baseRev = body._baseRev;
+    const actor   = body._actor;
+    const server  = readDbSafe();
+
+    // 三方合并：客户端基于旧版本改的 → 只把它改动的部分并入最新数据，不整包覆盖
+    let final = body, merged = false, conflicts = 0;
+    if (baseRev != null && Number(baseRev) !== CURRENT_REV) {
+      const base = getSnapshot(baseRev);
+      if (base) {
+        try {
+          const r = merger.merge3(base, server, body);
+          final = r.data; merged = true; conflicts = (r.conflicts || []).length;
+        } catch(e) { console.warn('[merge] 合并失败，退回覆盖：', e.message); }
+      }
+      // 找不到该版本快照（如进程刚重启）→ 退化为直接覆盖，与旧行为一致
+    }
+    ['_baseRev', '_actor', '_rev', '_build'].forEach(k => { delete final[k]; });
+    final._saved_at = Date.now();
+
+    // 操作日志（独立文件，不进 db.json：不占同步体积，也不会被客户端覆盖）
+    try { merger.appendLogs(LOG_FILE, merger.buildLogs(server, final, actor)); } catch(e) { console.warn('[log]', e.message); }
+
+    createDailyBackup(final);
+    fs.writeFileSync(DATA_FILE, JSON.stringify(final, null, 2));
+    const rev = pushSnapshot(final);
+    res.json({ ok: true, rev, merged, conflicts });
   } catch(e) { res.status(500).json({ error: '保存失败' }); }
+});
+
+/* ========== 操作日志 API ========== */
+app.get('/api/logs', requireAuth, (req, res) => {
+  try {
+    let logs = merger.readLogs(LOG_FILE);
+    const { user, module: mod, action, q, days } = req.query;
+    if (user)   logs = logs.filter(l => l.user === user);
+    if (mod)    logs = logs.filter(l => l.module === mod);
+    if (action) logs = logs.filter(l => l.action === action);
+    if (days)   { const from = Date.now() - Number(days) * 86400000; logs = logs.filter(l => l.at >= from); }
+    if (q) {
+      const lo = String(q).toLowerCase();
+      logs = logs.filter(l => (l.target || '').toLowerCase().includes(lo) || (l.changes || []).join(' ').toLowerCase().includes(lo));
+    }
+    const total = logs.length;
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+    res.json({ total, logs: logs.slice(0, limit),
+      users: [...new Set(merger.readLogs(LOG_FILE).map(l => l.user))].filter(Boolean),
+      modules: [...new Set(merger.readLogs(LOG_FILE).map(l => l.module))].filter(Boolean) });
+  } catch(e) { res.status(500).json({ error: '读取日志失败' }); }
 });
 
 /* ========== 备份 API ========== */

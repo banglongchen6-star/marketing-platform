@@ -520,6 +520,14 @@
           <button class="btn btn-secondary btn-sm" onclick="openEmailConfig()">📧 邮件配置</button>
         </div>
       </div>
+      <!-- 操作日志 -->
+      <div class="card" style="margin-bottom:16px;max-width:680px">
+        <div class="card-title"><span>📜 操作日志</span></div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 14px">记录所有人对排期、内容、结算、样品等的新增／修改／删除，可按人、模块、时间查。</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <button class="btn btn-secondary btn-sm" onclick="openOpLogs()">📜 查看操作日志</button>
+        </div>
+      </div>
       <!-- 商务BD -->
       <div class="card" id="admin-bd-card" style="margin-bottom:16px;max-width:680px">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -1428,6 +1436,27 @@ function loadData() {
 
 // 首次从服务器成功同步后才允许上传（防止空缓存浏览器在同步前把空数据推上服务器）
 window.__syncReady = false;
+/* 提交体：带上 _baseRev（我这份数据基于服务器哪一版）+ _actor（操作人，用于日志）
+ * 服务器据此做三方合并：只把「我真正改动的部分」并入最新数据，不再整包覆盖别人的改动 */
+function _syncPayload() {
+  const u = window.currentUser || {};
+  return JSON.stringify({
+    ...DB, _version: 'v11-0509',
+    _baseRev: window.__rev,
+    _actor: { name: u.name || '未知', role: u.role || '' },
+  });
+}
+function _afterSave(r) {
+  if (!r) return;
+  if (r.rev != null) window.__rev = r.rev;
+  // 服务器把我的改动并入了他人的最新数据 → 立刻拉一次，让本地也变成合并后的结果
+  if (r.merged && typeof window.__pollNow === 'function') setTimeout(() => window.__pollNow(), 150);
+}
+function _saveFailed(e) {
+  // 原来这里是静默忽略：存不上用户也不知道，是数据「悄悄丢失」的一大来源
+  console.warn('[save] 保存失败', e);
+  window.toast && window.toast('⚠️ 保存失败，改动可能未同步到服务器，请检查网络后重试', 'error', 5000);
+}
 function saveData() {
   DB._saved_at = Date.now();
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
@@ -1438,8 +1467,9 @@ function saveData() {
     fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({...DB, _version:'v11-0509'})
-    }).catch(() => {/* 离线或本地开发时忽略 */});
+      body: _syncPayload()
+    }).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .then(_afterSave).catch(_saveFailed);
   }, 800);
 }
 // 立即写入服务器（不走防抖，用于不能丢的关键写操作）
@@ -1451,8 +1481,9 @@ function saveDataNow() {
   fetch('/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({...DB, _version:'v11-0509'})
-  }).catch(() => {});
+    body: _syncPayload()
+  }).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(_afterSave).catch(_saveFailed);
 }
 
 let DB = loadData();
@@ -1521,6 +1552,83 @@ async function doLogin() {
     location.reload();
   } catch(e) {
     errEl.textContent = '登录失败，请重试';
+  }
+}
+
+/* ========== 操作日志 ========== */
+const _ol = { user: '', module: '', action: '', days: '7', q: '' };
+async function openOpLogs() {
+  let modal = document.getElementById('op-log-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'op-log-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center';
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `<div style="background:var(--bg-panel);border-radius:10px;width:min(980px,94vw);height:min(720px,88vh);display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <span style="font-weight:600;font-size:.95rem">📜 操作日志</span>
+        <button onclick="document.getElementById('op-log-modal').remove()" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted)">×</button>
+      </div>
+      <div id="op-log-body" style="flex:1;overflow:auto;padding:0"><div style="padding:40px;text-align:center;color:var(--text-muted)">加载中…</div></div>
+    </div>`;
+  _olLoad();
+}
+function _olSet(k, v) { _ol[k] = v; _olLoad(); }
+async function _olLoad() {
+  const host = document.getElementById('op-log-body');
+  if (!host) return;
+  try {
+    const qs = new URLSearchParams();
+    ['user', 'module', 'action', 'days', 'q'].forEach(k => { if (_ol[k]) qs.set(k, _ol[k]); });
+    qs.set('limit', '300');
+    const r = await fetch('/api/logs?' + qs.toString(), { headers: { 'x-auth-token': localStorage.getItem(AUTH_TOKEN_KEY) || '' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const ACT = { create: ['➕ 新增', 'var(--success)'], update: ['✏️ 修改', 'var(--info)'], delete: ['🗑 删除', 'var(--danger)'] };
+    const sel = (k, label, opts) => `<select onchange="_olSet('${k}',this.value)" style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:.8rem;background:var(--bg-panel);color:var(--text-primary);cursor:pointer">
+        <option value="">${label}</option>${opts.map(o => `<option value="${escapeHtml(o)}" ${_ol[k] === o ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('')}</select>`;
+    const rows = (d.logs || []).map(l => {
+      const a = ACT[l.action] || ['—', 'var(--text-muted)'];
+      const t = new Date(l.at);
+      const ts = `${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+      return `<tr>
+        <td style="white-space:nowrap;color:var(--text-secondary)">${ts}</td>
+        <td style="white-space:nowrap;font-weight:500">${escapeHtml(l.user || '?')}${l.role ? `<span style="color:var(--text-muted);font-weight:400"> · ${escapeHtml(l.role)}</span>` : ''}</td>
+        <td style="white-space:nowrap"><span style="font-size:.72rem;padding:2px 8px;border-radius:5px;background:var(--bg-hover);color:var(--text-secondary)">${escapeHtml(l.module || '')}</span></td>
+        <td style="white-space:nowrap;color:${a[1]};font-weight:600">${a[0]}</td>
+        <td>${escapeHtml(l.target || '')}</td>
+        <td style="color:var(--text-secondary);font-size:.76rem">${(l.changes || []).map(escapeHtml).join('<br>') || '—'}</td>
+      </tr>`;
+    }).join('');
+    host.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-panel);z-index:1">
+        <select onchange="_olSet('days',this.value)" style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:.8rem;background:var(--bg-panel);color:var(--text-primary);cursor:pointer">
+          <option value="" ${_ol.days === '' ? 'selected' : ''}>全部时间</option>
+          <option value="1" ${_ol.days === '1' ? 'selected' : ''}>近1天</option>
+          <option value="3" ${_ol.days === '3' ? 'selected' : ''}>近3天</option>
+          <option value="7" ${_ol.days === '7' ? 'selected' : ''}>近7天</option>
+          <option value="30" ${_ol.days === '30' ? 'selected' : ''}>近30天</option>
+        </select>
+        ${sel('user', '全部人员', d.users || [])}
+        ${sel('module', '全部模块', d.modules || [])}
+        <select onchange="_olSet('action',this.value)" style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:.8rem;background:var(--bg-panel);color:var(--text-primary);cursor:pointer">
+          <option value="">全部动作</option>
+          <option value="create" ${_ol.action === 'create' ? 'selected' : ''}>➕ 新增</option>
+          <option value="update" ${_ol.action === 'update' ? 'selected' : ''}>✏️ 修改</option>
+          <option value="delete" ${_ol.action === 'delete' ? 'selected' : ''}>🗑 删除</option>
+        </select>
+        <input value="${escapeHtml(_ol.q)}" oninput="clearTimeout(window._olT);window._olT=setTimeout(()=>_olSet('q',this.value),300)" placeholder="🔍 搜达人/内容"
+               style="height:30px;border:1px solid var(--border);border-radius:6px;padding:0 10px;font-size:.8rem;background:var(--bg-base);color:var(--text-primary);flex:1;min-width:130px">
+        <span style="font-size:.74rem;color:var(--text-muted);white-space:nowrap">共 ${d.total} 条</span>
+      </div>
+      ${(d.logs || []).length ? `<table class="comm-table" style="font-size:.8rem"><thead><tr>
+          <th>时间</th><th>操作人</th><th>模块</th><th>动作</th><th>对象</th><th>改了什么</th>
+        </tr></thead><tbody>${rows}</tbody></table>`
+        : '<div style="padding:48px;text-align:center;color:var(--text-muted);line-height:1.8">暂无操作记录<br><span style="font-size:.78rem">日志从本次功能上线后开始记录，之前的操作查不到</span></div>'}`;
+  } catch (e) {
+    host.innerHTML = `<div style="padding:40px;text-align:center;color:var(--danger)">日志加载失败：${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -5910,7 +6018,8 @@ function initApp() {
       // 服务器是唯一数据源，直接用服务器数据，不做任何本地与服务器的合并比较
       if (serverData && Object.keys(serverData).length > 0) {
         if (serverData._build) window.__appBuild = serverData._build; // 记录首次加载时的版本
-        Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build') DB[k] = serverData[k]; });
+        Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build' && k !== '_rev') DB[k] = serverData[k]; });
+        if (serverData._rev != null) window.__rev = serverData._rev;   // 记下版本，保存时带回供服务器合并
         window.DB = DB;
         localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
         window.__syncReady = true; // 首次同步完成，允许上传
@@ -6090,7 +6199,8 @@ function initApp() {
           const _pe0 = document.getElementById('page-' + currentPage);
           if (_pe0) _pe0.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
 
-          Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build') DB[k] = serverData[k]; });
+          Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build' && k !== '_rev') DB[k] = serverData[k]; });
+        if (serverData._rev != null) window.__rev = serverData._rev;   // 记下版本，保存时带回供服务器合并
           window.DB = DB;
           localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
           const p = currentPage;
@@ -6130,6 +6240,7 @@ function initApp() {
       }
     }
 
+    window.__pollNow = pollServerData;   // 供保存后（服务器已合并）立即拉取最新结果
     setInterval(pollServerData, INTERVAL);
   })();
 </script>
