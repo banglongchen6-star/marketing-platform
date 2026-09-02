@@ -204,16 +204,29 @@ app.post('/api/data', requireAuth, (req, res) => {
     const server  = readDbSafe();
 
     // 三方合并：客户端基于旧版本改的 → 只把它改动的部分并入最新数据，不整包覆盖
+    // 【铁律】服务器已有数据时，任何"拿不准怎么合并"的情况一律拒绝，绝不退化成整包覆盖。
+    //  2026-09-02 事故：一个开了很久的旧页面保存，基准版本超出快照窗口，旧代码"退化为覆盖"，
+    //  把当天上午的全部工作冲回了前一天。
     let final = body, merged = false, conflicts = 0;
-    if (baseRev != null && Number(baseRev) !== CURRENT_REV) {
+    const serverHasData = hasCoreData(server);
+    const rejectStale = (msg) => res.status(409).json({ error: msg, stale: true });
+    if (baseRev == null) {
+      // 没带版本号 = 老缓存页面（不含合并逻辑）。服务器有数据就拒绝，逼它刷新
+      if (serverHasData) return rejectStale('页面版本过旧，请刷新后重试');
+    } else if (Number(baseRev) !== CURRENT_REV) {
       const base = getSnapshot(baseRev);
-      if (base) {
+      if (!base) {
+        // 基准版本已超出合并窗口（页面开太久 / 服务重启）→ 拒绝，不覆盖
+        if (serverHasData) return rejectStale('你的页面数据已过期，请刷新后重新操作');
+      } else {
         try {
           const r = merger.merge3(base, server, body);
           final = r.data; merged = true; conflicts = (r.conflicts || []).length;
-        } catch(e) { console.warn('[merge] 合并失败，退回覆盖：', e.message); }
+        } catch(e) {
+          console.warn('[merge] 合并失败：', e.message);
+          if (serverHasData) return rejectStale('数据合并失败，请刷新后重试');
+        }
       }
-      // 找不到该版本快照（如进程刚重启）→ 退化为直接覆盖，与旧行为一致
     }
     ['_baseRev', '_actor', '_rev', '_build'].forEach(k => { delete final[k]; });
     final._saved_at = Date.now();

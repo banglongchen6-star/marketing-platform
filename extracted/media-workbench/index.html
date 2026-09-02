@@ -1455,6 +1455,14 @@ function _afterSave(r) {
 function _saveFailed(e) {
   // 原来这里是静默忽略：存不上用户也不知道，是数据「悄悄丢失」的一大来源
   console.warn('[save] 保存失败', e);
+  if (e && e.stale) {
+    // 服务器判定本页数据已过期（开太久/服务重启/老缓存）并拒绝了保存。
+    // 必须整页刷新：本地这份过期数据不能再留着，否则下次保存还会试图覆盖别人。
+    // （不能只靠自动轮询拉取——本地一改动 _saved_at 就变新，轮询会误以为本地更新而不拉，这正是事故成因）
+    window.toast && window.toast('⚠️ 你的页面数据已过期，已保护其他人的数据未被覆盖。正在刷新到最新，刚才的改动请重新操作', 'error', 9000);
+    setTimeout(() => location.reload(), 2000);
+    return;
+  }
   window.toast && window.toast('⚠️ 保存失败，改动可能未同步到服务器，请检查网络后重试', 'error', 5000);
 }
 function saveData() {
@@ -1468,7 +1476,7 @@ function saveData() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: _syncPayload()
-    }).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    }).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) { const err = new Error(j.error || ('HTTP ' + r.status)); err.stale = !!j.stale; err.status = r.status; throw err; } return j; })
       .then(_afterSave).catch(_saveFailed);
   }, 800);
 }
@@ -1482,7 +1490,7 @@ function saveDataNow() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: _syncPayload()
-  }).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+  }).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) { const err = new Error(j.error || ('HTTP ' + r.status)); err.stale = !!j.stale; err.status = r.status; throw err; } return j; })
     .then(_afterSave).catch(_saveFailed);
 }
 
