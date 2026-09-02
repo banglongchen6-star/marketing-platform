@@ -1438,23 +1438,58 @@ function loadData() {
 window.__syncReady = false;
 /* 提交体：带上 _baseRev（我这份数据基于服务器哪一版）+ _actor（操作人，用于日志）
  * 服务器据此做三方合并：只把「我真正改动的部分」并入最新数据，不再整包覆盖别人的改动 */
-function _syncPayload() {
+function _syncPayload(extra) {
   const u = window.currentUser || {};
   return JSON.stringify({
     ...DB, _version: 'v11-0509',
     _baseRev: window.__rev,
     _actor: { name: u.name || '未知', role: u.role || '' },
+    ...(extra || {}),   // ④ 自救重试时带上 _base（浏览器记得的基准版本）
   });
 }
 function _afterSave(r) {
   if (!r) return;
+  window.__dirty = false;                                   // 本地改动已到达服务器
+  if (typeof _hideSyncBanner === 'function') _hideSyncBanner();
+  if (r.merged) {
+    // 服务器把我的改动并入了他人的最新数据 → 故意不更新 __rev（保持"落后"），让紧接着的拉取把合并结果拉回来
+    // （拉取时才更新 __rev 与基准；若此时用户又在改，拉取会让位、稍后再追平）
+    if (typeof window.__pollNow === 'function') setTimeout(() => window.__pollNow(), 150);
+    return;
+  }
   if (r.rev != null) window.__rev = r.rev;
-  // 服务器把我的改动并入了他人的最新数据 → 立刻拉一次，让本地也变成合并后的结果
-  if (r.merged && typeof window.__pollNow === 'function') setTimeout(() => window.__pollNow(), 150);
+  try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 直写成功：本地 == 服务器，记为新基准（页面过期时自救合并用）
 }
+/* ② 同步预警条：同事有新改动而本地有未同步内容时提示（此时不拉取，避免清掉正在写的内容） */
+function _showSyncBanner() {
+  let b = document.getElementById('sync-stale-banner');
+  if (!b) {
+    b = document.createElement('div'); b.id = 'sync-stale-banner';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fef3c7;color:#92400e;border-bottom:1px solid #f59e0b;padding:8px 14px;font-size:.84rem;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.08)';
+    const btn = 'font-size:.78rem;padding:3px 10px;border:1px solid #f59e0b;border-radius:5px;background:#fff;color:#92400e;cursor:pointer';
+    b.innerHTML = '⚠️ 同事刚有新改动，而你的改动尚未同步到服务器。<b>正常情况下会自动合并保存</b>；若此提示一直不消失，多半是网络问题：'
+      + '<button style="' + btn + '" onclick="saveDataNow()">重试同步</button> <button style="' + btn + '" onclick="location.reload()">刷新页面</button>';
+    document.body.appendChild(b);
+  }
+  b.style.display = 'flex';
+}
+function _hideSyncBanner() { const b = document.getElementById('sync-stale-banner'); if (b) b.style.display = 'none'; }
+
 function _saveFailed(e) {
   // 原来这里是静默忽略：存不上用户也不知道，是数据「悄悄丢失」的一大来源
   console.warn('[save] 保存失败', e);
+  // ④ 页面过期被拒 → 先自救：把浏览器自己记得的"基准版本"交给服务器做三方合并，改动不丢、不用刷新
+  if (e && e.stale && !e._noRetry && window.__baseSnapshot) {
+    let base = null; try { base = JSON.parse(window.__baseSnapshot); } catch (_) {}
+    if (base) {
+      window.toast && window.toast('🔄 页面数据已过期，正在自动合并同事的改动后保存…', 'info', 3000);
+      fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: _syncPayload({ _base: base }) })
+        .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) { const err = new Error(j.error || ('HTTP ' + r.status)); err.stale = !!j.stale; err._noRetry = true; throw err; } return j; })
+        .then(r => { _afterSave(r); window.toast && window.toast('✅ 已自动合并同事的改动并保存成功', 'success', 4000); })
+        .catch(_saveFailed);   // 自救也失败 → 走下面的刷新兜底（_noRetry 防止再次自救）
+      return;
+    }
+  }
   if (e && e.stale) {
     // 服务器判定本页数据已过期（开太久/服务重启/老缓存）并拒绝了保存。
     // 必须整页刷新：本地这份过期数据不能再留着，否则下次保存还会试图覆盖别人。
@@ -1467,6 +1502,7 @@ function _saveFailed(e) {
 }
 function saveData() {
   DB._saved_at = Date.now();
+  window.__dirty = true;   // 有本地改动尚未确认到达服务器（轮询据此决定"拉取"还是"只提示"）
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
   if (!window.__syncReady) return; // 未完成首次同步：只存本地，不上传
   // 同步到服务器（防抖 800ms）
@@ -1483,6 +1519,7 @@ function saveData() {
 // 立即写入服务器（不走防抖，用于不能丢的关键写操作）
 function saveDataNow() {
   DB._saved_at = Date.now();
+  window.__dirty = true;   // 有本地改动尚未确认到达服务器（轮询据此决定"拉取"还是"只提示"）
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
   if (!window.__syncReady) return;
   clearTimeout(saveData._t);
@@ -6028,6 +6065,8 @@ function initApp() {
         if (serverData._build) window.__appBuild = serverData._build; // 记录首次加载时的版本
         Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build' && k !== '_rev') DB[k] = serverData[k]; });
         if (serverData._rev != null) window.__rev = serverData._rev;   // 记下版本，保存时带回供服务器合并
+        try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 此刻本地 == 服务器 → 记为基准（页面过期时自救合并用）
+        window.__dirty = false;
         window.DB = DB;
         localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
         window.__syncReady = true; // 首次同步完成，允许上传
@@ -6200,7 +6239,14 @@ function initApp() {
         window.__syncReady = true; // 拿到服务器数据即视为已同步，允许上传
         const serverTs = serverData._saved_at || 0;
         const localTs  = DB._saved_at  || 0;
-        if (serverTs > localTs) {
+        // ② 按版本号判断是否落后（时间戳会被本地改动"顶新"而失真——9/2 事故成因）；旧服务器无 _rev 时退回时间戳
+        const serverRev = Number(serverData._rev);
+        const revOk = Number.isFinite(serverRev) && serverRev > 0;
+        if (revOk && serverRev < (Number(window.__rev) || 0)) window.__rev = 0;   // 服务重启导致版本号回绕 → 视为落后，重新对齐
+        const behind = revOk ? (serverRev > (Number(window.__rev) || 0)) : (serverTs > localTs);
+        if (behind && window.__dirty) { if (typeof _showSyncBanner === 'function') _showSyncBanner(); }   // 本地有未同步改动：不拉取，只提示
+        else if (typeof _hideSyncBanner === 'function') _hideSyncBanner();
+        if (behind && !window.__dirty) {
           // 自动更新前记录当前滚动位置（页面级 + 表格容器内）
           const _winY = window.scrollY;
           let _scTop = 0;
@@ -6209,6 +6255,8 @@ function initApp() {
 
           Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build' && k !== '_rev') DB[k] = serverData[k]; });
         if (serverData._rev != null) window.__rev = serverData._rev;   // 记下版本，保存时带回供服务器合并
+        try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 此刻本地 == 服务器 → 记为基准（页面过期时自救合并用）
+        window.__dirty = false;
           window.DB = DB;
           localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
           const p = currentPage;
@@ -6249,6 +6297,14 @@ function initApp() {
     }
 
     window.__pollNow = pollServerData;   // 供保存后（服务器已合并）立即拉取最新结果
+    // ① 电脑唤醒 / 切回本标签 / 网络恢复时立刻拉一次最新，避免"醒来手快先保存"撞上过期版本
+    (function () {
+      let last = 0;
+      const kick = () => { if (Date.now() - last < 1500) return; last = Date.now(); try { pollServerData(); } catch (e) {} };
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
+      window.addEventListener('focus', kick);
+      window.addEventListener('online', kick);
+    })();
     setInterval(pollServerData, INTERVAL);
   })();
 </script>

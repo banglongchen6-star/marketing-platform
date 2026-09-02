@@ -127,7 +127,7 @@ function readDbSafe() {
  * 快照只在内存（进程重启后清空 → 首次保存退化为直接覆盖，与旧行为一致，安全）。 */
 let CURRENT_REV = 0;
 const SNAPSHOTS = new Map();          // rev -> JSON 字符串（省内存，用时再 parse）
-const MAX_SNAPSHOTS = 20;
+const MAX_SNAPSHOTS = 100;   // ③ 合并窗口：页面落后 100 次保存以内都能由服务器直接合并（更旧的由客户端自带基准自救，见 _base）
 function pushSnapshot(data) {
   CURRENT_REV++;
   try { SNAPSHOTS.set(CURRENT_REV, JSON.stringify(data)); } catch(e) {}
@@ -209,8 +209,20 @@ app.post('/api/data', requireAuth, (req, res) => {
     //  把当天上午的全部工作冲回了前一天。
     let final = body, merged = false, conflicts = 0;
     const serverHasData = hasCoreData(server);
-    const rejectStale = (msg) => res.status(409).json({ error: msg, stale: true });
-    if (baseRev == null) {
+    const rejectStale = (msg) => res.status(409).json({ error: msg, stale: true, rev: CURRENT_REV });
+    // ④ 客户端自救：页面过期被拒后，浏览器带着自己记得的基准版本(_base)重交 → 直接三方合并，不依赖服务器快照窗口。
+    //    基准由已登录客户端自报，其可信度与它提交的数据本身相同（本来就允许它写入），且合并总是对着服务器"此刻"的最新数据做。
+    const clientBase = (body._base && typeof body._base === 'object' && !Array.isArray(body._base)) ? body._base : null;
+    delete body._base;
+    if (clientBase) {
+      try {
+        const r = merger.merge3(clientBase, server, body);
+        final = r.data; merged = true; conflicts = (r.conflicts || []).length;
+      } catch(e) {
+        console.warn('[merge] 客户端基准合并失败：', e.message);
+        if (serverHasData) return rejectStale('数据合并失败，请刷新后重试');
+      }
+    } else if (baseRev == null) {
       // 没带版本号 = 老缓存页面（不含合并逻辑）。服务器有数据就拒绝，逼它刷新
       if (serverHasData) return rejectStale('页面版本过旧，请刷新后重试');
     } else if (Number(baseRev) !== CURRENT_REV) {
@@ -228,7 +240,7 @@ app.post('/api/data', requireAuth, (req, res) => {
         }
       }
     }
-    ['_baseRev', '_actor', '_rev', '_build'].forEach(k => { delete final[k]; });
+    ['_baseRev', '_actor', '_rev', '_build', '_base'].forEach(k => { delete final[k]; });
     final._saved_at = Date.now();
 
     // 操作日志（独立文件，不进 db.json：不占同步体积，也不会被客户端覆盖）
