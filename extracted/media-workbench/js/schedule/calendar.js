@@ -249,6 +249,13 @@
       .filter(s => s.status !== 'cancelled');
     const monthSpent = monthList.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
     const monthCount = monthList.length;
+    // 同一达人当月排期多条只计 1 位；优先用达人 ID，手动排期没有 ID 时按名称去重。
+    const monthTalentKeys = new Set(monthList.map(s => {
+      if (s.kol_id != null && String(s.kol_id).trim()) return `id:${String(s.kol_id).trim()}`;
+      const name = String(s.kol_name || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+      return name ? `name:${name}` : '';
+    }).filter(Boolean));
+    const monthTalentCount = monthTalentKeys.size;
 
     const weekHead = ['一','二','三','四','五','六','日']
       .map((w, i) => `<div class="sched-cal-wkhead ${i===5?'sat':i===6?'sun':''}">${w}</div>`).join('');
@@ -269,7 +276,7 @@
         <div class="sched-cal-header">
           <span>${year} 年 ${month} 月</span>
           <span class="sched-cal-month-stats" style="display:flex;align-items:center;gap:10px">
-            排期金额 <b>¥${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
+            达人 <b>${monthTalentCount}</b> 位 · 排期金额 <b>¥${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
             ${freezeBtn}
           </span>
         </div>
