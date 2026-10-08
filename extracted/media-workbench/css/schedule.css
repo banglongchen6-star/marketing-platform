@@ -154,9 +154,13 @@
   background: var(--bg-panel);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  /* clip 保留圆角裁切，但不会像 hidden 一样阻断内部表头吸顶 */
+  overflow: clip;
 }
 .sched-cal-header {
+  position: sticky;
+  top: var(--sched-toolbar-height, 0px);
+  z-index: 30;
   padding: 12px 18px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
@@ -184,6 +188,9 @@
   gap: 1px;
 }
 .sched-cal-wkhead {
+  position: sticky;
+  top: calc(var(--sched-toolbar-height, 0px) + var(--sched-cal-header-height, 0px));
+  z-index: 29;
   background: #fafbfd;
   text-align: center;
   font-size: .72rem;

@@ -294,6 +294,15 @@
     return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
   }
 
+  function syncCalendarStickyOffsets() {
+    const page = document.getElementById('page-schedule');
+    const toolbar = page?.querySelector('.sched-toolbar');
+    const monthHeader = page?.querySelector('.sched-cal-header');
+    if (!page || !toolbar || !monthHeader) return;
+    page.style.setProperty('--sched-toolbar-height', `${Math.ceil(toolbar.getBoundingClientRect().height)}px`);
+    page.style.setProperty('--sched-cal-header-height', `${Math.ceil(monthHeader.getBoundingClientRect().height)}px`);
+  }
+
   /* ------------------------- 5. 渲染：主入口 ------------------------- */
   function render() {
     if (!state.year) initState();
@@ -307,6 +316,21 @@
         ${renderOneCalendar(next.year, next.month)}
       </div>
     `;
+    if (!state.stickyResizeBound) {
+      window.addEventListener('resize', syncCalendarStickyOffsets, { passive: true });
+      if ('ResizeObserver' in window) {
+        state.stickyResizeObserver = new ResizeObserver(syncCalendarStickyOffsets);
+      }
+      state.stickyResizeBound = true;
+    }
+    if (state.stickyResizeObserver) {
+      state.stickyResizeObserver.disconnect();
+      const toolbar = page.querySelector('.sched-toolbar');
+      const monthHeader = page.querySelector('.sched-cal-header');
+      if (toolbar) state.stickyResizeObserver.observe(toolbar);
+      if (monthHeader) state.stickyResizeObserver.observe(monthHeader);
+    }
+    requestAnimationFrame(syncCalendarStickyOffsets);
     // 月度规划表已独立成 /monthly-plan 页面，不在排期页内联展示
   }
 
