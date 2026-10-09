@@ -210,8 +210,8 @@
   display: flex; flex-direction: column;
 }
 .sched-cal-cell:hover { background: var(--bg-hover); }
-.sched-cal-cell.other-month { background: #fafbfd; color: var(--text-muted); }
-.sched-cal-cell.other-month .sched-cal-daynum { color: var(--text-muted); }
+.sched-cal-cell.other-month { background: #fafbfd; cursor: default; }
+.sched-cal-cell.other-month:hover { background: #fafbfd; }
 .sched-cal-cell.today { background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 60%); }
 .sched-cal-cell.today .sched-cal-daynum { color: var(--purple); font-weight: 700; }
 

@@ -202,9 +202,10 @@
   }
 
   function renderCell(cell, schedulesByDate, frozen) {
+    // 保留星期对齐所需的占位格，不展示相邻月份的日期和排期。
+    if (!cell.isCurrentMonth) return '<div class="sched-cal-cell other-month" aria-hidden="true"></div>';
     const items = schedulesByDate[cell.dateStr] || [];
     const classes = ['sched-cal-cell'];
-    if (!cell.isCurrentMonth) classes.push('other-month');
     if (cell.isToday) classes.push('today');
     if (frozen) classes.push('frozen-cell');
     const dropAttrs = frozen ? '' : `ondragover="SchedulePage._onCellDragOver(event, this)"
@@ -231,12 +232,7 @@
     const isSupervisor = window.currentUser?.identity === 'supervisor';
     const grid = buildMonthGrid(year, month);
     const { start, end } = SD.monthRange(year, month);
-    let schedules = SD.listSchedulesInRange(start, end, { tiers: state.tiers });
-
-    const firstCell = grid[0][0].dateStr;
-    const lastCell = grid[grid.length - 1][6].dateStr;
-    const endStr = addOneDay(lastCell);
-    schedules = SD.listSchedulesInRange(firstCell, endStr, { tiers: state.tiers, bd_id: state.bd_id || undefined });
+    const schedules = SD.listSchedulesInRange(start, end, { tiers: state.tiers, bd_id: state.bd_id || undefined });
 
     const byDate = {};
     schedules.forEach((s) => {
@@ -286,12 +282,6 @@
         </div>
       </div>
     `;
-  }
-
-  function addOneDay(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
   }
 
   function syncCalendarStickyOffsets() {
