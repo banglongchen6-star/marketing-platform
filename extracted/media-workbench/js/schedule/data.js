@@ -703,6 +703,7 @@
       sync_platforms: Array.isArray(data.sync_platforms) ? data.sync_platforms : (Array.isArray(data.platforms) ? data.platforms.slice(1) : []),
       platforms: data.platform ? [data.platform, ...(Array.isArray(data.sync_platforms) ? data.sync_platforms : [])] : (Array.isArray(data.platforms) ? data.platforms : []),
       status: initialStatus,
+      confirmed: !!data.confirmed,
       publish_url: data.publish_url || '',
       publish_date: data.publish_date || null,
       notes: data.notes || '',

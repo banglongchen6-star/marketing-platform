@@ -170,6 +170,9 @@
     const isDraft = s.status === 'draft';
     const draftStyle = isDraft ? 'border-style:dashed;opacity:.75;' : '';
     const draftBadge = isDraft ? `<span class="sched-card-draft-badge">草稿</span>` : '';
+    // 「已确认」只是计划中排期的视觉标记，不影响状态/统计；已发布后不再显示
+    const isConfirmed = s.status === 'planned' && !!s.confirmed;
+    const confirmedBadge = isConfirmed ? `<span class="sched-card-confirmed-badge">✓ 已确认</span>` : '';
     const dragAttrs = (frozen || isDraft) ? '' : `draggable="true"
            ondragstart="event.stopPropagation();SchedulePage._onCardDragStart(event,'${s.id}')"
            ondragend="SchedulePage._onCardDragEnd(event)"`;
@@ -178,7 +181,7 @@
       : `onclick="event.stopPropagation();openScheduleEditor('${s.id}')"
            oncontextmenu="event.preventDefault();event.stopPropagation();SchedulePage._openStatusMenu(event,'${s.id}')"`;
     return `
-      <div class="sched-card" data-status="${s.status || 'planned'}" style="${bdStyle}${bigStyle}${frozenStyle}${draftStyle}"
+      <div class="sched-card${isConfirmed ? ' confirmed' : ''}" data-status="${s.status || 'planned'}" style="${bdStyle}${bigStyle}${frozenStyle}${draftStyle}"
            ${dragAttrs} ${clickHandler}
            title="${escapeHtml(titleAttr)}">
         <div class="sched-card-row1">
@@ -186,7 +189,7 @@
           ${draftBadge}${homepageLink}
         </div>
         <div class="sched-card-row2">
-          <span class="sched-card-amount ${statusClass(s.status)}">${amountText}</span>
+          <span class="sched-card-amount ${statusClass(s.status)}">${amountText}</span>${confirmedBadge}
         </div>
         ${(() => {
           const _sep = '<span style="color:var(--text-muted);margin:0 4px;opacity:.55">·</span>';
@@ -523,6 +526,11 @@
         <span class="${statusClass(s.status)}">${label}</span>
         <div style="margin-top:6px;font-size:.75rem;color:var(--text-muted)">状态由日期自动决定，拖动卡片可改变日期</div>
       </div>
+      ${s.status === 'planned' ? `
+      <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+      <div class="sched-status-menu-item" onclick="SchedulePage._toggleConfirmed('${s.id}')">
+        ${s.confirmed ? '取消「已确认」标记' : '✓ 标记为已确认'}
+      </div>` : ''}
     `;
     document.body.appendChild(menu);
     const x = Math.min(ev.clientX, window.innerWidth - 200);
@@ -541,6 +549,19 @@
     document.removeEventListener('click', outsideStatusMenuClose);
   }
   function _setStatus() {} // 已停用，状态由日期自动决定
+
+  function _toggleConfirmed(scheduleId) {
+    closeStatusMenu();
+    const s = window.DB.schedules.find(x => x.id === scheduleId);
+    if (!s) return;
+    try {
+      SD.updateSchedule(scheduleId, { confirmed: !s.confirmed });
+      window.toast && window.toast(s.confirmed ? `「${s.kol_name}」已取消确认` : `「${s.kol_name}」已标记为已确认`, 'success');
+      render();
+    } catch (e) {
+      window.toast && window.toast('操作失败：' + e.message, 'error');
+    }
+  }
 
   // 这些是后续 Phase 的钩子，暂时给提示
   function openDictManager() {
@@ -579,7 +600,7 @@
     render, prevMonth, nextMonth: nextMonthAction, goToday,
     openTierFilter, clearTiers, _applyTiers,
     openDictManager, openImport, openExport,
-    _openStatusMenu, _setStatus, _setBdFilter,
+    _openStatusMenu, _setStatus, _toggleConfirmed, _setBdFilter,
     _onCardDragStart, _onCardDragEnd, _onCellDragOver, _onCellDragLeave, _onCellDrop,
     _toggleFreeze,
     getState() { return { ...state }; },

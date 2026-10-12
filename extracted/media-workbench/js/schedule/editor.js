@@ -55,6 +55,7 @@
       sync_platforms: [],
       amount: '',
       status: 'planned',
+      confirmed: false,
       publish_url: '',
       publish_date: '',
       notes: '',
@@ -115,6 +116,7 @@
         sync_platforms: Array.isArray(s.sync_platforms) ? [...s.sync_platforms] : (Array.isArray(s.platforms) ? s.platforms.slice(1) : []),
         amount: s.amount != null ? String(s.amount) : '',
         status: s.status || 'planned',
+        confirmed: !!s.confirmed,
         publish_url: s.publish_url || '',
         publish_date: s.publish_date || '',
         notes: s.notes || '',
@@ -323,6 +325,10 @@
           <div class="sched-form-hint" style="margin-top:4px">
             状态：<span style="padding:1px 8px;border-radius:8px;font-size:.75rem;font-weight:600;background:${statusColor}22;color:${statusColor}">${statusLabel}</span>
           </div>
+          ${computedStatus === 'planned' ? `
+          <label class="sched-form-hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="f-confirmed" ${f.confirmed ? 'checked' : ''}> 已确认合作（卡片显示蓝色边框）
+          </label>` : ''}
         </div>
         <div class="sched-form-group">
           <label class="sched-form-label">合同基础金额（元）<span class="req">*</span></label>
@@ -608,7 +614,8 @@
     state.errors = {};
     state.saveAndContinue = false;
     // 日期改成今天，避免与原条同 (日期+达人+类型) 触发去重冲突
-    state.form = { ...state.form, schedule_date: todayStr() };
+    // 「已确认」不跟着复制：新排期还没谈过
+    state.form = { ...state.form, schedule_date: todayStr(), confirmed: false };
     renderAll();
     window.toast && window.toast('已转为新建草稿，可调整后保存', 'info');
     setTimeout(() => document.getElementById('f-date')?.focus(), 0);
@@ -627,6 +634,8 @@
     // 日期变化时重渲染以更新状态徽章
     onInput('f-date', v => { f.schedule_date = v; renderAll(); });
     onInput('f-notes', v => f.notes = v);
+    const confirmedEl = document.getElementById('f-confirmed');
+    if (confirmedEl) confirmedEl.addEventListener('change', e => { f.confirmed = e.target.checked; });
 
     // KolSelector 特殊处理
     const kolInput = document.getElementById('f-kol-input');
@@ -899,6 +908,7 @@
       platforms: f.platform ? [f.platform, ...(f.sync_platforms || [])] : [],
       amount: Number(f.amount) || 0,
       status: 'draft',
+      confirmed: !!f.confirmed,
       publish_url: f.publish_url || '',
       publish_date: f.publish_date || null,
       notes: f.notes || '',
@@ -973,6 +983,7 @@
       platforms: f.platform ? [f.platform, ...(f.sync_platforms || [])] : [],
       amount: Number(f.amount),
       status: computeStatus(f.schedule_date),
+      confirmed: !!f.confirmed,
       publish_url: f.publish_url || '',
       publish_date: f.publish_date || null,
       notes: f.notes || '',

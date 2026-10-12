@@ -133,7 +133,7 @@ const TRACKED = {
   work_types:     { name: '作品类型', label: r => r.name || '?' },
 };
 const FIELD_NAMES = {
-  amount: '排期金额', schedule_date: '排期日期', kol_name: '达人', status: '状态',
+  amount: '排期金额', schedule_date: '排期日期', kol_name: '达人', status: '状态', confirmed: '已确认',
   price: '价格', fans: '粉丝量', category_direction: '达人类型', work_type: '作品类型',
   bd_id: '负责BD', platform: '平台', contract_amount: '结算金额', bonus_amount: '奖金',
   invoice: '发票状态', settled: '已结算', note: '备注', title: '标题', link: '链接',
