@@ -336,11 +336,42 @@
 .sched-card-amount { font-weight: 600; }
 
 /* 元信息 chip 行 */
+.sched-card-sub {
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+  font-size: .7rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.sched-card-dir {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .sched-card-meta {
   display: flex;
-  gap: 3px;
-  margin-top: 3px;
   flex-wrap: wrap;
+  gap: 0 8px;
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px dashed #d8dde3;
+  font-size: .7rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.sched-card-meta > span { white-space: nowrap; }
+.sched-card-bd {
+  margin-left: auto;
+  padding-left: 6px;
+  min-width: 0;
+  font-size: .7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sched-card-chip {
   font-size: .65rem;

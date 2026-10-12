@@ -172,7 +172,7 @@
     const draftBadge = isDraft ? `<span class="sched-card-draft-badge">草稿</span>` : '';
     // 「已确认」只是计划中排期的视觉标记，不影响状态/统计；已发布后不再显示
     const isConfirmed = s.status === 'planned' && !!s.confirmed;
-    const confirmedBadge = isConfirmed ? `<span class="sched-card-confirmed-badge">✓ 已确认</span>` : '';
+    const confirmedBadge = isConfirmed ? `<span class="sched-card-confirmed-badge">已确认</span>` : '';
     const dragAttrs = (frozen || isDraft) ? '' : `draggable="true"
            ondragstart="event.stopPropagation();SchedulePage._onCardDragStart(event,'${s.id}')"
            ondragend="SchedulePage._onCardDragEnd(event)"`;
@@ -191,14 +191,16 @@
         <div class="sched-card-row2">
           <span class="sched-card-amount ${statusClass(s.status)}">${amountText}</span>${confirmedBadge}
         </div>
+        ${(s.category_direction || bd) ? `<div class="sched-card-sub">
+          <span class="sched-card-dir" title="达人类型">${escapeHtml(s.category_direction || '')}</span>
+          ${bd ? `<span class="sched-card-bd" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>` : ''}
+        </div>` : ''}
         ${(() => {
-          const _sep = '<span style="color:var(--text-muted);margin:0 4px;opacity:.55">·</span>';
+          // 平台单独一行：每项整体换行（不会把一个词拆成两行），用间距代替「·」分隔
           const parts = [];
-          if (s.category_direction) parts.push(`<span title="达人类型">${escapeHtml(s.category_direction)}</span>`);
           if (mainPlat) parts.push(`<span title="主平台">${escapeHtml(mainPlat)}<sup style="font-size:.6rem;color:var(--primary);font-weight:600;margin-left:1px;vertical-align:super">主</sup></span>`);
           syncPlats.forEach(p => parts.push(`<span title="同步平台">${escapeHtml(p)}</span>`));
-          if (bd) parts.push(`<span title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>`);
-          return parts.length ? `<div class="sched-card-meta" style="display:block;font-size:.7rem;color:var(--text-secondary);line-height:1.5">${parts.join(_sep)}</div>` : '';
+          return parts.length ? `<div class="sched-card-meta">${parts.join('')}</div>` : '';
         })()}
       </div>
     `;
@@ -529,7 +531,7 @@
       ${s.status === 'planned' ? `
       <div style="border-top:1px solid var(--border);margin:4px 0"></div>
       <div class="sched-status-menu-item" onclick="SchedulePage._toggleConfirmed('${s.id}')">
-        ${s.confirmed ? '取消「已确认」标记' : '✓ 标记为已确认'}
+        ${s.confirmed ? '取消「已确认」标记' : '标记为已确认'}
       </div>` : ''}
     `;
     document.body.appendChild(menu);
