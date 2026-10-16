@@ -1,0 +1,256 @@
+/* 离火品宣品牌主题。保留原业务组件与尺寸；颜色、外壳及交互集中维护。 */
+:root {
+  color-scheme: light;
+  --bg-base:#f6f4f9; --bg-panel:#fff; --bg-card:#fff; --bg-hover:#f8f3fc;
+  --border:#e8e1ee; --border-lit:#d7c8e6;
+  --primary:#7950ae; --primary-dark:#674096; --primary-light:#efe6f8; --purple:#7950ae;
+  --success:#0f6e56; --danger:#a32d2d; --warning:#a56e22; --info:#356f96;
+  --text-primary:#392d47; --text-secondary:#756a80; --text-muted:#8b7b96;
+  --radius-sm:8px; --radius:13px; --radius-lg:18px;
+  --shadow:0 2px 8px #66457908; --shadow-lg:0 18px 56px #49305824;
+  --ui-brand:linear-gradient(115deg,#8658cb,#b14c98);
+  --ui-brand-hover:linear-gradient(115deg,#7748bc,#a03b87);
+  --ui-sidebar-brand:linear-gradient(110deg,#f1e4fb,#f8ecf8 65%,#f1f2fd);
+  --ui-ease:cubic-bezier(.22,1,.36,1); --transition:180ms var(--ui-ease);
+  --ui-font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  --ui-mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+  --ui-sidebar-width:200px; --ui-logo-height:34.41px;
+}
+body {font-family:var(--ui-font); line-height:1.5; overflow:hidden;}
+button,input,select,textarea {font-family:inherit;}
+button {touch-action:manipulation;}
+[hidden] {display:none!important;}
+:is(button,a,input,select,textarea,[tabindex]):focus-visible {outline:2px solid #9569c8;outline-offset:3px;}
+input[type=checkbox],input[type=radio] {accent-color:var(--primary);}
+.ui-icon {display:inline-block;width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;}
+.ui-icon-button {display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;padding:6px;border:0;border-radius:7px;background:transparent;color:#876797;cursor:pointer;}
+.ui-icon-button:hover {background:var(--primary-light);}
+#app {height:100dvh;min-height:0;width:100%;overflow:hidden;}
+#app.is-collapsed {--ui-sidebar-width:72px;}
+.sidebar {width:var(--ui-sidebar-width);min-height:0;overflow:hidden;transform:none;transition:width 200ms var(--ui-ease),transform 220ms var(--ui-ease);}
+.sidebar-logo {padding:8px 14px;min-height:60px;gap:8px;border:0;flex:none;background:var(--ui-sidebar-brand);color:#42265e;}
+.sidebar-logo-frame {width:var(--ui-logo-height);height:var(--ui-logo-height);flex:none;border-radius:8px;overflow:hidden;background:#fff;}
+.sidebar-logo .sidebar-logo-icon {display:block;width:100%;height:100%;object-fit:contain;border-radius:0;box-shadow:none;}
+.sidebar-logo-txt {height:var(--ui-logo-height);min-width:0;color:#42265e;font-size:15.4px;line-height:1.15;font-weight:600;white-space:nowrap;}
+.sidebar-logo-txt span {font:9.8px/1.5 var(--ui-mono);letter-spacing:.8px;color:#806c90;margin-top:2px;}
+.sidebar-logo .ui-icon-button {margin-left:auto;width:24px;height:24px;padding:4px;}
+.sidebar-logo .ui-icon {width:16px;height:16px;}
+.ui-sidebar-close {display:none;}
+.sidebar-nav {display:flex;flex-direction:column;gap:4px;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:8px 10px;}
+.sidebar-nav .nav-item {width:100%;margin:0;padding:10px 18px;border:0;background:transparent;text-align:left;border-radius:9px;font-size:14px;line-height:1.5;color:#766984;flex:none;}
+.sidebar-nav .nav-item:hover {background:#f4eef9;color:var(--primary);transform:translateX(2px);}
+.sidebar-nav .nav-item.active {color:#8055b4;background:#eee6f8;font-weight:500;}
+.sidebar-nav .nav-item .icon {display:flex;align-items:center;justify-content:center;width:16px;flex:none;}
+.sidebar-nav .ui-icon {display:block;width:16px;height:16px;}
+.sidebar-footer {flex:none;padding:14px 16px;}
+.avatar {background:var(--primary-light);color:var(--primary);}
+.btn-logout {display:flex;align-items:center;justify-content:center;flex:none;width:26px;height:32px;padding:4px;}
+.btn-logout .ui-icon {width:16px;height:16px;}
+.user-name,.user-role {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.main {height:100dvh;min-height:0;min-width:0;overflow:auto;scrollbar-gutter:stable;margin-left:var(--ui-sidebar-width);transition:margin-left 200ms var(--ui-ease);}
+.page {min-width:0;max-width:100%;padding:12px 24px 24px;animation:ui-page-in 280ms var(--ui-ease);}
+.ui-mobile-menu {display:none;}
+.ui-local-note {position:fixed;bottom:8px;right:18px;z-index:90;pointer-events:none;padding:3px 9px;border:1px solid #dfd2eb;border-radius:999px;background:#fffc;color:#79588f;font-size:10px;}
+#app.is-collapsed .sidebar-logo {flex-direction:column;gap:6px;padding:12px 0 8px;}
+#app.is-collapsed .sidebar-logo-frame {width:44px;height:44px;}
+#app.is-collapsed .sidebar-logo .ui-icon-button {margin-left:0;}
+#app.is-collapsed :is(.sidebar-logo-txt,.nav-label,.user-info) {display:none;}
+#app.is-collapsed .sidebar-nav .nav-item {justify-content:center;padding-inline:12px;}
+#app.is-collapsed .sidebar-footer {flex-wrap:wrap;justify-content:center;padding:12px 10px;gap:6px;}
+#app.is-collapsed .ui-desktop-collapse .ui-icon {transform:rotate(180deg);}
+
+/* 通用按钮、筛选、表格：保留原版14px基准和致密业务区。 */
+.btn {border-radius:10px;line-height:1.5;justify-content:center;border:1px solid transparent;min-height:32px;}
+.btn-sm {min-height:28px;}
+.btn .ui-icon {display:block;width:16px;height:16px;}
+.btn-primary,.btn-login {background:var(--ui-brand);color:#fff;box-shadow:0 3px 9px #8554ac15;}
+.btn-primary:not(:disabled):hover,.btn-login:not(:disabled):hover {background:var(--ui-brand-hover);transform:translateY(-1px);box-shadow:0 6px 18px #8554ac24;}
+.btn-secondary {background:transparent;border-color:#dfd2eb;color:#73588b;}
+.btn-secondary:not(:disabled):hover {background:#f2eafa;border-color:#c9b4df;}
+button:disabled,.btn:disabled {opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
+.card,.stat-card {border-color:#eae4ef;}
+.search-input,.filter-select,.form-control,.sched-form-control,.comm-pub-grid input {border-color:#e1d7eb;border-radius:9px;min-width:0;background:#fff;}
+:is(.search-input,.filter-select,.form-control,.sched-form-control,.comm-pub-grid input):hover {border-color:#c8b6dc;}
+:is(.search-input,.filter-select,.form-control,.sched-form-control,.comm-pub-grid input):focus {border-color:#9569c8;box-shadow:0 0 0 3px #9569c817;}
+.sched-form-control[readonly] {background:#f3eff7;}
+.sched-form-control.error {border-color:var(--danger);}
+.platform-tag {border-color:var(--border);}
+.platform-tag:hover,.platform-tag.active {border-color:#b4a0db;background:var(--primary-light);box-shadow:0 0 0 3px #9569c817;}
+.platform-tag.active span {color:var(--primary);}
+.filter-bar {gap:8px;margin-bottom:12px;}
+.filter-bar>* {max-width:100%;}
+.table-wrap {border:1px solid #eae4ef;border-radius:13px;background:#fff;}
+thead th {background:#faf7fd;color:var(--text-secondary);letter-spacing:0;text-transform:none;}
+tbody tr {border-color:#f0ebf4;}
+tbody tr:nth-child(even) {background:#fcfafd;}
+tbody tr:hover {background:#f8f3fc;}
+.sample-sticky thead th,.comm-table thead th {background:#faf7fd;}
+.comm-table .comm-sub-row td {background:#fcfafd;}
+.comm-table .comm-fz1,.comm-table .comm-fz2 {background:#fff;}
+.time-selector,.view-toggle {border-radius:9px;background:#f1edf6;}
+.time-btn.active,.view-btn.active {background:var(--primary);}
+.status-tag-done {color:#0f6e56;background:#e1f5ee;}
+.status-tag-pending {color:#916420;background:#fbf2dc;}
+.status-tag-default {background:#f1edf6;}
+.roi-matrix thead th {background:#faf7fd;}
+.roi-matrix .roi-platform-name,.roi-matrix .roi-metric {background:#fff;}
+.roi-matrix .roi-total {background:#f6f0fb;}
+
+/* 一行排期工具栏；月份/星期仍使用原模块测量的吸顶偏移。 */
+.sched-toolbar {padding:0 0 12px;gap:10px 12px;margin-bottom:0;border:0;border-radius:0;background:var(--bg-base);box-shadow:none;}
+.page-title-inline {font-weight:600!important;font-size:15.4px!important;}
+.sched-page-heading {margin-right:0!important;}
+.sched-page-heading strong {display:block;font:inherit;line-height:1.5;}
+.sched-page-heading small {display:block;font-size:10.92px;line-height:1.3;font-weight:400;color:var(--text-muted);}
+#page-schedule .sched-toolbar {flex-wrap:nowrap;min-height:50px;}
+.sched-page-actions {display:flex;align-items:center;gap:8px;flex:none;flex-wrap:nowrap;}
+#page-schedule .sched-month-switcher {flex:none;}
+.sched-month-current {font-weight:500;}
+.sched-month-btn {border-color:#dfd2eb;color:#806093;border-radius:8px;}
+.sched-month-today {border-color:#dfd2eb;border-radius:8px;}
+.sched-month-description {white-space:nowrap;}
+.sched-bd-field {display:flex;align-items:center;gap:8px;flex:none;color:var(--text-secondary);font-size:.78rem;white-space:nowrap;}
+.sched-bd-field select {width:120px;max-width:100%;height:38px;border-radius:8px;}
+.sched-cal-card {border:1px solid #eae4ef;border-radius:13px;}
+.sched-cal-header {background:#fff;border-color:#e7e0ef;font-weight:600;line-height:1.4;gap:8px 14px;}
+.sched-calendars {gap:18px;}
+.sched-cal-grid {grid-template-columns:repeat(7,minmax(0,1fr));background:#fff;gap:0;}
+.sched-cal-wkhead,.sched-cal-cell {border-right:1px solid #e7e0ef;border-bottom:1px solid #e7e0ef;}
+.sched-cal-wkhead:nth-child(7n),.sched-cal-cell:nth-child(7n) {border-right:0;}
+.sched-cal-wkhead {background:#faf7fd;font-weight:400;}
+.sched-cal-wkhead.sat,.sched-cal-wkhead.sun {color:#a35479;opacity:1;}
+.sched-cal-cell {min-width:0;}
+.sched-cal-cell.other-month,.sched-cal-cell.other-month:hover {background:#faf8fc;}
+.sched-cal-cell.today {background:linear-gradient(180deg,#efe6f8,#fff 65%);}
+.sched-cal-daynum {font-family:var(--ui-mono);font-weight:400;}
+.sched-cal-todaybadge {background:var(--primary-light);color:var(--primary);}
+.sched-card {border-radius:8px;}
+.sched-card-row1 {min-height:16px;}
+.sched-card-row2 {gap:4px;}
+.sched-card-bd {font-weight:400;}
+.sched-card-large {background:#f5f2fb;}
+.sched-card:hover {box-shadow:0 2px 8px #66457910;border-color:#bba4d4;transform:none;}
+.sched-card.confirmed {border-color:#b4a0db;box-shadow:inset 0 0 0 1px #b4a0db;}
+.sched-card-confirmed-badge {border-color:transparent;background:#f0e8fa;color:var(--primary);border-radius:999px;font-weight:500;}
+.sched-card-meta {border-top:1px solid #f0ebf4;}
+.sched-card-link {display:inline-flex;filter:none;opacity:.4;padding:0;}
+.sched-card-link .ui-icon {display:block;width:16px;height:16px;}
+.sched-status-published {color:var(--primary);}
+.sched-status-planned {color:var(--primary);}
+.sched-status-settled {color:var(--success);}
+.sched-cal-month-stats {line-height:1.5;font-variant-numeric:tabular-nums;}
+.sched-cal-month-stats b {font-weight:500;}
+.sched-mobile-list,.sched-mobile-count {display:none;}
+.sched-status-menu,.sched-filter-pop {border-radius:12px;}
+
+/* 长表单/弹窗继续使用原有保存、校验和权限。 */
+.modal-overlay,.sched-drawer-overlay {background:#30203959;}
+.modal-overlay,.sched-drawer-overlay.open {backdrop-filter:blur(3px);}
+.sched-drawer-overlay:not(.open) {backdrop-filter:none;}
+.modal,.detail-modal {box-shadow:0 22px 70px #49305828;border:1px solid #ede5f3;border-radius:18px;max-height:90dvh;}
+.modal-header,.detail-header,.sched-drawer-header {background:#faf7fd;}
+.modal-footer,.detail-footer,.sched-drawer-footer {background:#faf7fd;}
+.modal-header,.modal-footer {position:sticky;z-index:2;flex:none;}
+.modal-header {top:0;}
+.modal-footer {bottom:0;}
+.sched-drawer {box-shadow:-12px 0 48px #49305824;max-height:100dvh;}
+.sched-drawer-header,.sched-drawer-footer {flex:none;}
+.sched-drawer-body {min-height:0;}
+.sched-form-tabs {background:#faf7fd;}
+.sched-form-tab.active {color:var(--primary);border-color:var(--primary);}
+.toast {border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow-lg);}
+
+/* 模块动态插入的样式不再改变主题基调。 */
+#app #page-monthly-plan .mp-title,#app #page-review-log .rl-title {font-size:1.1rem;font-weight:600;}
+#app #page-monthly-plan :is(.mp-panel,.mp-card,.mp-rank,.mp-review),#app #page-review-log .rl-card {border-radius:13px;box-shadow:0 2px 8px #66457904;}
+#app #page-review-log .rl-wrap {max-width:100%;}
+#app #page-review-log .rl-h {font-weight:600;}
+#app #page-monthly-plan .mp-chip-btn.active {background:var(--primary-light);color:var(--primary);border-color:#cdb6e5;}
+#app #page-monthly-plan .mp-review-box {background:#faf7fd;}
+.ui-page-heading {font-size:1.1rem;font-weight:600;}
+
+/* 登录沿用真实身份选择与认证。 */
+#login-screen {padding:24px;background:radial-gradient(ellipse at 12% 10%,#e4cdf9 0,transparent 45%),radial-gradient(ellipse at 90% 25%,#dae5ff 0,transparent 42%),#f5f2fa;overflow:auto;}
+.login-box {width:440px;max-width:100%;padding:36px;border:1px solid #eee6f5;border-radius:24px;box-shadow:0 18px 60px #65497917;}
+.login-brand {display:flex;align-items:center;gap:14px;margin-bottom:26px;}
+.login-brand img {display:block;width:60px;height:60px;object-fit:contain;background:#fff;border-radius:14px;}
+.login-logo {color:#42265e;font-size:25px;line-height:1.4;font-weight:600;margin-bottom:3px;}
+.login-sub {font-size:12px;color:#806c90;margin-bottom:0;}
+.login-box :is(input,select) {background:#fff!important;border-color:#e1d7eb!important;border-radius:9px!important;}
+.login-box label {font-size:13px;}
+.btn-login {border-radius:10px;}
+.login-error {font-size:12px;}
+@keyframes ui-page-in {from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:1450px) {.sched-month-description{margin-left:8px;}}
+@media(max-width:1449px) {.sched-month-description{display:none;}}
+@media(min-width:721px) {.sidebar {visibility:visible!important;} .sidebar-overlay {display:none!important;}}
+@media(min-width:721px) and (max-width:1280px) {#page-schedule .sched-toolbar{flex-wrap:wrap;} #page-schedule .sched-month-switcher{margin-right:auto;}}
+@media(max-width:1050px) {.page{padding-inline:20px;}}
+@media(max-width:720px) {
+  #app,#app.is-collapsed {--ui-sidebar-width:0px;}
+  #app::before {content:'';position:fixed;top:0;left:0;right:0;height:54px;z-index:70;background:var(--bg-base);pointer-events:none;}
+  .main {margin-left:0;padding-top:54px;scrollbar-gutter:auto;}
+  .page {padding:10px 12px 26px;}
+  .sidebar {width:min(260px,calc(100vw - 48px));transform:translateX(-100%);visibility:hidden;z-index:101;}
+  .sidebar.open {transform:translateX(0);visibility:visible;}
+  .sidebar-overlay.show {display:block;background:#30203959;z-index:100;}
+  .ui-mobile-menu {display:inline-flex;position:fixed;z-index:80;top:6px;left:12px;width:44px;height:44px;background:#fdfaff;border:1px solid #e7dcee;border-radius:10px;}
+  .ui-desktop-collapse {display:none!important;}
+  .ui-sidebar-close {display:inline-flex;}
+  #app.is-collapsed .sidebar-logo {flex-direction:row;padding:8px 14px;gap:8px;}
+  #app.is-collapsed .sidebar-logo-frame {width:var(--ui-logo-height);height:var(--ui-logo-height);}
+  #app.is-collapsed .sidebar-logo-txt,#app.is-collapsed .nav-label,#app.is-collapsed .user-info {display:block;}
+  #app.is-collapsed .sidebar-logo .ui-icon-button {margin-left:auto;}
+  #app.is-collapsed .sidebar-nav .nav-item {justify-content:flex-start;padding:10px 18px;}
+  #app.is-collapsed .sidebar-footer {justify-content:flex-start;flex-wrap:nowrap;padding:14px 16px;}
+  #page-schedule .sched-toolbar {flex-wrap:wrap;gap:8px;min-height:50px;}
+  #page-schedule .sched-toolbar>.page-title-inline {flex:1;order:0;}
+  #page-schedule .sched-page-actions {display:contents;}
+  #page-schedule .sched-page-actions>.btn {order:3;}
+  #page-schedule .sched-page-actions>.btn-primary {order:1;}
+  #page-schedule .sched-month-switcher {order:2;width:100%;margin:0;justify-content:flex-start;}
+  #page-schedule .sched-bd-field {order:3;flex:0 0 100%;}
+  #page-schedule .sched-bd-field>span {display:none;}
+  #page-schedule .sched-bd-field select {width:100%;}
+  #page-schedule .sched-page-actions>.btn-secondary {order:4;font-size:10px;padding:5px 7px;}
+  .sched-cal-header {padding:12px;flex-wrap:wrap;gap:6px;font-size:14px;}
+  .sched-page-heading strong {font-size:21px;}
+  .sched-cal-month-stats {width:100%;font-size:12px;}
+  /* 手机七列只显示日期和数量，下方按日列出可操作的真实卡片。 */
+  .sched-cal-header {position:static;}
+  .sched-cal-month-stats {flex-wrap:wrap;gap:5px!important;}
+  .sched-cal-wkhead {position:static;font-size:11px;}
+  .sched-cal-cell {min-height:54px;padding:5px 4px;}
+  .sched-cal-cell>.sched-card {display:none;}
+  .sched-cal-dayrow .sched-cal-todaybadge {display:none;}
+  .sched-mobile-count {display:block;font-size:10px;color:var(--primary);}
+  .sched-mobile-list {display:block;padding:0 12px;}
+  .sched-mobile-day {display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;padding:12px 0;border-bottom:1px solid var(--border);}
+  .sched-mobile-day:last-child {border-bottom:0;}
+  .sched-mobile-date {padding-top:5px;color:var(--text-secondary);font:12px/1.6 var(--ui-mono);}
+  .sched-mobile-date small {display:block;font:11px/1.6 var(--ui-font);}
+  .sched-mobile-list .sched-card {font-size:13px;padding:8px 10px;margin-bottom:6px;}
+  .sched-mobile-list .sched-card-sub,.sched-mobile-list .sched-card-meta,.sched-mobile-list .sched-card-bd {font-size:12px;}
+  .sched-mobile-list .sched-card-confirmed-badge {font-size:11px;}
+  .sched-mobile-empty {padding:20px 0;color:var(--text-muted);font-size:12px;text-align:center;}
+  .sched-drawer {width:100%;}
+  .modal-overlay {padding:12px;}
+  .modal,.detail-modal {max-height:calc(100dvh - 24px);}
+  .modal-body,.detail-body {padding:16px;}
+  :is(.search-input,.filter-select,.form-control,.sched-form-control) {font-size:16px;max-width:100%;}
+  .search-input {min-width:0;}
+  .sched-toolbar {max-width:100%;flex-wrap:wrap;top:0;}
+  .comm-pub-grid {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .stats-grid {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .charts-grid {grid-template-columns:minmax(0,1fr);}
+  .form-row,.sched-form-row {grid-template-columns:minmax(0,1fr);}
+  .ui-local-note {bottom:5px;right:8px;font-size:9px;}
+}
+@media(max-width:420px) {.login-box{padding:26px 24px;}#login-screen{padding:16px;}.login-logo{font-size:23px;}}
+@media(pointer:coarse) {.sidebar-nav .nav-item,.ui-icon-button {min-height:44px;}.btn-logout{min-width:40px;min-height:44px;}}
+@media(prefers-reduced-motion:reduce) {html{scroll-behavior:auto;}*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}.btn:hover,.nav-item:hover,.card:hover{transform:none!important;}}
+
+/* 平台标签在窄屏可横向浏览，不裁掉公司账号入口。 */
+#page-contents .sched-tab-bar{overflow-x:auto!important;flex-shrink:0;}
+#page-contents .sched-tab{flex:none;}
+#page-materials>div{padding-inline:0!important;}

@@ -94,26 +94,28 @@
           <div class="sched-month-current">${fmtMonthLabel(state.year, state.month)}</div>
           <button class="sched-month-btn" onclick="SchedulePage.nextMonth()" title="下月">›</button>
           <button class="sched-month-today" onclick="SchedulePage.goToday()">今天</button>
-          <span style="margin-left:8px;color:var(--text-muted);font-size:.78rem">
+          <span class="sched-month-description" style="color:var(--text-muted);font-size:.78rem">
             同时显示 ${state.year}/${state.month} 与 ${next.year}/${next.month}
           </span>
         </div>
-        ${renderBdFilter()}
+        <label class="sched-bd-field"><span>商务 BD</span>${renderBdFilter()}</label>
+        <div class="sched-page-actions">
         <button class="btn btn-secondary btn-sm" onclick="SchedulePage.openDictManager()" title="达人类型字典">
-          ⚙️ 字典管理
+          ${BrandUI.icon('settings')} 字典管理
         </button>
         <button class="btn btn-secondary btn-sm" onclick="SchedulePage.openImport()" title="Excel 导入">
-          📥 导入
+          ${BrandUI.icon('download')} 导入
         </button>
         <button class="btn btn-secondary btn-sm" onclick="SchedulePage.openExport()" title="Excel 导出">
-          📤 导出
+          ${BrandUI.icon('upload')} 导出
         </button>
         <button class="btn btn-secondary btn-sm" onclick="RecycleBin.open()" title="查看 7 天内删除的排期">
-          🗑 回收站${(()=>{ const n = window.RecycleBin?.countActive?.() || 0; return n ? `（${n}）` : ''; })()}
+          ${BrandUI.icon('trash')} 回收站${(()=>{ const n = window.RecycleBin?.countActive?.() || 0; return n ? `（${n}）` : ''; })()}
         </button>
         <button class="btn btn-primary btn-sm" onclick="openScheduleEditor(null)">
-          ＋ 新增排期
+          ${BrandUI.icon('plus')} 新增排期
         </button>
+        </div>
       </div>
     `;
   }
@@ -150,10 +152,9 @@
     ].filter(Boolean).join('');
     const bd = s.bd_id ? SD.findBdPersonById(s.bd_id) : null;
     const bdStyle = ''; // 不再用 BD 颜色覆盖左边框，左边框恢复为「状态颜色」
-    // 金额提示：≥1万 淡金色（大单）；5000~1万 淡蓝色（中单）
+    // 大额排期使用品牌浅紫底；保留金额、冻结和草稿的原有业务含义。
     const _amt = Number(s.amount) || 0;
-    const bigStyle = _amt >= 10000 ? 'background:#fef3c7;'
-                   : _amt >= 5000  ? 'background:#dbeafe;' : '';
+    const largeClass = _amt >= 5000 ? ' sched-card-large' : ''; // 按已确认品牌图示统一大额卡片底色
     const frozenStyle = frozen ? 'opacity:.55;filter:grayscale(0.4);cursor:not-allowed;' : '';
     const bdChip = bd ? `<span class="sched-card-chip" style="background:${bd.color}20;color:${bd.color};font-weight:500" title="BD：${escapeHtml(bd.name)}">${escapeHtml(bd.name)}</span>` : '';
     const titleAttr = [
@@ -165,7 +166,7 @@
     ].filter(Boolean).join(' · ');
     const homepageLink = s.kol_homepage
       ? `<a class="sched-card-link" href="${escapeHtml(s.kol_homepage)}" target="_blank" rel="noopener noreferrer"
-            onclick="event.stopPropagation()" title="新窗口打开达人主页">🔗</a>`
+            onclick="event.stopPropagation()" title="新窗口打开达人主页">${BrandUI.icon('link')}</a>`
       : '';
     const isDraft = s.status === 'draft';
     const draftStyle = isDraft ? 'border-style:dashed;opacity:.75;' : '';
@@ -181,7 +182,7 @@
       : `onclick="event.stopPropagation();openScheduleEditor('${s.id}')"
            oncontextmenu="event.preventDefault();event.stopPropagation();SchedulePage._openStatusMenu(event,'${s.id}')"`;
     return `
-      <div class="sched-card${isConfirmed ? ' confirmed' : ''}" data-status="${s.status || 'planned'}" style="${bdStyle}${bigStyle}${frozenStyle}${draftStyle}"
+      <div class="sched-card${isConfirmed ? ' confirmed' : ''}${largeClass}" data-status="${s.status || 'planned'}" style="${bdStyle}${frozenStyle}${draftStyle}"
            ${dragAttrs} ${clickHandler}
            title="${escapeHtml(titleAttr)}">
         <div class="sched-card-row1">
@@ -227,6 +228,7 @@
           <span class="sched-cal-daynum">${cell.dayNum}</span>
           ${cell.isToday ? '<span class="sched-cal-todaybadge">今</span>' : ''}
         </div>
+        <span class="sched-mobile-count">${items.length ? items.length + '条' : ''}</span>
         ${items.map(renderCard).join('')}
       </div>
     `;
@@ -261,6 +263,14 @@
     const weekHead = ['一','二','三','四','五','六','日']
       .map((w, i) => `<div class="sched-cal-wkhead ${i===5?'sat':i===6?'sun':''}">${w}</div>`).join('');
     const body = grid.map(week => week.map(c => renderCell(c, byDate, frozen)).join('')).join('');
+    // 手机按日展示真实排期，复用原编辑/权限入口，不另建业务记录。
+    const mobileDays = grid.flat().filter(c => c.isCurrentMonth && (byDate[c.dateStr] || []).length);
+    const mobileList = mobileDays.length ? mobileDays.map(c => `
+      <section class="sched-mobile-day" id="sched-mobile-${c.dateStr}">
+        <div class="sched-mobile-date">${c.dayNum} 日<small>周${['一','二','三','四','五','六','日'][c.weekday]}</small></div>
+        <div>${byDate[c.dateStr].map(renderCard).join('')}</div>
+      </section>`).join('') : '<div class="sched-mobile-empty">本月暂无排期，点击日期可新增。</div>';
+
 
     const freezeBtn = isSupervisor
       ? frozen
@@ -276,7 +286,7 @@
       <div class="sched-cal-card" style="${frozen ? 'opacity:.85' : ''}">
         <div class="sched-cal-header">
           <span>${year} 年 ${month} 月</span>
-          <span class="sched-cal-month-stats" style="display:flex;align-items:center;gap:10px">
+          <span class="sched-cal-month-stats" style="display:flex;align-items:center;gap:8px">
             达人 <b>${monthTalentCount}</b> 位 · 排期金额 <b>¥${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
             ${freezeBtn}
           </span>
@@ -285,6 +295,7 @@
           ${weekHead}
           ${body}
         </div>
+        <div class="sched-mobile-list">${mobileList}</div>
       </div>
     `;
   }
@@ -313,6 +324,7 @@
     `;
     if (!state.stickyResizeBound) {
       window.addEventListener('resize', syncCalendarStickyOffsets, { passive: true });
+      document.getElementById('main-workspace')?.addEventListener('scroll', () => { closeStatusMenu(); closePopover(); }, { passive:true });
       if ('ResizeObserver' in window) {
         state.stickyResizeObserver = new ResizeObserver(syncCalendarStickyOffsets);
       }

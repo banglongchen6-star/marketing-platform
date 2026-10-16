@@ -121,9 +121,9 @@
         <div style="margin-left:auto;display:flex;gap:6px;flex-shrink:0;flex-wrap:nowrap">
           ${state.tab === 'candidates' ? `
             <button id="__kols-refresh-btn__" class="btn btn-secondary btn-sm" onclick="KolsPage.refreshAllFollowers()">🔄 刷新粉丝量</button>
-            <button class="btn btn-secondary btn-sm" onclick="KolsImportExport.openImport()">📥 导入</button>
-            <button class="btn btn-secondary btn-sm" onclick="KolsImportExport.doExport()">📤 导出</button>
-            <button class="btn btn-primary btn-sm" onclick="KolsPage.openEditor()">＋ 新增达人</button>
+            <button class="btn btn-secondary btn-sm" onclick="KolsImportExport.openImport()">${BrandUI.icon('download')} 导入</button>
+            <button class="btn btn-secondary btn-sm" onclick="KolsImportExport.doExport()">${BrandUI.icon('upload')} 导出</button>
+            <button class="btn btn-primary btn-sm" onclick="KolsPage.openEditor()">${BrandUI.icon('plus')} 新增达人</button>
           ` : ''}
         </div>
       </div>

@@ -26,3 +26,6 @@ fix*.js
 # 运行时数据（不纳入版本控制，prod 各自维护）
 db.json
 logs.json
+
+# 隔离本地UI体验的业务数据、日志和备份
+.local-preview/

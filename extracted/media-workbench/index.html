@@ -11,11 +11,9 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="/icon-180.png" sizes="180x180" />
-  <meta name="theme-color" content="#c81e1e" />
+  <meta name="theme-color" content="#7950ae" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="离火品宣" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="css/schedule.css?v=22" />
@@ -284,22 +282,23 @@
     input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
     input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
   </style>
+  <link rel="stylesheet" href="css/brand-ui.css?v=2" />
+  <link rel="stylesheet" href="css/mobile-ui.css?v=1" />
 </head>
 <body>
 
 <!-- Login -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">离火品宣</div>
-    <div class="login-sub">内部管理系统 · Brand Operations</div>
-    <label>选择身份</label>
+    <div class="login-brand"><img src="assets/brand-logo.png" width="60" height="60" alt="品牌标识" /><div><div class="login-logo">离火品宣</div><div class="login-sub">内部管理系统 · BRAND OPS</div></div></div>
+    <label for="login-identity">选择身份</label>
     <select id="login-identity" style="width:100%;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:11px 14px;font-size:.95rem;font-family:inherit;outline:none;margin-bottom:16px;cursor:pointer">
       <option value="admin">👑 管理员</option>
     </select>
-    <label>密码</label>
-    <input type="password" id="login-pass" placeholder="请输入密码" value="" />
+    <label for="login-pass">密码</label>
+    <input type="password" id="login-pass" autocomplete="current-password" placeholder="请输入密码" value="" />
     <button class="btn-login" onclick="doLogin()">登 录</button>
-    <div class="login-error" id="login-error"></div>
+    <div class="login-error" id="login-error" role="alert"></div>
   </div>
 </div>
 
@@ -307,25 +306,32 @@
 <div id="app">
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo"><img src="/icon-192.png" alt="离火品宣" class="sidebar-logo-icon" /><div class="sidebar-logo-txt">离火品宣<span>Brand Operations</span></div></div>
-    <div class="nav-item active" onclick="navigate('dashboard')"><span class="icon">📊</span> 品宣ROI</div>
-    <div class="nav-item" onclick="navigate('monthly-plan')"><span class="icon">📊</span> 数据看板</div>
-    <div class="nav-item" onclick="navigate('review-log')"><span class="icon">📝</span> 复盘总结</div>
-    <div class="nav-item" onclick="navigate('samples')"><span class="icon">📦</span> 样品管理</div>
-    <div class="nav-item" onclick="navigate('schedule')"><span class="icon">📅</span> 内容排期</div>
-    <div class="nav-item" onclick="navigate('contents')"><span class="icon">🎬</span> 内容发布</div>
-    <div class="nav-item" onclick="navigate('settlement')"><span class="icon">💰</span> 达人结算</div>
-    <div class="nav-item" onclick="navigate('materials')"><span class="icon">🗂️</span> 素材管理</div>
-    <div class="nav-item" onclick="navigate('kols')"><span class="icon">📚</span> 达人库</div>
-    <div class="nav-item" id="nav-admin-panel" onclick="navigate('admin-panel')" style="display:none"><span class="icon">⚙️</span> 系统设置</div>
+  <aside class="sidebar" id="sidebar" aria-label="应用导航">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-frame"><img src="assets/brand-logo.png" alt="品牌标识" class="sidebar-logo-icon" /></div>
+      <div class="sidebar-logo-txt">离火品宣<span>BRAND OPS</span></div>
+      <button type="button" class="ui-icon-button ui-desktop-collapse" id="ui-sidebar-collapse" aria-controls="sidebar" aria-expanded="true" aria-label="收起导航" onclick="BrandUI.toggleDesktop()"><span data-ui-icon="panel"></span></button>
+      <button type="button" class="ui-icon-button ui-sidebar-close" aria-label="关闭导航" onclick="closeSidebar()"><span data-ui-icon="close"></span></button>
+    </div>
+    <nav class="sidebar-nav" aria-label="主导航">
+      <button type="button" class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="品宣ROI"><span class="icon" data-ui-icon="chart"></span><span class="nav-label">品宣ROI</span></button>
+      <button type="button" class="nav-item" data-page="monthly-plan" onclick="navigate('monthly-plan')" title="数据看板"><span class="icon" data-ui-icon="trend"></span><span class="nav-label">数据看板</span></button>
+      <button type="button" class="nav-item" data-page="review-log" onclick="navigate('review-log')" title="复盘总结"><span class="icon" data-ui-icon="review"></span><span class="nav-label">复盘总结</span></button>
+      <button type="button" class="nav-item" data-page="samples" onclick="navigate('samples')" title="样品管理"><span class="icon" data-ui-icon="box"></span><span class="nav-label">样品管理</span></button>
+      <button type="button" class="nav-item" data-page="schedule" onclick="navigate('schedule')" title="内容排期"><span class="icon" data-ui-icon="calendar"></span><span class="nav-label">内容排期</span></button>
+      <button type="button" class="nav-item" data-page="contents" onclick="navigate('contents')" title="内容发布"><span class="icon" data-ui-icon="film"></span><span class="nav-label">内容发布</span></button>
+      <button type="button" class="nav-item" data-page="settlement" onclick="navigate('settlement')" title="达人结算"><span class="icon" data-ui-icon="wallet"></span><span class="nav-label">达人结算</span></button>
+      <button type="button" class="nav-item" data-page="materials" onclick="navigate('materials')" title="素材管理"><span class="icon" data-ui-icon="folder"></span><span class="nav-label">素材管理</span></button>
+      <button type="button" class="nav-item" data-page="kols" onclick="navigate('kols')" title="达人库"><span class="icon" data-ui-icon="people"></span><span class="nav-label">达人库</span></button>
+      <button type="button" class="nav-item" data-page="admin-panel" id="nav-admin-panel" style="display:none" onclick="navigate('admin-panel')" title="系统设置"><span class="icon" data-ui-icon="controls"></span><span class="nav-label">系统设置</span></button>
+    </nav>
     <div class="sidebar-footer">
       <div class="avatar" id="user-avatar">A</div>
       <div class="user-info">
         <div class="user-name" id="user-name-display">Admin</div>
         <div class="user-role" id="user-role-display">管理员</div>
       </div>
-      <button class="btn-logout" onclick="doLogout()" title="退出">⏻</button>
+      <button class="btn-logout" onclick="doLogout()" title="退出登录" aria-label="退出登录"><span data-ui-icon="logout"></span></button>
     </div>
   </aside>
 
@@ -335,7 +341,9 @@
     <div id="reminder-list"></div>
   </div>
 
-  <div class="main">
+  <button type="button" class="ui-icon-button ui-mobile-menu" id="ui-mobile-menu" aria-controls="sidebar" aria-expanded="false" aria-label="打开导航" onclick="toggleSidebar()"><span data-ui-icon="menu"></span></button>
+  <div class="ui-mobile-heading"><strong id="ui-mobile-page-title">离火品宣</strong><span>离火品宣</span></div>
+  <div class="main" id="main-workspace">
     <div class="page-inline-bar" id="page-inline-bar" style="display:none">
       <button class="hamburger" onclick="toggleSidebar()">☰</button>
       <div class="topbar-title" id="page-title"></div>
@@ -449,7 +457,7 @@
     <!-- Settlement -->
     <div class="page" id="page-settlement">
       <!-- Tab 切换 -->
-      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px">
+      <div class="ui-tabs-scroll" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px">
         <button id="st-tab-pending-btn" onclick="setStTab('pending')"
           style="padding:10px 22px;border:none;border-bottom:2px solid var(--primary);background:none;color:var(--primary);font-weight:700;cursor:pointer;font-size:.92rem;margin-bottom:-2px">
           ⏳ 待结算
@@ -1287,6 +1295,8 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
+<script src="js/ui-shell.js?v=3"></script>
+<script src="js/mobile-ui.js?v=1"></script>
 <script>
 /* ==================== Data ==================== */
 const STORE_KEY = 'pxw_v2';
@@ -1969,11 +1979,21 @@ function injectPageHeader(page) {
   const titleSpan = document.createElement('span');
   titleSpan.className = 'page-title-inline';
   titleSpan.style.cssText = 'font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-right:4px;white-space:nowrap;flex-shrink:0';
-  titleSpan.textContent = PAGE_TITLES[page] || page;
+  if (page === 'schedule') {
+    titleSpan.classList.add('sched-page-heading');
+    const heading = document.createElement('strong');
+    heading.textContent = PAGE_TITLES[page];
+    const caption = document.createElement('small');
+    caption.textContent = '双月排期 · 达人合作';
+    titleSpan.append(heading, caption);
+  } else {
+    titleSpan.textContent = PAGE_TITLES[page] || page;
+  }
   toolbar.insertBefore(titleSpan, toolbar.firstChild);
 }
 
 function navigate(page) {
+  window.BrandUI?.selectPage(page);
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.remove('active');
     const oc = el.getAttribute('onclick') || '';
@@ -2020,8 +2040,7 @@ function navigate(page) {
 }
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebar-overlay').classList.toggle('show');
+  window.BrandUI?.toggleMobile();
 }
 
 /* ==================== Reminder ==================== */
@@ -2138,8 +2157,7 @@ document.addEventListener('click', function(e) {
   }
 });
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('show');
+  window.BrandUI?.closeMobile();
 }
 
 /* ==================== Utils ==================== */
@@ -2504,7 +2522,7 @@ function renderDashboard_LEGACY_DISABLED() {
 /* ========== 数据看板新版（只保留品宣 ROI 矩阵）========== */
 function renderDashboard() {
   // 保留滚动位置（含横向，ROI 表是横向31天），避免填投流/置换后跳回左上
-  const _winY = window.scrollY;
+  const _winY = window.AppScroll.getTop();
   let _scTop = 0, _scLeft = 0;
   const _pe = document.getElementById('page-dashboard');
   if (_pe) _pe.querySelectorAll('div').forEach(el => {
@@ -2515,7 +2533,7 @@ function renderDashboard() {
   renderBrandRoiTable(dashboardYear, dashboardMonth, dashboardBdId);
   requestAnimationFrame(fitRoiCardHeight);
   setTimeout(() => {
-    if (_winY) window.scrollTo(0, _winY);
+    if (_winY) window.AppScroll.restore(_winY);
     if (_pe && (_scTop || _scLeft)) for (const el of _pe.querySelectorAll('div')) {
       if (el.scrollWidth > el.clientWidth + 5 || el.scrollHeight > el.clientHeight + 5) {
         if (_scLeft) el.scrollLeft = _scLeft;
@@ -2623,8 +2641,8 @@ function renderBrandRoiTable(year, month, bdId) {
   // 顶部 KPI chip + 月份切换 + BD 切换
   host.innerHTML = `
     <div style="margin-bottom:18px">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px">
-        <span style="font-weight:600;font-size:1.1rem;margin-right:4px;white-space:nowrap">品宣ROI</span>
+      <div class="roi-topline" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px">
+        <span class="roi-heading" style="font-weight:600;font-size:1.1rem;margin-right:4px;white-space:nowrap">品宣ROI</span>
         <div class="roi-kpi-chip" style="background:#eff6ff">
           <span style="color:#1e40af;font-weight:500">发布总数</span>
           <span style="color:#1e40af;font-weight:700;margin-left:8px;font-size:1.05rem">${kpi.contentCount}</span>
@@ -2642,7 +2660,7 @@ function renderBrandRoiTable(year, month, bdId) {
           <span style="color:#6b21a8;font-weight:700;margin-left:8px;font-size:1.05rem">${kpi.cpm || '0.00'}</span>
         </div>
 
-        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="roi-controls" style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:4px;background:var(--bg-base);border-radius:6px;padding:2px">
             <button class="sched-month-btn" style="height:30px;width:30px" onclick="shiftDashboardMonth(-1)" title="上月">‹</button>
             <div style="font-weight:600;min-width:96px;text-align:center">${year} 年 ${month} 月</div>
@@ -3527,7 +3545,7 @@ function shiftSampleMonth(delta) {
 
 function renderSamples() {
   // 记录滚动位置（重渲染后恢复，避免操作后跳回顶部）
-  const _sWinY = window.scrollY;
+  const _sWinY = window.AppScroll.getTop();
   let _sScTop = 0;
   const _sPe = document.getElementById('page-samples');
   if (_sPe) _sPe.querySelectorAll('div').forEach(el => { if (el.scrollTop > _sScTop) _sScTop = el.scrollTop; });
@@ -3697,7 +3715,7 @@ function renderSamples() {
       wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 64) + 'px';
     }
     // 恢复滚动位置
-    if (_sWinY) window.scrollTo(0, _sWinY);
+    if (_sWinY) window.AppScroll.restore(_sWinY);
     if (_sScTop && _sPe) { for (const el of _sPe.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _sScTop; break; } } }
   });
 }
@@ -4837,7 +4855,7 @@ function _updateStBadges() {
 
 function renderSettlement() {
   // 保留滚动位置，避免转结算/退回等操作后跳回顶部
-  const _winY = window.scrollY;
+  const _winY = window.AppScroll.getTop();
   let _scTop = 0;
   const _pe = document.getElementById('page-settlement');
   if (_pe) _pe.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
@@ -4847,7 +4865,7 @@ function renderSettlement() {
   else                      _renderPendingArea();
   _fitSettlementTable();
   setTimeout(() => {
-    if (_winY) window.scrollTo(0, _winY);
+    if (_winY) window.AppScroll.restore(_winY);
     if (_scTop) {
       const pe = document.getElementById('page-settlement');
       if (pe) for (const el of pe.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _scTop; break; } }
@@ -4864,7 +4882,13 @@ function _fitSettlementTable() {
   });
 }
 window.addEventListener('resize', () => { if (document.getElementById('page-settlement')?.classList.contains('active')) _fitSettlementTable(); });
-window.addEventListener('resize', () => { if (document.getElementById('page-samples')?.classList.contains('active')) renderSamples(); });
+// 软键盘只改变高度时不要重绘样品表，避免打断正在填写的字段。
+let _sampleLayoutWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === _sampleLayoutWidth) return;
+  _sampleLayoutWidth = window.innerWidth;
+  if (document.getElementById('page-samples')?.classList.contains('active')) renderSamples();
+});
 
 /* ---------- 待结算区 ---------- */
 function _renderPendingArea() {
@@ -6030,15 +6054,15 @@ function initApp() {
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
 <script src="js/schedule/data.js?v=98"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
-<script src="js/schedule/calendar.js?v=72"></script>
+<script src="js/schedule/calendar.js?v=74"></script>
 <script src="js/schedule/editor.js?v=85"></script>
-<script src="js/schedule/monthly-plan.js?v=64"></script>
-<script src="js/schedule/review-log.js?v=4"></script>
+<script src="js/schedule/monthly-plan.js?v=66"></script>
+<script src="js/schedule/review-log.js?v=6"></script>
 <script src="js/schedule/dict.js?v=58"></script>
 <script src="js/schedule/recycle-bin.js?v=53"></script>
-<script src="js/schedule/kols-page.js?v=66"></script>
+<script src="js/schedule/kols-page.js?v=67"></script>
 <script src="js/schedule/kols-excel.js?v=53"></script>
-<script src="js/schedule/communication.js?v=123"></script>
+<script src="js/schedule/communication.js?v=125"></script>
 <script src="js/schedule/materials.js?v=6"></script>
 <script src="js/schedule/communication-excel.js?v=56"></script>
 <script src="js/schedule/replacements-page.js?v=52"></script>
@@ -6248,7 +6272,7 @@ function initApp() {
         else if (typeof _hideSyncBanner === 'function') _hideSyncBanner();
         if (behind && !window.__dirty) {
           // 自动更新前记录当前滚动位置（页面级 + 表格容器内）
-          const _winY = window.scrollY;
+          const _winY = window.AppScroll.getTop();
           let _scTop = 0;
           const _pe0 = document.getElementById('page-' + currentPage);
           if (_pe0) _pe0.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
@@ -6273,7 +6297,7 @@ function initApp() {
           if (p === 'settlement')  { try { renderSettlement(); } catch(e){} }
           // 渲染完成后恢复滚动位置，避免页面跳回顶部
           setTimeout(() => {
-            if (_winY) window.scrollTo(0, _winY);
+            if (_winY) window.AppScroll.restore(_winY);
             if (_scTop) {
               const pe = document.getElementById('page-' + currentPage);
               if (pe) {

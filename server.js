@@ -7,18 +7,27 @@ const cron      = require('node-cron');
 
 const app = express();
 const PORT       = process.env.PORT || 3002;
+const HOST       = process.env.HOST || '0.0.0.0';
+const DATA_DIR   = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : __dirname;
+fs.mkdirSync(DATA_DIR, { recursive:true });
 const BUILD_ID   = Date.now(); // 进程启动时间，作为版本标识（pm2 restart 后变化 → 前端旧标签自动刷新）
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
 const AUTH_TOKEN = process.env.AUTH_TOKEN || 'mw-7f3a9c2e8b1d4f6a0e5c9b2d8a4f1e6c'; // 接口访问令牌（server.js 不对外暴露，登录后下发）
-const DATA_FILE  = path.join(__dirname, 'db.json');
-const LOG_FILE   = path.join(__dirname, 'logs.json');
-const BACKUP_DIR = path.join(__dirname, 'backups');
-const EMAIL_CFG  = path.join(__dirname, 'email-config.json');
+const DATA_FILE  = path.join(DATA_DIR, 'db.json');
+const LOG_FILE   = path.join(DATA_DIR, 'logs.json');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+const EMAIL_CFG  = path.join(DATA_DIR, 'email-config.json');
 const STATIC_DIR = path.join(__dirname, 'extracted/media-workbench');
 const MAX_BACKUPS = 7;
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(STATIC_DIR));
+
+// 仅用于标记隔离的本地体验环境，不返回路径或鉴权信息。
+app.get('/api/runtime-info', (req, res) => {
+  res.set('Cache-Control','no-store');
+  res.json({ localPreview: process.env.LOCAL_PREVIEW === '1' });
+});
 
 /* ========== 备份工具 ========== */
 function todayStr() {
@@ -342,7 +351,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(STATIC_DIR, 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`✅ 达人营销工作台运行在 http://localhost:${PORT}`);
   scheduleDailyEmail(); // 启动时加载邮件定时任务
 });

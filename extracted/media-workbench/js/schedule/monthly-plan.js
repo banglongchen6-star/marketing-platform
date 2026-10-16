@@ -19,7 +19,7 @@
     _trendChart: null, _donutChart: null,
     _anchorKey: '', _gated: false,
   };
-  const PLAT_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+  const PLAT_COLORS = ['#b4a0db', '#d39ab8', '#80b8a4', '#c9af72', '#85b8d1', '#a9a0c6', '#c58ab1', '#96bfae'];
   const REVIEW_MIN = 100;
 
   function initState() {
@@ -193,7 +193,7 @@
     if (!d.trend.labels.length) return '<div class="mp-panel"><div style="text-align:center;color:var(--text-muted);padding:24px 0">本区间暂无数据</div></div>';
     return `<div class="mp-panel">
       <div class="mp-hint">柱＝花费(元) · 折线＝播放(万) · 双轴按 CPM=10 对齐</div>
-      <div style="position:relative;height:230px"><canvas id="mp-trend-canvas"></canvas></div>
+      <div class="mp-trend-hint">↔ 左右滑动查看每天的数据</div><div class="mp-trend-scroll"><div class="mp-trend-plot" style="--trend-min-width:${Math.max(320, d.trend.labels.length * 30 + 90)}px"><canvas id="mp-trend-canvas"></canvas></div></div>
     </div>`;
   }
 
@@ -306,7 +306,7 @@
     destroyCharts();
     const page = document.getElementById('page-monthly-plan');
     if (!page) return;
-    const winY = window.scrollY;
+    const winY = window.AppScroll.getTop();
     const range = activeRange();
     state._anchorKey = `${range.anchorY}-${pad2(range.anchorM)}`;
     state._gated = state.mode === 'month' && monthOrd(range.anchorY, range.anchorM) >= monthOrd(new Date().getFullYear(), new Date().getMonth() + 1);
@@ -325,7 +325,7 @@
         <div class="mp-sec">⑤ 本月复盘</div>
         ${renderReview(d, range)}
       </div>`;
-    requestAnimationFrame(() => { buildCharts(d); if (winY) window.scrollTo(0, winY); });
+    requestAnimationFrame(() => { buildCharts(d); if (winY) window.AppScroll.restore(winY); });
   }
 
   /* ------------------------- Chart.js ------------------------- */
@@ -344,8 +344,8 @@
         data: {
           labels: d.trend.labels,
           datasets: [
-            { type: 'bar', label: '花费（元）', data: d.trend.spend, backgroundColor: 'rgba(245,158,11,.45)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 3, yAxisID: 'y1' },
-            { type: 'line', label: '播放量（万）', data: d.trend.views, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2, yAxisID: 'y' },
+            { type: 'bar', label: '花费（元）', data: d.trend.spend, backgroundColor: 'rgba(201,175,114,.45)', borderColor: '#c9af72', borderWidth: 1, borderRadius: 3, yAxisID: 'y1' },
+            { type: 'line', label: '播放量（万）', data: d.trend.views, borderColor: '#7950ae', backgroundColor: 'rgba(121,80,174,.08)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2, yAxisID: 'y' },
           ]
         },
         options: {
@@ -353,8 +353,8 @@
           plugins: { legend: { labels: { font: { size: 11 }, boxWidth: 12 } }, tooltip: { callbacks: { afterBody: () => '— CPM=10 基准：等高时刚好1元/100次' } } },
           scales: {
             x: { ticks: { font: { size: 9 }, autoSkip: false, maxRotation: 0, minRotation: 0 } },
-            y: { position: 'left', min: 0, max: yMax, ticks: { font: { size: 10 }, color: '#3b82f6' }, title: { display: true, text: '播放量(万)', font: { size: 9 }, color: '#3b82f6' } },
-            y1: { position: 'right', min: 0, max: yMax * 100, ticks: { font: { size: 10 }, color: '#d97706' }, title: { display: true, text: '花费(元)', font: { size: 9 }, color: '#d97706' }, grid: { drawOnChartArea: false } },
+            y: { position: 'left', min: 0, max: yMax, ticks: { font: { size: 10 }, color: '#7950ae' }, title: { display: true, text: '播放量(万)', font: { size: 9 }, color: '#7950ae' } },
+            y1: { position: 'right', min: 0, max: yMax * 100, ticks: { font: { size: 10 }, color: '#a17e3b' }, title: { display: true, text: '花费(元)', font: { size: 9 }, color: '#a17e3b' }, grid: { drawOnChartArea: false } },
           }
         }
       });

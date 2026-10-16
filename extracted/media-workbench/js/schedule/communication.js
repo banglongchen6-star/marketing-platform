@@ -141,7 +141,7 @@
     // 列偏好按当前平台 tab 加载（服务器全公司共用，切 tab / 同步后自动反映）
     state.visibleCols = loadVisible(state.mainPlatform);
     // 记录滚动位置（重渲染后恢复，避免操作后跳回顶部）
-    const _winY = window.scrollY;
+    const _winY = window.AppScroll.getTop();
     let _scTop = 0;
     page.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
     const kpi = SD.getCommunicationKPI({
@@ -165,7 +165,7 @@
       }
       _alignFrozenCols();
       // 恢复滚动位置
-      if (_winY) window.scrollTo(0, _winY);
+      if (_winY) window.AppScroll.restore(_winY);
       if (_scTop) { for (const el of page.querySelectorAll('div')) { if (el.scrollHeight > el.clientHeight + 5) { el.scrollTop = _scTop; break; } } }
     }, 0);
   }
@@ -276,12 +276,12 @@
           <button id="__bulk-del-btn__" class="btn btn-danger btn-sm"
             onclick="CommunicationPage._deleteSelected()"
             ${state.selectedIds.size === 0 ? 'disabled' : ''}>
-            🗑 删除选中${state.selectedIds.size > 0 ? ` (${state.selectedIds.size})` : ''}
+            ${BrandUI.icon('trash')} 删除选中${state.selectedIds.size > 0 ? ` (${state.selectedIds.size})` : ''}
           </button>
-          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._toggleColPop(event)">⚙ 自定义列</button>
-          <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.openImport()" title="从 Excel 导入">📥 导入</button>
-          <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.doExport()" title="导出当前筛选数据到 Excel">📤 导出</button>
-          ${frozen ? '' : `<button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor()">＋ 新增内容</button>`}
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage._toggleColPop(event)">${BrandUI.icon('settings')} 自定义列</button>
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.openImport()" title="从 Excel 导入">${BrandUI.icon('download')} 导入</button>
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationIE.doExport()" title="导出当前筛选数据到 Excel">${BrandUI.icon('upload')} 导出</button>
+          ${frozen ? '' : `<button class="btn btn-primary btn-sm" onclick="CommunicationPage.openEditor()">${BrandUI.icon('plus')} 新增内容</button>`}
           ${state.colPopOpen ? renderColPop() : ''}
         </div>
       </div>
@@ -415,7 +415,7 @@
     // 局部刷新：只更新删除按钮和全选框，不重渲染整张表
     const btn = document.getElementById('__bulk-del-btn__');
     if (btn) {
-      btn.textContent = state.selectedIds.size > 0 ? `🗑 删除选中 (${state.selectedIds.size})` : '🗑 删除选中';
+      btn.innerHTML = BrandUI.icon('trash') + (state.selectedIds.size > 0 ? ` 删除选中 (${state.selectedIds.size})` : ' 删除选中');
       btn.disabled = state.selectedIds.size === 0;
     }
     const allCb = document.getElementById('__comm-sel-all__');
@@ -2033,8 +2033,8 @@
         </div>
 
         <div style="margin-left:auto;display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openAccountManager()">⚙ 账号管理</button>
-          <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openCompanyEditor()">＋ 新增发布</button>
+          <button class="btn btn-secondary btn-sm" onclick="CommunicationPage.openAccountManager()">${BrandUI.icon('settings')} 账号管理</button>
+          <button class="btn btn-primary btn-sm" onclick="CommunicationPage.openCompanyEditor()">${BrandUI.icon('plus')} 新增发布</button>
         </div>
       </div>
     `;
@@ -2190,7 +2190,7 @@
       </style>
       <div class="sched-form-group">
         <label class="sched-form-label">账号<span class="req">*</span>（可多选）</label>
-        <div style="display:flex;gap:8px;align-items:flex-start">
+        <div class="co-account-picker" style="display:flex;gap:8px;align-items:flex-start">
           <div id="co-acc-checks" class="co-acc-list ${err.account ? 'error' : ''}">${accBoxes}</div>
           <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="CommunicationPage._coQuickAddAccount()">＋ 新建账号</button>
         </div>

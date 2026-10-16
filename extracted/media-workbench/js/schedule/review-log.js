@@ -44,7 +44,7 @@
   }
   function kpiHtml(k) {
     if (!k) return '';
-    return `<span class="rl-kpi">发布 <b>${fmtInt(k.count)}</b> 次　·　曝光 <b>${fmtWan(k.exposure)}</b>　·　品宣费 <b>${fmtYuan(k.spend)}</b>　·　CPM <b>${k.cpm.toFixed(2)}</b></span>`;
+    return `<span class="rl-kpi"><span class="rl-kpi-item">发布 <b>${fmtInt(k.count)}</b> 次</span><span class="rl-kpi-item">曝光 <b>${fmtWan(k.exposure)}</b></span><span class="rl-kpi-item">品宣费 <b>${fmtYuan(k.spend)}</b></span><span class="rl-kpi-item">CPM <b>${k.cpm.toFixed(2)}</b></span></span>`;
   }
 
   function ensureStyle() {
@@ -86,7 +86,7 @@
       : '<div class="rl-empty">还没有任何月度复盘。<br>去「数据看板」→「本月复盘」写下第一条，这里会自动收进来。</div>';
     page.innerHTML = `
       <div class="rl-wrap">
-        <div class="rl-title">📝 复盘总结</div>
+        <div class="rl-title">${BrandUI.icon('review')} 复盘总结</div>
         <div class="rl-sub">汇总各月「本月复盘」，此处仅供查看${keys.length ? `　·　共 ${keys.length} 个月` : ''}<br><span class="rl-tip">📊 每月核心数据实时取自「品宣ROI」　·　✏️ 复盘文字如需修改，请到「数据看板」对应月份编辑</span></div>
         ${cards}
       </div>`;
