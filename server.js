@@ -4,6 +4,7 @@ const path      = require('path');
 const merger    = require('./sync-merge');   // 三方合并 + 操作日志
 const nodemailer = require('nodemailer');
 const cron      = require('node-cron');
+const { registerContentPublicationsApi } = require('./content-publications-api');
 
 const app = express();
 const PORT       = process.env.PORT || 3002;
@@ -22,6 +23,9 @@ const MAX_BACKUPS = 7;
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(STATIC_DIR));
+
+// 运营系统专用只读API，独立密钥；不经过现有整库读写接口。
+registerContentPublicationsApi(app, { dataFile: DATA_FILE, appToken: AUTH_TOKEN, localPreview: process.env.LOCAL_PREVIEW === '1' });
 
 // 仅用于标记隔离的本地体验环境，不返回路径或鉴权信息。
 app.get('/api/runtime-info', (req, res) => {

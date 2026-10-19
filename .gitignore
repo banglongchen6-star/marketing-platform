@@ -29,3 +29,6 @@ logs.json
 
 # 隔离本地UI体验的业务数据、日志和备份
 .local-preview/
+
+# 外部系统只读接口的本机密钥交付文件（禁止提交）
+.integration-secrets/
