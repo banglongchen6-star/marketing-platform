@@ -36,6 +36,7 @@
   .form-label,.sched-form-label,.comm-pub-grid label {font-size:13px;}
   .filter-bar {display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
   .filter-bar>.search-input:not([type=date]) {width:100%!important;flex:1 1 100%;}
+  #page-samples .sample-filter-bar>.search-input {width:100%;flex:1 1 100%;min-width:0;}
   .filter-bar>select {flex:1 1 135px;width:auto!important;}
   .filter-bar>input[type=date] {flex:1 1 120px;width:120px!important;}
   .filter-bar>.btn {margin-left:0!important;}

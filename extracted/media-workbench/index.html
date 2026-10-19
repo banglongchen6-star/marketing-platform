@@ -283,7 +283,7 @@
     input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
   </style>
   <link rel="stylesheet" href="css/brand-ui.css?v=2" />
-  <link rel="stylesheet" href="css/mobile-ui.css?v=1" />
+  <link rel="stylesheet" href="css/mobile-ui.css?v=2" />
 </head>
 <body>
 
@@ -422,12 +422,13 @@
     <!-- Samples -->
     <div class="page" id="page-samples">
       <div class="card" style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div class="sample-filter-bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(-1)">‹</button>
           <span id="sample-month-label" style="font-size:.9rem;font-weight:600;color:var(--text-primary);min-width:80px;text-align:center"></span>
           <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(1)">›</button>
           <input class="search-input" id="sample-search" placeholder="🔍 搜索达人/产品名称..." oninput="renderSamples()" />
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('sample-search').value='';renderSamples()">清除</button>
+          <input type="search" class="search-input" id="sample-address-search" placeholder="🔍 搜索收货地址..." aria-label="搜索收货地址" title="输入省市区、街道或小区等部分地址查找" oninput="renderSamples()" />
+          <button class="btn btn-secondary btn-sm" onclick="clearSampleSearch()">清除</button>
           <select id="sample-status-filter-select" onchange="sampleStatusFilter=this.value;renderSamples()"
             style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
             <option value="">全部状态</option>
@@ -3543,6 +3544,12 @@ function shiftSampleMonth(delta) {
   renderSamples();
 }
 
+function clearSampleSearch() {
+  document.getElementById('sample-search').value = '';
+  document.getElementById('sample-address-search').value = '';
+  renderSamples();
+}
+
 function renderSamples() {
   // 记录滚动位置（重渲染后恢复，避免操作后跳回顶部）
   const _sWinY = window.AppScroll.getTop();
@@ -3555,6 +3562,8 @@ function renderSamples() {
   const sfSel = document.getElementById('sample-status-filter-select');
   if (sfSel) sfSel.value = sampleStatusFilter;
   const search = document.getElementById('sample-search').value.toLowerCase();
+  const normalizeAddress = value => String(value ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+  const addressSearch = normalizeAddress(document.getElementById('sample-address-search').value);
   // 本月全部样品（仅按月，不含搜索/状态筛选）—— 顶部统计基于它，避免被筛选带偏
   const monthList = DB.samples.filter(c => (c.date||'').startsWith(monthStr));
   // 完结状态：已归还/已赠送/已流转/长期留存 —— 不再往后带（长期留存另进「长期留存台账」）
@@ -3573,6 +3582,7 @@ function renderSamples() {
     const inView = _isListDone(c) ? (cm === monthStr) : (!cm || cm <= monthStr);
     if (!inView) return false;
     if (sampleStatusFilter && c.status !== sampleStatusFilter) return false;
+    if (addressSearch && !normalizeAddress(c.address).includes(addressSearch)) return false;
     if (search) {
       // product 可能是数组（多个产品），拼成字符串再搜
       const prod = Array.isArray(c.product) ? c.product.join(' ') : (c.product || '');
@@ -3619,7 +3629,7 @@ function renderSamples() {
   `;
 
   const container=document.getElementById('sample-list');
-  if(!list.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>暂无样品数据</p></div>`; return; }
+  if(!list.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>${search || addressSearch || sampleStatusFilter || sampleQuickFilter ? '没有匹配的样品，请调整搜索或筛选条件' : '暂无样品数据'}</p></div>`; return; }
 
   const bdMap = {};
   (window.ScheduleData ? ScheduleData.listBds({includeInactive:true}) : []).forEach(b=>bdMap[b.id]=b);
