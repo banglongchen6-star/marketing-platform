@@ -282,8 +282,8 @@
     input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
     input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
   </style>
-  <link rel="stylesheet" href="css/brand-ui.css?v=2" />
-  <link rel="stylesheet" href="css/mobile-ui.css?v=2" />
+  <link rel="stylesheet" href="css/brand-ui.css?v=3" />
+  <link rel="stylesheet" href="css/mobile-ui.css?v=3" />
 </head>
 <body>
 
@@ -426,9 +426,11 @@
           <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(-1)">‹</button>
           <span id="sample-month-label" style="font-size:.9rem;font-weight:600;color:var(--text-primary);min-width:80px;text-align:center"></span>
           <button class="btn btn-secondary btn-sm" onclick="shiftSampleMonth(1)">›</button>
-          <input class="search-input" id="sample-search" placeholder="🔍 搜索达人/产品名称..." oninput="renderSamples()" />
-          <input type="search" class="search-input" id="sample-address-search" placeholder="🔍 搜索收货地址..." aria-label="搜索收货地址" title="输入省市区、街道或小区等部分地址查找" oninput="renderSamples()" />
-          <button class="btn btn-secondary btn-sm" onclick="clearSampleSearch()">清除</button>
+          <div class="sample-search-box">
+            <svg class="sample-search-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+            <input type="search" class="search-input" id="sample-search" placeholder="搜索达人、产品、收件信息…" aria-label="搜索达人、产品、商务BD、收件人、手机号或地址" title="支持达人、产品、商务BD、收件人、手机号和地址；多个关键词用空格分隔，例如：小境 杭州" enterkeyhint="search" oninput="renderSamples()" />
+            <button type="button" class="sample-search-clear" id="sample-search-clear" aria-label="清空搜索" title="清空搜索" onclick="clearSampleSearch()" hidden>×</button>
+          </div>
           <select id="sample-status-filter-select" onchange="sampleStatusFilter=this.value;renderSamples()"
             style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:.85rem;cursor:pointer">
             <option value="">全部状态</option>
@@ -3545,9 +3547,10 @@ function shiftSampleMonth(delta) {
 }
 
 function clearSampleSearch() {
-  document.getElementById('sample-search').value = '';
-  document.getElementById('sample-address-search').value = '';
+  const input = document.getElementById('sample-search');
+  input.value = '';
   renderSamples();
+  input.focus({ preventScroll: true });
 }
 
 function renderSamples() {
@@ -3561,9 +3564,10 @@ function renderSamples() {
   if (lbl) lbl.textContent = `${sampleMonthYear}年${sampleMonthMonth}月`;
   const sfSel = document.getElementById('sample-status-filter-select');
   if (sfSel) sfSel.value = sampleStatusFilter;
-  const search = document.getElementById('sample-search').value.toLowerCase();
-  const normalizeAddress = value => String(value ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
-  const addressSearch = normalizeAddress(document.getElementById('sample-address-search').value);
+  const search = document.getElementById('sample-search').value;
+  const normalizeSearchField = value => String(value ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+  const keywords = search.normalize('NFKC').toLowerCase().trim().split(/\s+/).filter(Boolean);
+  document.getElementById('sample-search-clear').hidden = search.length === 0;
   // 本月全部样品（仅按月，不含搜索/状态筛选）—— 顶部统计基于它，避免被筛选带偏
   const monthList = DB.samples.filter(c => (c.date||'').startsWith(monthStr));
   // 完结状态：已归还/已赠送/已流转/长期留存 —— 不再往后带（长期留存另进「长期留存台账」）
@@ -3576,23 +3580,22 @@ function renderSamples() {
   // 本月寄出：寄出日期在本月、且填了寄件信息（真正发出去的）
   const _isSentSample = s => (s.date || '').slice(0, 7) === monthStr
     && !!(s.address || s.recipient_name || s.tracking);
+  const bdMap = {};
+  (window.ScheduleData ? ScheduleData.listBds({includeInactive:true}) : []).forEach(b=>bdMap[b.id]=b);
+  // 品宣主管也作为负责人纳入（与排期/内容发布一致）
+  (window.DB?.supervisors || []).forEach(sv=>{ if(sv.name) bdMap[sv.id]={id:sv.id,name:sv.name,color:'#7c3aed'}; });
   // 展示规则：完结的只在它自己月份；未完结的（含新建的无状态）从建立月起一直往后带，直到走到完结
   let list = DB.samples.filter(c => {
     const cm = (c.date || '').slice(0, 7);
     const inView = _isListDone(c) ? (cm === monthStr) : (!cm || cm <= monthStr);
     if (!inView) return false;
     if (sampleStatusFilter && c.status !== sampleStatusFilter) return false;
-    if (addressSearch && !normalizeAddress(c.address).includes(addressSearch)) return false;
-    if (search) {
-      // product 可能是数组（多个产品），拼成字符串再搜
-      const prod = Array.isArray(c.product) ? c.product.join(' ') : (c.product || '');
-      // contact 存的是 bd_id，解析成 BD 名字再搜
-      const bd = window.ScheduleData?.findBdPersonById?.(c.contact);
-      const bdName = bd ? bd.name : '';
-      if (!(c.talent||'').toLowerCase().includes(search) &&
-          !prod.toLowerCase().includes(search) &&
-          !bdName.toLowerCase().includes(search) &&
-          !(c.recipient_name||'').toLowerCase().includes(search)) return false;
+    if (keywords.length) {
+      // 单词可匹配任一字段；多个词必须在同一条记录中全部找到。
+      const products = Array.isArray(c.product) ? c.product : [c.product];
+      const bd = bdMap[c.contact];
+      const fields = [c.talent, ...products, bd?.name, c.recipient_name, c.phone, c.address].map(normalizeSearchField);
+      if (!keywords.every(word => fields.some(field => field.includes(word)))) return false;
     }
     return true;
   });
@@ -3629,12 +3632,8 @@ function renderSamples() {
   `;
 
   const container=document.getElementById('sample-list');
-  if(!list.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>${search || addressSearch || sampleStatusFilter || sampleQuickFilter ? '没有匹配的样品，请调整搜索或筛选条件' : '暂无样品数据'}</p></div>`; return; }
+  if(!list.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div><p>${keywords.length || sampleStatusFilter || sampleQuickFilter ? '没有匹配的样品，请调整搜索或筛选条件' : '暂无样品数据'}</p></div>`; return; }
 
-  const bdMap = {};
-  (window.ScheduleData ? ScheduleData.listBds({includeInactive:true}) : []).forEach(b=>bdMap[b.id]=b);
-  // 品宣主管也作为负责人纳入（与排期/内容发布一致）
-  (window.DB?.supervisors || []).forEach(sv=>{ if(sv.name) bdMap[sv.id]={id:sv.id,name:sv.name,color:'#7c3aed'}; });
   container.innerHTML=`
     <div class="card">
       <div class="table-wrap sample-sticky">

@@ -79,6 +79,13 @@ button:disabled,.btn:disabled {opacity:.5;cursor:not-allowed;transform:none;box-
 .platform-tag.active span {color:var(--primary);}
 .filter-bar {gap:8px;margin-bottom:12px;}
 .filter-bar>* {max-width:100%;}
+/* 样品综合搜索：单框匹配多字段，清空操作嵌入框内。 */
+#page-samples .sample-search-box {position:relative;flex:0 1 340px;width:340px;min-width:0;max-width:100%;}
+#page-samples .sample-search-box .search-input {display:block;width:100%;padding-left:34px;padding-right:38px;}
+#page-samples .sample-search-icon {position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none;}
+#page-samples .sample-search-clear {position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--text-secondary);font-size:20px;line-height:1;cursor:pointer;}
+#page-samples .sample-search-clear:hover {background:var(--primary-light);color:var(--primary);}
+#sample-search::-webkit-search-cancel-button,#sample-search::-webkit-search-decoration {-webkit-appearance:none;}
 .table-wrap {border:1px solid #eae4ef;border-radius:13px;background:#fff;}
 thead th {background:#faf7fd;color:var(--text-secondary);letter-spacing:0;text-transform:none;}
 tbody tr {border-color:#f0ebf4;}
