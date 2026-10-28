@@ -177,7 +177,7 @@
     }
     const rows = items.map(renderRow).join('');
     return `
-      <div id="__kols-list-host__" style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 210px)">
+      <div id="__kols-list-host__" class="ui-fit-bottom" style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 210px)">
         <table class="sched-budget-table">
           <thead>
             <tr>
@@ -240,7 +240,7 @@
         </tr>`;
     }).join('');
     return `
-      <div id="__kols-list-host__" style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 210px)">
+      <div id="__kols-list-host__" class="ui-fit-bottom" style="background:var(--bg-panel);border-radius:var(--radius);box-shadow:var(--shadow);overflow:auto;max-height:calc(100vh - 210px)">
         <table class="sched-budget-table">
           <thead>
             <tr>

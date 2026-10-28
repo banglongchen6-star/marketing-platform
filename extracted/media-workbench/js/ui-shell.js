@@ -79,7 +79,29 @@
     const pane = main();
     if (pane) pane.scrollTop = 0;
   }
-  window.BrandUI = { icon, toggleDesktop, toggleMobile, closeMobile, selectPage };
+  // 列表框（.ui-fit-bottom）在电脑端延伸到工作区底部；手机仍由 mobile-ui.css 控制
+  function fitBottom() {
+    const pane = main();
+    if (!pane) return;
+    pane.querySelectorAll('.page.active .ui-fit-bottom').forEach(box => {
+      if (!('fitOrig' in box.dataset)) box.dataset.fitOrig = box.style.maxHeight;
+      if (isMobile() || !box.offsetParent) { box.style.maxHeight = box.dataset.fitOrig; return; }
+      // 列表框下方：同层后续内容 + 各层底部内边距，一直累计到滚动容器
+      let below = 0;
+      for (let el = box; el && el !== pane; el = el.parentElement) {
+        for (let sib = el.nextElementSibling; sib; sib = sib.nextElementSibling) {
+          if (!/^(absolute|fixed)$/.test(getComputedStyle(sib).position)) below += sib.offsetHeight;
+        }
+        below += parseFloat(getComputedStyle(el.parentElement).paddingBottom) || 0;
+      }
+      const top = box.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop;
+      box.style.maxHeight = Math.max(320, Math.floor(pane.clientHeight - top - below)) + 'px';
+    });
+  }
+  let fitTimer = 0;
+  const queueFit = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitBottom, 30); };
+
+  window.BrandUI = { icon, toggleDesktop, toggleMobile, closeMobile, selectPage, fitBottom: queueFit };
   window.AppScroll = {
     getTop: () => main()?.scrollTop || 0,
     restore: y => { if (main()) main().scrollTop = y; },
@@ -90,6 +112,12 @@
     try { app().classList.toggle('is-collapsed',localStorage.getItem('lihuo_sidebar_collapsed')==='1'); } catch(e) {}
     syncCollapseButton();
     window.matchMedia('(max-width:720px)').addEventListener('change',() => closeMobile(false));
+    // 页面切换、重绘、工具栏换行都会改变页面尺寸，届时重算列表框高度
+    window.addEventListener('resize',queueFit);
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(queueFit);
+      document.querySelectorAll('#app > .main .page').forEach(p => ro.observe(p));
+    }
     document.addEventListener('keydown',ev => {
       if (!isMobile() || !sidebar().classList.contains('open')) return;
       if (ev.key === 'Escape') { ev.preventDefault(); closeMobile(); return; }
