@@ -198,7 +198,6 @@
     if (o) o.classList.remove('open');
     // 关闭后刷新所有视图（避免外部数据脏读）
     if (window.SchedulePage) SchedulePage.render();
-    if (window.BudgetTable) BudgetTable.refresh();
     if (window.MonthlyPlanPage && document.getElementById('sched-budget-host')) {
       window.MonthlyPlanPage.render();
     }
