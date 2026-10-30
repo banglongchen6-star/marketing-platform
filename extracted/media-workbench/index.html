@@ -2820,6 +2820,13 @@ function renderSamples() {
               const statusTag = st
                 ? `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:.75rem;background:${st.color}22;color:${st.color};font-weight:600;white-space:nowrap">${st.label}</span>`
                 : '<span style="color:var(--text-muted);font-size:.8rem">—</span>';
+              // 已归还：状态下方显示归还日期 + 归还快递单号（单号可复制）
+              const returnInfo = (s.status === 'returned' && (s.return_date || s.return_tracking))
+                ? `<div style="font-size:.72rem;color:var(--text-muted);margin-top:3px;white-space:nowrap">
+                    ${s.return_date ? escapeHtml(s.return_date.slice(5).replace('-','/')) + ' 归还' : '归还'}
+                    ${s.return_tracking ? ` · <span style="color:var(--text-secondary)">${escapeHtml(s.return_tracking)}</span><button onclick="event.stopPropagation();copyReturnTracking(${s.id})" title="复制归还快递单号" style="border:none;background:none;cursor:pointer;padding:0 3px;color:var(--text-muted);vertical-align:middle;line-height:1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>` : ''}
+                  </div>`
+                : '';
               return `
               <tr>
                 <td style="white-space:nowrap">${s.date||'-'}</td>
@@ -2857,8 +2864,8 @@ function renderSamples() {
                     : `<span style="color:var(--text-muted);font-size:.8rem">—</span>`}
                 </td>
                 ${(s.address || s.recipient_name)
-                  ? `<td onclick="openStatusModal(${s.id})" style="cursor:pointer" title="点击更新状态">${statusTag}</td>`
-                  : `<td style="cursor:default">${statusTag}</td>`}`}
+                  ? `<td onclick="openStatusModal(${s.id})" style="cursor:pointer" title="点击更新状态">${statusTag}${returnInfo}</td>`
+                  : `<td style="cursor:default">${statusTag}${returnInfo}</td>`}`}
                 <td style="white-space:nowrap">
                   ${s.schedule_id
                     ? `<span style="font-size:.72rem;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;white-space:nowrap">✅ 已排期</span>`
@@ -3197,6 +3204,12 @@ function copyNote(id) {
   const s = DB.samples.find(x => x.id === id);
   if (!s || !s.note) return;
   _clipboardCopy(s.note, '已复制备注');
+}
+
+function copyReturnTracking(id) {
+  const s = DB.samples.find(x => x.id === id);
+  if (!s || !s.return_tracking) return;
+  _clipboardCopy(s.return_tracking, '已复制归还快递单号');
 }
 
 function copyShippingInfo(id) {
@@ -5170,8 +5183,8 @@ function doExport() {
       if(endDate&&c.date>endDate) return false;
       return true;
     });
-    const rows=[['达人','平台','寄出日期','产品名称','快递单号','发货链接','花费','状态','备注']];
-    list.forEach(s=>rows.push([s.talent,s.platform,s.date,s.product,s.tracking,s.shipLink,s.price,s.status,s.note]));
+    const rows=[['达人','平台','寄出日期','产品名称','快递单号','发货链接','花费','状态','归还日期','归还快递单号','备注']];
+    list.forEach(s=>rows.push([s.talent,s.platform,s.date,s.product,s.tracking,s.shipLink,s.price,s.status,s.return_date||'',s.return_tracking||'',s.note]));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '样品管理');
   }
   if(exportCandidates){
