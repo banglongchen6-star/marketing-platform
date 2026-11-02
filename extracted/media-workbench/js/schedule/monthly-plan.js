@@ -279,7 +279,21 @@
     return `本月复盘：已写 <b style="color:${color}">${len}</b> / ${REVIEW_MIN} 字${tail}`;
   }
   const _reviewLen = (v) => [...String(v == null ? '' : v).trim()].length;
-  function _updateCount(box) { const el = document.getElementById('mp-review-count'); if (el) el.innerHTML = _countHtml(_reviewLen(box && box.value)); }
+  function _updateCount(box) { const el = document.getElementById('mp-review-count'); if (el) el.innerHTML = _countHtml(_reviewLen(box && box.value)); _fitReview(box); }
+  /* 复盘框高度跟随内容，框内不出现滚动条，统一由整页滚动 */
+  function _fitReview(box) {
+    if (!box || !box.offsetParent) return;
+    const y = window.AppScroll.getTop();
+    box.style.height = 'auto';
+    box.style.height = (box.scrollHeight + box.offsetHeight - box.clientHeight) + 'px';
+    window.AppScroll.restore(y);  // 先收后撑会让页面跳动，复位滚动位置
+  }
+  window.addEventListener('resize', () => _fitReview(document.querySelector('#page-monthly-plan .mp-review-box')));
+  // 渲染时页面可能还没显示（量不到高度），框显示出来后再撑开
+  const _reviewRO = window.ResizeObserver ? new ResizeObserver(es => es.forEach(e => {
+    const box = e.target;
+    if (box.offsetParent && box.scrollHeight > box.clientHeight + 1) _fitReview(box);
+  })) : null;
 
   function renderReview(d, range) {
     const key = state._anchorKey;
@@ -325,7 +339,7 @@
         <div class="mp-sec">⑤ 本月复盘</div>
         ${renderReview(d, range)}
       </div>`;
-    requestAnimationFrame(() => { buildCharts(d); if (winY) window.AppScroll.restore(winY); });
+    requestAnimationFrame(() => { buildCharts(d); const rb = page.querySelector('.mp-review-box'); _fitReview(rb); if (rb && _reviewRO) _reviewRO.observe(rb); if (winY) window.AppScroll.restore(winY); });
   }
 
   /* ------------------------- Chart.js ------------------------- */
@@ -437,7 +451,7 @@
       #page-monthly-plan .mp-nm-in{font-weight:500}
       #page-monthly-plan .mp-nm-in i{color:var(--text-muted);font-style:normal;font-size:.68rem}
       #page-monthly-plan .mp-review{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
-      #page-monthly-plan .mp-review-box{margin-top:4px;width:100%;box-sizing:border-box;min-height:60px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:.82rem;resize:vertical;outline:none;background:var(--bg-base);color:var(--text-primary)}
+      #page-monthly-plan .mp-review-box{margin-top:4px;width:100%;box-sizing:border-box;min-height:140px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:.82rem;line-height:1.7;resize:none;overflow-y:auto;outline:none;background:var(--bg-base);color:var(--text-primary)}
       #page-monthly-plan .mp-review-box:focus{border-color:var(--primary)}
       #page-monthly-plan .mp-review-count{font-size:.72rem;margin-top:6px;color:var(--text-secondary)}`;
     document.head.appendChild(s);
