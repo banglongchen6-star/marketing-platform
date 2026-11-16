@@ -285,7 +285,7 @@
   </style>
   <link rel="stylesheet" href="css/brand-ui.css?v=3" />
   <link rel="stylesheet" href="css/mobile-ui.css?v=3" />
-  <link rel="stylesheet" href="css/organizations.css?v=1" />
+  <link rel="stylesheet" href="css/organizations.css?v=2" />
 </head>
 <body>
 
@@ -301,6 +301,7 @@
     </select>
     <label for="login-pass">密码</label>
     <input type="password" id="login-pass" autocomplete="current-password" placeholder="请输入密码" value="" />
+    <label class="login-remember" for="login-remember"><input type="checkbox" id="login-remember" /><span>记住登录（30天内免输密码）</span></label>
     <button class="btn-login" onclick="doLogin()">登 录</button>
     <div class="login-error" id="login-error" role="alert"></div>
   </div>
@@ -1076,12 +1077,12 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="js/organizations.js?v=1"></script>
+<script src="js/organizations.js?v=2"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
 /* ==================== Data ==================== */
-const STORE_KEY = OrgApp.cacheKey;
+// 缓存键在登录恢复后动态取值，避免新标签页自动登录时写入匿名缓存。
 /* ==================== 接口令牌（登录后下发，所有 /api 请求自动携带） ==================== */
 const AUTH_TOKEN_KEY = OrgApp.TOKEN_KEY;
 (function patchFetch(){
@@ -1192,7 +1193,7 @@ function _saveFailed(e) {
 function saveData() {
   DB._saved_at = Date.now();
   window.__dirty = true;   // 有本地改动尚未确认到达服务器（轮询据此决定"拉取"还是"只提示"）
-  localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+  localStorage.setItem(OrgApp.cacheKey, JSON.stringify({...DB, _version:'v11-0509'}));
   if (!window.__syncReady) return; // 未完成首次同步：只存本地，不上传
   // 同步到服务器（防抖 800ms）
   clearTimeout(saveData._t);
@@ -1210,7 +1211,7 @@ function saveData() {
 function saveDataNow() {
   DB._saved_at = Date.now();
   window.__dirty = true;   // 有本地改动尚未确认到达服务器（轮询据此决定"拉取"还是"只提示"）
-  localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+  localStorage.setItem(OrgApp.cacheKey, JSON.stringify({...DB, _version:'v11-0509'}));
   if (!window.__syncReady) return;
   clearTimeout(saveData._t);
   const sentSnapshot = JSON.stringify(DB);
@@ -1282,7 +1283,7 @@ async function doLogin() {
   try {
     const res = await fetch('/api/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organization: OrgApp.loginId, identity, password: p })
+      body: JSON.stringify({ organization: OrgApp.loginId, identity, password: p, remember: document.getElementById('login-remember').checked })
     });
     if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
     const { token, user } = await res.json();
@@ -1487,7 +1488,7 @@ function importBackup() {
       // 更新本地
       Object.keys(data).forEach(k => { if (k !== '_version') DB[k] = data[k]; });
       window.DB = DB;
-      localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+      localStorage.setItem(OrgApp.cacheKey, JSON.stringify({...DB, _version:'v11-0509'}));
       window.toast && window.toast(`✅ 导入成功：${counts}`, 'success', 4000);
       // 刷新当前页面
       setTimeout(() => location.reload(), 1500);
@@ -1554,10 +1555,17 @@ async function openBackupPanel() {
   }
 }
 
-function doLogout() {
+async function doLogout() {
   if (window.__dirty || window.__orgPendingWrites) { toast('还有未保存成功的改动，请先保存后退出', 'error'); return; }
-  window.__syncReady = false; clearTimeout(saveData._t);
-  OrgApp.clear(); location.reload();
+  if (doLogout.pending) return;
+  doLogout.pending = true;
+  try {
+    await OrgApp.forgetRemembered();
+    if (window.__dirty || window.__orgPendingWrites) { toast('还有未保存成功的改动，请先保存后退出', 'error'); return; }
+    window.__syncReady = false; clearTimeout(saveData._t);
+    OrgApp.clear(); location.reload();
+  } catch (_) { toast('退出失败，请检查网络后重试', 'error'); }
+  finally { doLogout.pending = false; }
 }
 function tryRestoreSession() {
   if (!window.__verifiedUser || !window.__syncReady) return false;
@@ -5150,7 +5158,7 @@ function initApp() {
         try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 此刻本地 == 服务器 → 记为基准（页面过期时自救合并用）
         window.__dirty = false;
         window.DB = DB;
-        localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+        localStorage.setItem(OrgApp.cacheKey, JSON.stringify({...DB, _version:'v11-0509'}));
         ScheduleData.initialize();
         window.__syncReady = true; // 首次同步完成，允许上传
         if (window.__dirty) saveDataNow();
@@ -5343,7 +5351,7 @@ function initApp() {
         try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 此刻本地 == 服务器 → 记为基准（页面过期时自救合并用）
         window.__dirty = false;
           window.DB = DB;
-          localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+          localStorage.setItem(OrgApp.cacheKey, JSON.stringify({...DB, _version:'v11-0509'}));
           const p = currentPage;
           if (p === 'dashboard')      { try { renderDashboard(); updateReminderBadge(); } catch(e){} }
           if (p === 'schedule')       { try { renderCalendar(); } catch(e){} }

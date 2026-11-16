@@ -6,7 +6,7 @@
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function json(url, options) {
     const r = await fetch(url, options), body = await r.json();
-    if (!r.ok) throw new Error(body.error || '请求失败');
+    if (!r.ok) { const error = new Error(body.error || '请求失败'); error.status = r.status; throw error; }
     return body;
   }
   function setSession(value) {
@@ -34,9 +34,16 @@
     }
   }
   async function restore() {
-    if (!sessionStorage.getItem(TOKEN_KEY)) return null;
-    const data = await json('/api/session');
+    if (sessionStorage.getItem(TOKEN_KEY)) {
+      try { const data = await json('/api/session'); setSession(data); return data.user; }
+      catch(e) { if (e.status !== 401) throw e; clear(); }
+    }
+    const data = await json('/api/session/restore', {method:'POST', headers:{'x-login-action':'1'}});
+    if (!data.user) { clear(); return null; }
     setSession(data); return data.user;
+  }
+  async function forgetRemembered() {
+    await json('/api/logout', {method:'POST', headers:{'x-login-action':'1'}});
   }
   function clear() {
     sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY);
@@ -97,6 +104,6 @@
     modal.querySelector('input').focus();
   }
   window.OrgApp = { TOKEN_KEY, SESSION_KEY, get activeId() { return session?.organization?.id || 'domestic'; },
-    get user() { return session; }, get loginId() { return loginChoice; }, setSession, clear, restore, refreshLogin, renderCurrent, renderManagement, openCreate,
+    get user() { return session; }, get loginId() { return loginChoice; }, setSession, clear, restore, forgetRemembered, refreshLogin, renderCurrent, renderManagement, openCreate,
     get cacheKey() { return 'pxw_org_v1:' + (session?.organization?.id || 'anonymous') + ':' + (session?.identity || '') + ':' + (session?.bd_id || ''); } };
 })();

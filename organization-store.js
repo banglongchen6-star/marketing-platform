@@ -121,23 +121,23 @@ function createOrganizationStore(root, adminPass) {
     return issue(orgId, user);
   }
   function publicUser(user, orgId) { const { credential: ignored, ...safe } = user; return { ...safe, organization: find(orgId) }; }
-  function issue(orgId, user) {
+  function issue(orgId, user, { purpose = 'session', expiresAt = Date.now() + 7 * 86400000 } = {}) {
     const payload = Buffer.from(JSON.stringify({ org: orgId, identity: user.identity, id: user.bd_id, cred: user.credential,
-      exp: Date.now() + 7 * 86400000, nonce: crypto.randomBytes(12).toString('hex') })).toString('base64url');
+      exp: expiresAt, purpose, nonce: crypto.randomBytes(12).toString('hex') })).toString('base64url');
     const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
     return { token: payload + '.' + signature, user: publicUser(user, orgId) };
   }
-  function authenticate(token) {
+  function authenticate(token, purpose = 'session') {
     if (typeof token !== 'string' || token.length > 2000) return null;
     const [payload, signature, extra] = token.split('.');
     if (!payload || !signature || extra) return null;
     const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
     if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
     const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
-    if (!Number.isFinite(claims.exp) || claims.exp < Date.now()) return null;
+    if ((claims.purpose || 'session') !== purpose || !Number.isFinite(claims.exp) || claims.exp <= Date.now()) return null;
     const user = resolveUser(claims.org, claims.identity, claims.id);
     if (!user || user.credential !== claims.cred) return null;
-    return { user: publicUser(user, claims.org), ctx: context(claims.org) };
+    return { user: publicUser(user, claims.org), ctx: context(claims.org), expiresAt: claims.exp };
   }
   return { list: () => registry.organizations.map(o => ({ ...o })), find, context, readDb, snapshot, create, login, issue, resolveUser, authenticate };
 }

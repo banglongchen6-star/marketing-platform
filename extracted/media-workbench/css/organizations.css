@@ -20,3 +20,7 @@
 .org-actions {display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.org-error {color:var(--danger);font-size:13px}
 .org-switch-list {display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
 @media(max-width:720px){.org-dialog input,.org-dialog select{font-size:16px}.org-management-list span{width:100%;order:3}.org-login-options{gap:6px}.org-choice{font-size:14px}}
+
+#login-screen .login-remember {display:flex;align-items:center;gap:8px;margin:0 0 18px;min-height:32px;cursor:pointer;font-size:13px;line-height:1.5;color:var(--text-secondary);}
+#login-screen #login-remember {width:16px;height:16px;min-width:16px;min-height:16px!important;flex:0 0 16px;margin:0;padding:0;accent-color:var(--primary);cursor:pointer;}
+@media(max-width:720px){#login-screen #login-remember{flex-basis:20px;min-width:20px;min-height:20px!important;}}

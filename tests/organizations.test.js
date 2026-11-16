@@ -35,12 +35,13 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   }
   async function stop() { if (child && child.exitCode === null) { child.kill(); await once(child,'exit'); } }
   t.after(async()=>{await stop();fs.rmSync(root,{recursive:true,force:true});});
-  async function api(url,{token,org,body,method}={}) {
-    const headers = {'Content-Type':'application/json'};
+  async function api(url,{token,org,body,method,cookie,extraHeaders={}}={}) {
+    const headers = {'Content-Type':'application/json',...extraHeaders};
+    if(cookie) headers.cookie=cookie;
     if(token) headers['x-auth-token']=token;
     if(org) headers['x-organization-id']=org;
     const res = await fetch(base+url,{method:method || (body?'POST':'GET'),headers,body:body?JSON.stringify(body):undefined});
-    return {status:res.status,body:await res.json()};
+    return {status:res.status,body:await res.json(),cookie:res.headers.get('set-cookie')};
   }
   async function login(org,identity,password) {
     const r=await api('/api/login',{body:{organization:org,identity,password}});assert.equal(r.status,200);return r.body.token;
@@ -97,15 +98,45 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   const created=await api('/api/organizations',{token:ad,body:{name:'测试第三组织',region:'overseas'}});assert.equal(created.status,201);
   assert.equal((await api('/api/organizations',{token:ad,body:{name:'测试第三组织',region:'overseas'}})).status,400);
   const third=await login(created.body.id,'admin',adminPass);assert.equal((await api('/api/data',{token:third})).body.contents.length,0);
+  // Remembering is opt-in and restores an organization-bound tab token, never a password.
+  const actionHeaders={'x-login-action':'1','x-forwarded-proto':'https'};
+  const remembered=await api('/api/login',{body:{organization:'domestic',identity:'admin',password:adminPass,remember:true},extraHeaders:actionHeaders});
+  assert.match(remembered.cookie,/^__Host-pinxuan_remember=/);
+  assert.match(remembered.cookie,/HttpOnly/);assert.match(remembered.cookie,/Secure/);assert.match(remembered.cookie,/SameSite=Strict/);
+  assert.ok(!remembered.cookie.includes(adminPass));
+  const days=Number(remembered.cookie.match(/Max-Age=(\d+)/)[1]);assert.ok(days>=2591990&&days<=2592000);
+  const cookie=remembered.cookie.split(';')[0];
+  assert.equal((await api('/api/data',{cookie,extraHeaders:actionHeaders})).status,401,'cookie cannot directly authorize business requests');
+  assert.equal((await api('/api/data',{token:cookie.split('=')[1]})).status,401,'remember credential is not an API token');
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie})).status,403);
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie,extraHeaders:{...actionHeaders,origin:'https://unrelated.example'}})).status,403);
+  assert.equal((await api('/api/login',{body:{identity:'admin',password:adminPass},extraHeaders:{origin:'https://unrelated.example'}})).status,403);
+  const restored=await api('/api/session/restore',{method:'POST',cookie,extraHeaders:actionHeaders});
+  assert.equal(restored.body.user.organization.id,'domestic');assert.equal((await api('/api/session',{token:restored.body.token})).status,200);
+  const switchedRemember=await api('/api/organizations/switch',{token:restored.body.token,cookie,extraHeaders:actionHeaders,body:{organization:'overseas'}});
+  const overseasCookie=switchedRemember.cookie.split(';')[0];
+  const claims=c=>JSON.parse(Buffer.from(decodeURIComponent(c.split('=')[1]).split('.')[0],'base64url'));
+  assert.equal(claims(overseasCookie).exp,claims(cookie).exp,'switching does not extend 30-day deadline');
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie:overseasCookie,extraHeaders:actionHeaders})).body.user.organization.id,'overseas');
+  const unchecked=await api('/api/login',{cookie,extraHeaders:actionHeaders,body:{identity:'admin',password:adminPass,remember:false}});
+  assert.match(unchecked.cookie,/Expires=.*1970/);
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie:unchecked.cookie.split(';')[0],extraHeaders:actionHeaders})).body.user,null);
+  const logout=await api('/api/logout',{method:'POST',cookie,extraHeaders:actionHeaders});assert.match(logout.cookie,/Expires=.*1970/);
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie:logout.cookie.split(';')[0],extraHeaders:actionHeaders})).body.user,null);
+  const invalid=await api('/api/session/restore',{method:'POST',cookie:cookie+'invalid',extraHeaders:actionHeaders});assert.equal(invalid.body.user,null);assert.match(invalid.cookie,/Expires=.*1970/);
+  const rememberedMember=await api('/api/login',{body:{organization:'overseas',identity:'bd__123',password:'test-overseas',remember:true},extraHeaders:actionHeaders});
+  const memberCookie=rememberedMember.cookie.split(';')[0];
   const beforeRestart=(await api('/api/data',{token:ad})).body;
   await stop();output='';await start();
   assert.equal((await api('/api/session',{token:ad})).status,200,'session survives restart');
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie,extraHeaders:actionHeaders})).body.user.organization.id,'domestic','remembered login survives service restart');
   const afterRestart=(await api('/api/data',{token:ad})).body;
   assert.notEqual(beforeRestart._epoch,afterRestart._epoch);
   assert.equal((await save(beforeRestart,ad,{_baseRev:afterRestart._rev})).status,409,'same rev after restart is not same baseline');
   assert.equal((await save(beforeRestart,ad,{_baseRev:afterRestart._rev,_base:beforeRestart})).status,200);
   let disabled=(await api('/api/data',{token:ao})).body;disabled.bds[0].is_active=false;await save(disabled,ao);
   assert.equal((await api('/api/session',{token:ob})).status,401,'disabled member session revoked');
+  assert.equal((await api('/api/session/restore',{method:'POST',cookie:memberCookie,extraHeaders:actionHeaders})).body.user,null,'disabled member cannot use remembered login');
   fs.writeFileSync(path.join(root,'organizations','overseas','db.json'),'{broken');
   assert.equal((await api('/api/data',{token:ao})).status,500,'corrupt data is not treated as empty');
   assert.equal((await api('/api/data',{token:ad})).status,200,'another org remains usable');
@@ -146,4 +177,21 @@ test('data-layer initialization never wipes real records without historical flag
   context.window.ScheduleData.initialize();
   assert.equal(data.kols.length,1);assert.equal(data.contents.length,1);assert.equal(data.schedules.length,1);
   assert.ok(data.platforms.every(p=>p.name!=='抖音'));
+});
+
+
+test('remember credentials expire and become invalid after password changes', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pinxuan-remember-test-'));
+  try {
+    const store=createOrganizationStore(root,'old-test-password');
+    const user=store.resolveUser('domestic','admin');
+    const remembered=store.issue('domestic',user,{purpose:'remember',expiresAt:Date.now()+30*86400000}).token;
+    assert.equal(store.authenticate(remembered),null);
+    assert.equal(store.authenticate(remembered,'remember').user.organization.id,'domestic');
+    assert.equal(store.authenticate(store.issue('domestic',user,{purpose:'remember',expiresAt:Date.now()-1}).token,'remember'),null);
+    const changed=createOrganizationStore(root,'new-test-password');
+    assert.equal(changed.authenticate(remembered,'remember'),null);
+    const normal=store.login('domestic','admin','old-test-password').token;
+    assert.equal(store.authenticate(normal,'remember'),null);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
 });

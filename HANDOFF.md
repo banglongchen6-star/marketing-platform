@@ -23,7 +23,7 @@
 
 **菜单模块**：品宣ROI（dashboard）/ 数据看板（monthly-plan）/ 复盘总结（review-log）/ 样品管理 / 内容排期 / 内容发布 / 达人结算 / 素材管理 / 达人库 / 系统设置（仅管理员）
 
-**接口**：`/api/organizations`(GET/POST) `/api/organizations/switch` `/api/session` `/api/login-options` `/api/login` `/api/data`(GET/POST，整库读写+合并) `/api/logs` `/api/backups` `/api/email-config` `/api/email-test`
+**接口**：`/api/organizations`(GET/POST) `/api/organizations/switch` `/api/session` `/api/session/restore` `/api/logout` `/api/login-options` `/api/login` `/api/data`(GET/POST，整库读写+合并) `/api/logs` `/api/backups` `/api/email-config` `/api/email-test`
 
 ## 3. 部署与运行
 
@@ -72,6 +72,14 @@
 - 本地验证：`npm run test:organizations`（3个测试，覆盖组织权限、数据与备份隔离、多人三方合并、旧版本自救、进程重启、原库归档、缺失/损坏文件、运营接口国内范围、初始化不清空）。使用独立临时数据及浏览器检查桌面登录/新增/切换、海外全部10个模块、390px手机布局；没有运行iOS/Android真机测试或所有业务表单的全量回归。
 - 部署仍走原main自动发布，无新增服务器、域名或手工密钥配置；务必保留上述运行时文件。回退代码前先停写并备份所有组织目录，不可把海外库恢复到国内。当前实现依赖单个Node进程的内存快照，不能直接切到PM2多实例模式。
 
+### 可选记住登录（2026-11-16）
+
+- 登录页密码下方勾选“记住登录（30天内免输密码）”后，同一浏览器或PWA再次打开可恢复最后记住的账号和组织；默认不勾选。普通页面令牌仍在sessionStorage且7天有效，已有旧版组织令牌继续兼容。用户输入的密码不被此功能写入localStorage/sessionStorage/Cookie。
+- `remember-login.js` 负责Cookie设置/读取/清除和同源检查；HTTPS使用 `__Host-pinxuan_remember`，HttpOnly / Secure / SameSite=Strict / Path=/，不设置Domain。仅本地HTTP预览用无前缀的host-only Cookie。凭据签名由既有 `.organization-session-secret` 完成，无新服务器文件或环境变量。
+- Cookie凭据标为remember用途，不能直接访问业务API；`POST /api/session/restore` 校验其组织、身份、凭据指纹、固定30天有效期，再发放最长7天且不超过记住期限的标签页令牌。正常刷新和自动恢复不会延长30天；管理员切组织只更新恢复的组织，期限不延长。没有Cookie或无效时返回user:null；服务读取异常报503，不进入工作区。
+- `POST /api/logout` 清除该浏览器记住凭据，前端成功后清除本标签页会话；其他已登录标签页保持各自组织。取消勾选并成功登录也会清除旧记住凭据；改密/停用会使原凭据无法恢复。失败的退出请求不伪装成功。Cookie恢复和退出接口要求同源请求及自定义请求头，跨站登录请求被拒绝；业务写入仍只接受显式组织令牌。
+- 验证：`npm run test:organizations`现4项通过，新增勾选/未勾选、HTTPS属性、跨站拒绝、用途分离、Cookie恢复/清除、改密/停用/到期、服务重启、切组织不延期检查。独立临时Chrome配置实测关闭重开、现有标签页保持原组织、新标签页跟随记住组织、退出后重开仍停登录；390px手机无横向溢出。未做手机真机/PWA安装重开测试。
+
 ## 4. 铁律：多端保存绝不整包覆盖
 
 - 背景：原来保存是整包覆盖，多人同时用会互相冲掉。2026-08-05 改为**三方合并**：GET 带 `_rev`，客户端保存回传 `_baseRev`，服务器用 base/server/client 按 id/字段合并（`sync-merge.js` 的 merge3）。
@@ -92,6 +100,8 @@
 - 仓库里残留不少调试文件（fix*.ps1、check-*.js、debug*.html、index.html.backup），已在 .gitignore，可清理
 
 ## 7. 更新日志（新的在上）
+
+- 2026-11-16：新增可选“记住登录（30天内免输密码）”，默认不勾选。使用HttpOnly Cookie保留经服务器验证的组织/身份凭据，不保存用户输入的密码；退出清除、改密/停用/到期失效；管理员切换组织后新窗口恢复上次组织，已有标签页仍独立。修正自动恢复时业务缓存键应按已验证组织动态获取。4项自动化测试通过（含原组织回归），独立浏览器实测关闭/重开、勾选/不勾选、退出、多标签组织及390px手机；JS语法与diff检查通过。organizations.js/css缓存版本升至2。
 
 - 2026-11-16：完成同域名国内/海外组织，登录选择、管理员新增与切换、组织人员和全模块数据隔离。人民币、北京时间；国内原库原位保留并归档，海外空业务起步。会话、浏览器缓存、合并快照、日志、备份、邮件配置均按组织隔离，运营系统接口继续仅取国内。旧登录需重新验证。增加组织隔离回归测试并完成本地桌面/手机浏览器检查；发布结果在本机交接记录中补充。
 

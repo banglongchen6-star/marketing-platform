@@ -20,6 +20,7 @@ const STATIC_DIR = path.join(__dirname, 'extracted/media-workbench');
 const MAX_BACKUPS = 7;
 const organizations = createOrganizationStore(DATA_DIR, ADMIN_PASS);
 organizations.context('domestic');
+const rememberedLogin = require('./remember-login').createRememberLogin(organizations);
 const emailJobs = new Map();
 
 app.use(express.json({ limit: '20mb' }));
@@ -145,13 +146,30 @@ app.get('/api/login-options', (req, res) => {
     res.set('Cache-Control', 'no-store'); res.json(opts);
   } catch(e) { res.status(400).json({ error: '无法读取该组织人员' }); }
 });
-app.post('/api/login', (req, res) => {
+app.post('/api/login', rememberedLogin.sameOrigin, (req, res) => {
   try {
-    const { organization = 'domestic', identity, password } = req.body || {};
+    const { organization = 'domestic', identity, password, remember = false } = req.body || {};
     const result = organizations.login(organization, identity, password);
     if (!result) return res.status(401).json({ error: '账号或密码错误，或不属于所选组织' });
+    if (remember === true) {
+      const user = organizations.resolveUser(organization, result.user.identity, result.user.bd_id);
+      rememberedLogin.write(req, res, organization, user);
+    } else rememberedLogin.clear(req, res);
     res.set('Cache-Control', 'no-store'); res.json(result);
   } catch(e) { res.status(500).json({ error: '登录服务暂不可用' }); }
+});
+app.post('/api/session/restore', rememberedLogin.browserAction, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const auth = rememberedLogin.read(req);
+    if (!auth) { rememberedLogin.clear(req, res); return res.json({ user: null }); }
+    const user = organizations.resolveUser(auth.ctx.org.id, auth.user.identity, auth.user.bd_id);
+    res.json(organizations.issue(auth.ctx.org.id, user, { expiresAt: Math.min(auth.expiresAt, Date.now() + 7 * 86400000) }));
+  } catch (_) { res.status(503).json({error:'暂时无法恢复登录，请稍后重试'}); }
+});
+app.post('/api/logout', rememberedLogin.browserAction, (req, res) => {
+  rememberedLogin.clear(req, res);
+  res.set('Cache-Control', 'no-store').json({ok:true});
 });
 function requireAuth(req, res, next) {
   try {
@@ -178,7 +196,10 @@ app.post('/api/organizations', requireAuth, requireSuperAdmin, (req, res) => {
 app.post('/api/organizations/switch', requireAuth, requireSuperAdmin, (req, res) => {
   const id = req.body.organization;
   if (!organizations.find(id)) return res.status(404).json({ error: '组织不存在' });
-  res.json(organizations.issue(id, organizations.resolveUser(id, 'admin')));
+  const user = organizations.resolveUser(id, 'admin');
+  const remembered = rememberedLogin.read(req);
+  if (remembered?.user.isSuperAdmin) rememberedLogin.write(req, res, id, user, remembered.expiresAt);
+  res.json(organizations.issue(id, user));
 });
 function clientData(data, user) {
   const copy = JSON.parse(JSON.stringify(data));
