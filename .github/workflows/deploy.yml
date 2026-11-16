@@ -19,9 +19,21 @@ jobs:
           command_timeout: 15m
           envs: CONTENT_SYNC_TOKEN
           script: |
+            set -e
             cd /root/marketing-platform
-            git pull origin main
-            npm install
+            # 旧版npm会改写锁文件；先保留副本，仅清理这一份安装产物的差异。
+            if ! git diff --quiet -- package-lock.json; then
+              lock_backup_dir=/root/marketing-platform-deploy-backups
+              mkdir -p "$lock_backup_dir"
+              chmod 700 "$lock_backup_dir"
+              lock_backup_file=$(mktemp "$lock_backup_dir/package-lock.XXXXXXXX")
+              cp -p package-lock.json "$lock_backup_file"
+              git checkout -- package-lock.json
+              echo "已备份服务器锁文件差异"
+            fi
+            git pull --ff-only origin main
+            npm install --no-audit --no-fund
+            git checkout -- package-lock.json
             pm2 delete marketing-platform 2>/dev/null || true
             pm2 start server.js --name marketing-platform
             pm2 save
