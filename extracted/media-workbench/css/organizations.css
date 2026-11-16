@@ -1,0 +1,22 @@
+#organization-management[hidden] {display:none!important}
+.org-login-options {display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+.org-choice {flex:1;min-width:130px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text-secondary);font:inherit;cursor:pointer}
+.org-choice.active {border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:600}
+#current-organization {padding:10px 14px;border-bottom:1px solid var(--border)}
+.org-current-label {display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px}
+#org-switch-trigger {display:block;width:100%;border:0;background:transparent;color:var(--primary);padding:4px 0;text-align:left;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:normal;overflow-wrap:anywhere}
+#app.is-collapsed #current-organization {padding:8px 5px}
+#app.is-collapsed .org-current-label {display:none}
+#app.is-collapsed #org-switch-trigger {font-size:10px;text-align:center}
+#ui-mobile-organization {font-size:10px;color:var(--primary);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.org-help {font-size:.82rem;line-height:1.6;color:var(--text-muted)}
+.org-management-list>div {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--border)}
+.org-management-list strong {flex:1;font-size:.9rem}
+.org-management-list span {font-size:.78rem;color:var(--text-muted)}
+.org-modal {position:fixed;inset:0;z-index:10020;background:#0006;display:flex;align-items:center;justify-content:center;padding:16px}
+.org-dialog {background:var(--bg-panel,#fff);padding:24px;border-radius:14px;width:min(460px,100%);max-height:85dvh;overflow:auto;box-sizing:border-box}
+.org-dialog h3 {margin:0 0 20px}.org-dialog label {display:block;margin:14px 0 6px;font-size:14px}
+.org-dialog input,.org-dialog select {width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;font:inherit;background:#fff;color:var(--text-primary)}
+.org-actions {display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.org-error {color:var(--danger);font-size:13px}
+.org-switch-list {display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+@media(max-width:720px){.org-dialog input,.org-dialog select{font-size:16px}.org-management-list span{width:100%;order:3}.org-login-options{gap:6px}.org-choice{font-size:14px}}

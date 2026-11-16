@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "preview:local": "node scripts/start-local-preview.js"
+    "preview:local": "node scripts/start-local-preview.js",
+    "test:organizations": "node --test tests/organizations.test.js"
   },
   "dependencies": {
     "express": "^4.18.2",

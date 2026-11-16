@@ -285,6 +285,7 @@
   </style>
   <link rel="stylesheet" href="css/brand-ui.css?v=3" />
   <link rel="stylesheet" href="css/mobile-ui.css?v=3" />
+  <link rel="stylesheet" href="css/organizations.css?v=1" />
 </head>
 <body>
 
@@ -292,6 +293,8 @@
 <div id="login-screen">
   <div class="login-box">
     <div class="login-brand"><img src="assets/brand-logo.png?v=20261116-2" width="60" height="60" alt="品牌标识" /><div><div class="login-logo">离火品宣</div><div class="login-sub">内部管理系统 · BRAND OPS</div></div></div>
+    <label>选择组织</label>
+    <div id="login-organizations" class="org-login-options" aria-label="选择组织">正在加载组织…</div>
     <label for="login-identity">选择身份</label>
     <select id="login-identity" style="width:100%;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:11px 14px;font-size:.95rem;font-family:inherit;outline:none;margin-bottom:16px;cursor:pointer">
       <option value="admin">👑 管理员</option>
@@ -314,6 +317,7 @@
       <button type="button" class="ui-icon-button ui-desktop-collapse" id="ui-sidebar-collapse" aria-controls="sidebar" aria-expanded="true" aria-label="收起导航" onclick="BrandUI.toggleDesktop()"><span data-ui-icon="panel"></span></button>
       <button type="button" class="ui-icon-button ui-sidebar-close" aria-label="关闭导航" onclick="closeSidebar()"><span data-ui-icon="close"></span></button>
     </div>
+    <div id="current-organization"></div>
     <nav class="sidebar-nav" aria-label="主导航">
       <button type="button" class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="品宣ROI"><span class="icon" data-ui-icon="chart"></span><span class="nav-label">品宣ROI</span></button>
       <button type="button" class="nav-item" data-page="monthly-plan" onclick="navigate('monthly-plan')" title="数据看板"><span class="icon" data-ui-icon="trend"></span><span class="nav-label">数据看板</span></button>
@@ -343,7 +347,7 @@
   </div>
 
   <button type="button" class="ui-icon-button ui-mobile-menu" id="ui-mobile-menu" aria-controls="sidebar" aria-expanded="false" aria-label="打开导航" onclick="toggleSidebar()"><span data-ui-icon="menu"></span></button>
-  <div class="ui-mobile-heading"><strong id="ui-mobile-page-title">离火品宣</strong><span>离火品宣</span></div>
+  <div class="ui-mobile-heading"><strong id="ui-mobile-page-title">离火品宣</strong><span id="ui-mobile-organization">离火品宣</span></div>
   <div class="main" id="main-workspace">
     <div class="page-inline-bar" id="page-inline-bar" style="display:none">
       <button class="hamburger" onclick="toggleSidebar()">☰</button>
@@ -521,6 +525,7 @@
       <div class="filter-bar">
         <span style="font-size:1rem;font-weight:600;color:var(--text-primary)">⚙️ 系统设置</span>
       </div>
+      <div class="card" id="organization-management" hidden style="margin-bottom:16px;max-width:680px"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>组织管理</span><button class="btn btn-primary btn-sm" onclick="OrgApp.openCreate()">＋ 新增组织</button></div><div id="org-management-body"></div></div>
       <!-- 数据管理 -->
       <div class="card" style="margin-bottom:16px;max-width:680px">
         <div class="card-title"><span>💾 数据管理</span></div>
@@ -1071,13 +1076,14 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
+<script src="js/organizations.js?v=1"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
 /* ==================== Data ==================== */
-const STORE_KEY = 'pxw_v2';
+const STORE_KEY = OrgApp.cacheKey;
 /* ==================== 接口令牌（登录后下发，所有 /api 请求自动携带） ==================== */
-const AUTH_TOKEN_KEY = 'mw_token';
+const AUTH_TOKEN_KEY = OrgApp.TOKEN_KEY;
 (function patchFetch(){
   const _f = window.fetch.bind(window);
   window.fetch = function(url, opts) {
@@ -1085,11 +1091,14 @@ const AUTH_TOKEN_KEY = 'mw_token';
       if (typeof url === 'string' && url.indexOf('/api/') === 0 && url.indexOf('/api/login') !== 0) {
         opts = opts || {};
         const h = new Headers(opts.headers || {});
-        h.set('x-auth-token', localStorage.getItem(AUTH_TOKEN_KEY) || '');
+        h.set('x-auth-token', sessionStorage.getItem(AUTH_TOKEN_KEY) || '');
+        h.set('x-organization-id', OrgApp.activeId);
         opts.headers = h;
       }
     } catch(e) {}
-    return _f(url, opts);
+    const writing = typeof url === 'string' && url.startsWith('/api/data') && opts?.method === 'POST';
+    if (writing) window.__orgPendingWrites = (window.__orgPendingWrites || 0) + 1;
+    return _f(url, opts).finally(() => { if (writing) window.__orgPendingWrites--; });
   };
 })();
 
@@ -1099,125 +1108,16 @@ let monthPickerYear = new Date().getFullYear();
 let monthPickerMonth = new Date().getMonth() + 1; // 1-12
 
 const DEFAULTS = {
-  comm_col_prefs: {}, // 内容发布自定义列偏好：按平台分别存（全公司共用）
-  schedules: [
-    { id:1, talent:'万万也没想到', price:500, topic:'音乐密码合作', date:'2026-05-01', status:'待策划' },
-    { id:2, talent:'鸣喇叭', price:2000, topic:'音乐密码合作', date:'2026-05-02', status:'待策划' },
-    { id:3, talent:'今天七哥哥', price:6262, topic:'音乐密码合作', date:'2026-05-03', status:'待策划' },
-    { id:4, talent:'失眠钢琴家', price:303, topic:'音乐密码合作', date:'2026-05-01', status:'待策划' },
-    { id:5, talent:'启梦宝贝', price:3535, topic:'音乐密码合作', date:'2026-05-02', status:'待策划' },
-    { id:6, talent:'dada弹琴', price:303, topic:'音乐密码合作', date:'2026-05-03', status:'待策划' },
-    { id:7, talent:'流浪声乐生', price:9090, topic:'音乐密码合作', date:'2026-05-04', status:'待策划' },
-    { id:8, talent:'piano毛', price:505, topic:'音乐密码合作', date:'2026-05-05', status:'待策划' },
-    { id:9, talent:'劳老师', price:1010, topic:'音乐密码合作', date:'2026-05-07', status:'待策划' },
-    { id:10, talent:'佚橙', price:404, topic:'音乐密码合作', date:'2026-05-08', status:'待策划' },
-    { id:11, talent:'和平兄妹玩音乐', price:500, topic:'音乐密码合作', date:'2026-05-09', status:'待策划' },
-    { id:12, talent:'钢琴的小小怪', price:1010, topic:'音乐密码合作', date:'2026-05-10', status:'待策划' },
-    { id:13, talent:'姬瑾熙', price:800, topic:'音乐密码合作', date:'2026-05-04', status:'待策划' },
-    { id:14, talent:'kanber张', price:2525, topic:'音乐密码合作', date:'2026-05-08', status:'待策划' },
-    { id:15, talent:'小旺老实', price:650, topic:'音乐密码合作', date:'2026-05-10', status:'待策划' },
-    { id:16, talent:'玮玮姚', price:800, topic:'音乐密码合作', date:'2026-05-11', status:'待策划' },
-    { id:17, talent:'万万也没想到', price:500, topic:'音乐密码合作', date:'2026-05-12', status:'待策划' },
-    { id:18, talent:'佚橙', price:404, topic:'音乐密码合作', date:'2026-05-13', status:'待策划' },
-    { id:19, talent:'piano毛', price:505, topic:'音乐密码合作', date:'2026-05-14', status:'待策划' },
-    { id:20, talent:'牛牛piano✓', price:12120, topic:'音乐密码合作', date:'2026-05-15', status:'待策划' },
-    { id:21, talent:'溜溜爱唱歌', price:1000, topic:'音乐密码合作', date:'2026-05-16', status:'待策划' },
-    { id:22, talent:'海绵星星派大宝（鼓）', price:3000, topic:'音乐密码合作', date:'2026-05-17', status:'待策划' },
-    { id:23, talent:'陈平火山糖', price:2828, topic:'音乐密码合作', date:'2026-05-13', status:'待策划' },
-    { id:24, talent:'柳姗娜_十安（鼓）', price:500, topic:'音乐密码合作', date:'2026-05-14', status:'待策划' },
-    { id:25, talent:'不热', price:500, topic:'音乐密码合作', date:'2026-05-15', status:'待策划' },
-    { id:26, talent:'三个老师组合（鼓）', price:1000, topic:'音乐密码合作', date:'2026-05-16', status:'待策划' },
-    { id:27, talent:'王子吃肉过敏', price:300, topic:'音乐密码合作', date:'2026-05-17', status:'待策划' },
-    { id:28, talent:'音乐小新', price:13130, topic:'音乐密码合作', date:'2026-05-15', status:'待策划' },
-    { id:29, talent:'沐晨妈妈', price:16000, topic:'音乐密码合作', date:'2026-05-16', status:'待策划' },
-    { id:30, talent:'小旺老实', price:650, topic:'音乐密码合作', date:'2026-05-17', status:'待策划' },
-    { id:31, talent:'玮玮姚', price:800, topic:'音乐密码合作', date:'2026-05-18', status:'待策划' },
-    { id:32, talent:'kanber张', price:2525, topic:'音乐密码合作', date:'2026-05-19', status:'待策划' },
-    { id:33, talent:'小乖乖大笨蛋', price:3150, topic:'音乐密码合作', date:'2026-05-20', status:'待策划' },
-    { id:34, talent:'不热（鼓）', price:500, topic:'音乐密码合作', date:'2026-05-22', status:'待策划' },
-    { id:35, talent:'和平兄妹玩音乐', price:500, topic:'音乐密码合作', date:'2026-05-23', status:'待策划' },
-    { id:36, talent:'王子吃肉过敏', price:300, topic:'音乐密码合作', date:'2026-05-24', status:'待策划' },
-    { id:37, talent:'我家这俩货', price:5000, topic:'音乐密码合作', date:'2026-05-18', status:'待策划' },
-    { id:38, talent:'姬瑾熙', price:800, topic:'音乐密码合作', date:'2026-05-19', status:'待策划' },
-    { id:39, talent:'dresslena', price:2000, topic:'音乐密码合作', date:'2026-05-20', status:'待策划' },
-    { id:40, talent:'钢琴小马甲', price:8000, topic:'音乐密码合作', date:'2026-05-21', status:'待策划' },
-    { id:41, talent:'钢琴的小小怪', price:1010, topic:'音乐密码合作', date:'2026-05-22', status:'待策划' },
-    { id:42, talent:'鸣喇叭', price:2000, topic:'音乐密码合作', date:'2026-05-23', status:'待策划' },
-    { id:43, talent:'小旺老实', price:650, topic:'音乐密码合作', date:'2026-05-24', status:'待策划' },
-    { id:44, talent:'三个老师组合（鼓）', price:1000, topic:'音乐密码合作', date:'2026-05-25', status:'待策划' },
-    { id:45, talent:'万万也没想到', price:500, topic:'音乐密码合作', date:'2026-05-26', status:'待策划' },
-    { id:46, talent:'柳姗娜_十安', price:500, topic:'音乐密码合作', date:'2026-05-28', status:'待策划' },
-    { id:47, talent:'鸣喇叭', price:2000, topic:'音乐密码合作', date:'2026-05-29', status:'待策划' },
-    { id:48, talent:'大大汪与小小淇', price:4000, topic:'音乐密码合作', date:'2026-05-30', status:'待策划' },
-    { id:49, talent:'王子吃肉过敏', price:300, topic:'音乐密码合作', date:'2026-05-31', status:'待策划' },
-    { id:50, talent:'小旺老实', price:650, topic:'音乐密码合作', date:'2026-05-31', status:'待策划' }
-  ],
-  contents: [
-    { id:1, talent:'贤妻大月儿', platform:'抖音,快手,视频号', title:'音乐密码合作内容 | 2026-04-01', date:'2026-04-01', price:1515.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAuDXvHuDFhGrAfIZXHKpYAhZviHwNtYb9WHUjDpBY1JadjXw34XgLQQrjYbJu-N2V?from_tab_name=main&relation=0&vid=7623733070432989034', link:'https://v.douyin.com/hiaCI7SeabA/', views:25000, likes:585, comments:56, completion:3.51, interaction:2.63, cover:'🎵', syncLink:'快手：https://v.kuaishou.com/nlVfTLoL', syncViews:11000, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:2, talent:'dada弹琴', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-01', date:'2026-04-01', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAtT3cAm5z5Gk8vRlGV0X0mqWXxDBxz6IY7jMS-EbbV4qW3EwYkMkMH__jzX0lbtfO?from_tab_name=main&relation=0&vid=7623728367821582502', link:'https://v.douyin.com/1Wnfmo-Pmfk/', views:18000, likes:508, comments:109, completion:7.0, interaction:3.35, cover:'🎵', syncLink:'小红书：http://xhslink.com/o/9TmB5UzXb7s \n快手：https://v.kuaishou.com/nuR9T6Q8', syncViews:9300, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:3, talent:'钢琴小马甲', platform:'抖音,小红书,视频号,快手,B站', title:'音乐密码合作内容 | 2026-04-01', date:'2026-04-01', price:8080.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAWjv3c6cueli_wNyh7gG_7Xv6ZcabBWd_9IdsY74kwbM?from_tab_name=main&relation=0&vid=7598559678796814969', link:'https://v.douyin.com/YApK0h6cMYc/', views:4347000, likes:222000, comments:16000, completion:3.85, interaction:5.29, cover:'🎵', syncLink:'小红书：http://xhslink.com/o/8Iw412BNTUf \n快手：https://v.kuaishou.com/ninUnHxy \nB站：https://b23.tv/EVn9h77', syncViews:2025500, searchVol:180, searchRate:0.01, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:4, talent:'小赵Piano🎹', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-02', date:'2026-04-02', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAYG-lRClXtN0eSk66Ep3hMKeb9278inqI03v_TdGDVglPL8q21iXav1oHWCuWpauR?from_tab_name=main&relation=0&vid=7624148944755862715', link:'https://v.douyin.com/jKaBpFrCFQE/', views:2100, likes:103, comments:10, completion:5.04, interaction:4.59, cover:'🎵', syncLink:'小红书：http://xhslink.com/o/4VQXOycxR5l \n快手：https://v.kuaishou.com/J4hnZF48', syncViews:5800, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:5, talent:'劳老师', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-02', date:'2026-04-02', price:1010.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAaAFciTsE4U9pMLFq3QLkwkTse9DsPrV2vr8pshsU5XY4MXybKXUbsXksHgFdjSpA?from_tab_name=main&vid=7624090838150253887', link:'https://v.douyin.com/FVN0pfW-A4E/', views:8000, likes:118, comments:2, completion:5.48, interaction:1.32, cover:'🎵', syncLink:'小红书：http://xhslink.com/o/5OewNYkLEbv', syncViews:0, searchVol:4, searchRate:0.04, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:6, talent:'牛牛Piano', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-04', date:'2026-04-04', price:12120.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAbjPvnoNoKAzI-30juSya-i_aWfetUlFeelbHbbEs0r3GBz2Wg516dLHYiFYiM7_f?from_tab_name=main&relation=0&vid=7624888360687750890', link:'https://v.douyin.com/Vcl7D9LFGNw/', views:98000, likes:8319, comments:240, completion:0, interaction:0, cover:'🎵', syncLink:'小红书                       http://xhslink.com/o/2ofahMwg5VT                         快手                   https://v.kuaishou.com/JiSGZF01', syncViews:832400, searchVol:9, searchRate:0.01, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:7, talent:'扎扎江', platform:'抖音,视频号,小红书,快手,B站', title:'音乐密码合作内容 | 2026-04-05', date:'2026-04-05', price:8080.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAoYH94b6SlxICkrkJnWHVJQfx2ruFSirzKTtWjLWbP4M3HVHuPdlbLEP5HbGsqcW1?from_tab_name=main&relation=0&vid=7625228276486795764', link:'https://v.douyin.com/y9TrqRdMhq8/', views:121000, likes:1653, comments:434, completion:0, interaction:0, cover:'🎵', syncLink:'小红书                      http://xhslink.com/o/698WWQNzPyz              快手                          https://v.kuaishou.com/7cukiULw                    B站                         https://b23.tv/49DXvyd', syncViews:65300, searchVol:235, searchRate:0.19, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:8, talent:'脑脑w', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-06', date:'2026-04-06', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAyyFcWlJL6yKbQFKhPsNuNhNkWZy4B4kwukc9HL6xpo8?from_tab_name=main&relation=0&vid=7625616272214899173', link:'https://v.douyin.com/X_lxIhn21uY/', views:4000, likes:400, comments:24, completion:0, interaction:0, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/discovery/item/69d3a22100000000230144e1?source=webshare&xhsshare=pc_web&xsec_token=ABOlE037s_bwIy57Pvh2nNnxUx-CIhwl24WPhAwHZw7MU=&xsec_source=pc_share', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:9, talent:'鸣喇叭', platform:'抖音', title:'音乐密码合作内容 | 2026-04-07', date:'2026-04-07', price:2020.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAASBWx4cAXOUWgQy5ivJlFVHihdC1QYUlMUUGzK1-1uZ4?from_tab_name=main&relation=1&vid=7625986882497861510', link:'https://v.douyin.com/3rJ6gClaV8s/', views:146000, likes:11000, comments:191, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:248, searchRate:0.16, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:10, talent:'劳老师', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-08', date:'2026-04-08', price:1010.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAaAFciTsE4U9pMLFq3QLkwkTse9DsPrV2vr8pshsU5XY4MXybKXUbsXksHgFdjSpA?from_tab_name=main&vid=7624090838150253887', link:'https://v.douyin.com/8LZ-77UA7mc/', views:15000, likes:309, comments:3, completion:4.13, interaction:2.0, cover:'🎵', syncLink:'', syncViews:2200, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:11, talent:'老姨和老弟', platform:'抖音,视频号', title:'音乐密码合作内容 | 2026-04-09', date:'2026-04-09', price:808.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAAqNEMou25ObxJVRmJCTXAfc9g5_iov1mvit-1tLEAVqbvfuKXuC18H6T8xoLaT14?from_tab_name=main&relation=1&vid=7626718333710194417', link:'https://v.douyin.com/K_w7HEMQi7w/', views:201000, likes:6439, comments:166, completion:5.37, interaction:3.12, cover:'🎵', syncLink:'', syncViews:101000, searchVol:129, searchRate:0.05, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:12, talent:'小拖鞋在此', platform:'抖音', title:'音乐密码合作内容 | 2026-04-09', date:'2026-04-09', price:808.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAQTQMxlNqBbEFryMHH78ouz3Uc-HHS7sznUkx2ykpe6o?from_tab_name=main&relation=0&vid=7626777179980206056', link:'https://v.douyin.com/jnVqURc82YI/', views:28000, likes:1670, comments:51, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:8, searchRate:0.03, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:13, talent:'万万也没想到（星图）', platform:'抖音', title:'音乐密码合作内容 | 2026-04-10', date:'2026-04-10', price:515.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAbOPwiN1TWVOMyRv10MudIJvu_Drlyv8_AH_iSoim8enMWNVdBf8jL5zLflTpuleX?from_tab_name=main&relation=1&vid=7626724948371680650', link:'https://v.douyin.com/pqF0N0gNF7I/', views:12000, likes:274, comments:33, completion:9.26, interaction:4.5, cover:'🎵', syncLink:'', syncViews:0, searchVol:18, searchRate:0.29, directAttr:0, indirectAttr:0, audience:0, store:'截止3.16\n直播引流：3', cpa3:8.2, searchNote:'看后搜次数：18\n会搜次数：46' },
-    { id:14, talent:'小赵Piano🎹', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-10', date:'2026-04-10', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAYG-lRClXtN0eSk66Ep3hMKeb9278inqI03v_TdGDVglPL8q21iXav1oHWCuWpauR?from_tab_name=main&relation=0&vid=7624148944755862715', link:'https://v.douyin.com/y1raPcPVIUo/ r@r.EU', views:1800, likes:67, comments:9, completion:2.28, interaction:3.69, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/discovery/item/69d8dce7000000001a023d1a?source=webshare&xhsshare=pc_web&xsec_token=ABK2b-N6Xtrz9asT6QGM705q9q1C2JEy1E0n13axKmllw=&xsec_source=pc_share\n快手：https://v.kuai', syncViews:6400, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:15, talent:'蛋挞只吃边🥧', platform:'抖音,小红书,视频号', title:'音乐密码合作内容 | 2026-04-11', date:'2026-04-11', price:2020.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAMaY3lOy83a-gyyr6OvH0rhKrvoRPLsLXo0uigG2jnuajmWqLHfctrGjzOyeT1r92?from_tab_name=main&relation=0&vid=7627451755962051045', link:'https://v.douyin.com/um3Wz8mF6tQ/', views:53000, likes:6096, comments:159, completion:18.46, interaction:12.74, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/discovery/item/69da063000000000220018b5?source=webshare&xhsshare=pc_web&xsec_token=ABTeRf6IhprPSL01HvYi9krx0l8HkEjdO-Yv2_49WjVEs=&xsec_source=pc_share', syncViews:12500, searchVol:3, searchRate:0.01, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:16, talent:'失眠钢琴家', platform:'抖音,小红书,B站', title:'音乐密码合作内容 | 2026-04-11', date:'2026-04-11', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAARBTrLhpDq7KdZJKuoOoNkY6ajWghReJmuS6GoY_1_s0?from_tab_name=main&relation=0&vid=7627364197773250694', link:'https://v.douyin.com/4sBSwKbk1FM/', views:3000, likes:209, comments:8, completion:0, interaction:0, cover:'🎵', syncLink:'小红书http://xhslink.com/o/9jZBWfDMwIJ                               B站                            https://b23.tv/yo0BHzI', syncViews:3700, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:17, talent:'黄志豪', platform:'抖音', title:'音乐密码合作内容 | 2026-04-11', date:'2026-04-11', price:9090.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAGORFjcM2zKwWFD5qK3afN49zXtNAxW9zbAx67x2q78QFjJyvrL4A8DdiXk9S1Wgt?from_tab_name=main&relation=0&vid=7627439536037740986', link:'https://v.douyin.com/UystF6Kk6Z8/', views:32000, likes:345, comments:19, completion:3.84, interaction:1.26, cover:'🎵', syncLink:'', syncViews:0, searchVol:39, searchRate:0.13, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:18, talent:'dada弹琴', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-12', date:'2026-04-12', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAtT3cAm5z5Gk8vRlGV0X0mqWXxDBxz6IY7jMS-EbbV4qW3EwYkMkMH__jzX0lbtfO?from_tab_name=main&relation=0&vid=7627810319503059914', link:'https://v.douyin.com/VowNL4RiE1Y/', views:13000, likes:474, comments:93, completion:5.73, interaction:4.3, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/explore/69db6d50000000001b0010cf?xsec_token=MBR-qe3O9CUgn9L4zyeNdMS0VudrSOvXUPqtBZT9Ci6Rs=&xsec_source=pc_pgy', syncViews:9700, searchVol:6, searchRate:0.04, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:19, talent:'爱教弹钢琴的小小怪', platform:'抖音,B站,快手,小红书', title:'音乐密码合作内容 | 2026-04-13', date:'2026-04-13', price:1010.0, homepage:'douyin.com/user/MS4wLjABAAAA3tAThAG8_9n4J7FBaOvio0-A1ARHm2MbHMhNbiBW5RQ?author_id=99511964567&enter_from=video_detail&enter_method=video_title&from_gid=7628245151680926586&from_tab_name=main&group_id=', link:'https://v.douyin.com/ibRzQYAHs1o/', views:9400, likes:123, comments:2, completion:0, interaction:0, cover:'🎵', syncLink:'小红书http://xhslink.com/o/5oOmvD2z9K5                         快手\nhttps://v.kuaishou.com/nQM2YDic\nB站\nhttps://b23.tv/2mJXtws', syncViews:15400, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:20, talent:'脑脑w', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-14', date:'2026-04-14', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAyyFcWlJL6yKbQFKhPsNuNhNkWZy4B4kwukc9HL6xpo8?from_tab_name=main&relation=0&vid=7625616272214899173', link:'https://v.douyin.com/bAB0QEA7Dp0/', views:7000, likes:437, comments:24, completion:0, interaction:0, cover:'🎵', syncLink:'小红书                       http://xhslink.com/o/4333WCTljYL', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:21, talent:'小赵Piano🎹', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-17', date:'2026-04-17', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAYG-lRClXtN0eSk66Ep3hMKeb9278inqI03v_TdGDVglPL8q21iXav1oHWCuWpauR?from_tab_name=main&relation=0&vid=7624148944755862715', link:'https://v.douyin.com/1zTmP9nOtOc/', views:4000, likes:174, comments:19, completion:4.16, interaction:4.76, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/discovery/item/69e2160400000000210129d2?source=webshare&xhsshare=pc_web&xsec_token=ABdtDMKvIErGzDia5HywkzyH6hM_JBKHqw6kf7jAbntVw=&xsec_source=pc_share\n快手：https://v.kuai', syncViews:25000, searchVol:2, searchRate:0.05, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:22, talent:'失眠钢琴家', platform:'抖音,小红书,B站', title:'音乐密码合作内容 | 2026-04-18', date:'2026-04-18', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAARBTrLhpDq7KdZJKuoOoNkY6ajWghReJmuS6GoY_1_s0?from_tab_name=main&relation=0&vid=7630006945953546886', link:'https://v.douyin.com/xbU7fY7Q68E/', views:7300, likes:646, comments:8, completion:4.47, interaction:8.46, cover:'🎵', syncLink:'小红书：http://xhslink.com/o/4xSsmLf0eUL \nB站：https://www.bilibili.com/video/BV1xZdJB6EaN/?share_source=copy_web&vd_source=6b92cdf6f331b637b74152d341e28fac', syncViews:4400, searchVol:2, searchRate:0.03, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:23, talent:'脑脑w', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-19', date:'2026-04-19', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAyyFcWlJL6yKbQFKhPsNuNhNkWZy4B4kwukc9HL6xpo8?from_tab_name=main&relation=0&vid=7625616272214899173', link:'https://v.douyin.com/56yW8BD8vcE/', views:3800, likes:381, comments:15, completion:5.44, interaction:9.37, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/discovery/item/69e4ce3f000000001f0030c1?source=webshare&xhsshare=pc_web&xsec_token=ABZ6Y0Q5YVYMLPt0Z0A_6i0NgatUXO4LbrJRqu7wCVxjc=&xsec_source=pc_share', syncViews:0, searchVol:0, searchRate:0.0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:24, talent:'佚橙', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-20', date:'2026-04-20', price:404.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAVhWpZGyqTPmDHRtEpztmaLG3-2FZcZPhydLL5ePd9zk?from_tab_name=main&relation=0&vid=7630781120532383203', link:'https://v.douyin.com/J2AwHsSjf_o/ M@j.PK', views:11000, likes:321, comments:21, completion:4.03, interaction:4.46, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/explore/69e630f40000000021013849?xsec_token=MBCHW69aOi-o4-EJV2HGaqqLIHbdYjLhksqjQ80x4CbIQ=&xsec_source=pc_pgy', syncViews:300, searchVol:0, searchRate:0.0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:25, talent:'Piano 毛🎹', platform:'抖音,小红书,视频号', title:'音乐密码合作内容 | 2026-04-21', date:'2026-04-21', price:505.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAr9eIWeLzNnlVHTKu2vAb2o7G6ZbEmfxAx-6Vs1gX9Kg?from_tab_name=main&relation=0&vid=7631087479663336889', link:'https://v.douyin.com/vSZVswkNvPM/', views:274000, likes:2492, comments:146, completion:8.93, interaction:0.98, cover:'🎵', syncLink:'小红书：\nhttp://xhslink.com/o/7kHer1wVbpf', syncViews:7800, searchVol:492, searchRate:0.24, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:26, talent:'老姨和老弟', platform:'抖音,视频号', title:'音乐密码合作内容 | 2026-04-22', date:'2026-04-22', price:5800.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAAqNEMou25ObxJVRmJCTXAfc9g5_iov1mvit-1tLEAVqbvfuKXuC18H6T8xoLaT14?from_tab_name=main&relation=1&vid=7631528144478684913', link:'https://v.douyin.com/_6O1Q-Rb8No/ R@x.SL', views:9491000, likes:246000, comments:5444, completion:16.69, interaction:2.71, cover:'🎵', syncLink:'', syncViews:2342000, searchVol:6120, searchRate:0.05, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:27, talent:'奕哥', platform:'抖音', title:'音乐密码合作内容 | 2026-04-23', date:'2026-04-23', price:5000.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAMHwCg-nEV8cNUrbKEyB7VzDBGOsQXgSYJrUHeLxsYeynht6SlyxLM4w81-9XtK7f?from_tab_name=main&relation=0&vid=7631521294039008628', link:'https://v.douyin.com/fvRPFvWCw3I/', views:1169000, likes:16000, comments:660, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:28, talent:'爱教弹钢琴的小小怪', platform:'抖音,B站,快手,小红书', title:'音乐密码合作内容 | 2026-04-24', date:'2026-04-24', price:1010.0, homepage:'douyin.com/user/MS4wLjABAAAA3tAThAG8_9n4J7FBaOvio0-A1ARHm2MbHMhNbiBW5RQ?author_id=99511964567&enter_from=video_detail&enter_method=video_title&from_gid=7628245151680926586&from_tab_name=main&group_id=', link:'https://v.douyin.com/NLy8WK7evDU/', views:3800, likes:65, comments:2, completion:4.11, interaction:2.24, cover:'🎵', syncLink:'小红书https://www.xiaohongshu.com/discovery/item/69ee1a1c000000001b0205d9?source=webshare&xhsshare=pc_web&xsec_token=ABqYI4sJ6vaypR_wC87nsnKgZQZyC2Of4_GWG6s6FKGCM=&xsec_source=pc_share                   ', syncViews:3700, searchVol:0, searchRate:0.0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:29, talent:'蒋胡_', platform:'抖音', title:'音乐密码合作内容 | 2026-04-24', date:'2026-04-24', price:13130.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAArL2_R-W4vlpqj8w2_Xo1tEer9iUTC9y-TFuVJJbTiz5_MSUSlvuHwyzp9M6KXqEy?from_tab_name=main&relation=0&vid=7632286329280711355', link:'https://v.douyin.com/h-6cSJvlR3Y/', views:990000, likes:70000, comments:612, completion:1.32, interaction:5.6, cover:'🎵', syncLink:'', syncViews:0, searchVol:3758, searchRate:0.4, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:30, talent:'劳老师', platform:'提供素材，我们发布', title:'音乐密码合作内容 | 2026-04-24', date:'2026-04-24', price:1010.0, homepage:'', link:'https://v.douyin.com/LJ-oCDOyJdg/', views:0, likes:0, comments:0, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:31, talent:'失眠钢琴家', platform:'抖音,小红书,B站', title:'音乐密码合作内容 | 2026-04-25', date:'2026-04-25', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAARBTrLhpDq7KdZJKuoOoNkY6ajWghReJmuS6GoY_1_s0?from_tab_name=main&relation=0&vid=7632599020054278633', link:'https://v.douyin.com/81cvDBddCpk/', views:3700, likes:302, comments:6, completion:2.26, interaction:7.66, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/explore/69ec6f6b000000002003addb?xsec_token=MBWrxAKLJ9Utq8Rs5e_oXJVavLBUsXSh1zoP0hhsmatw0=&xsec_source=pc_pgy\nB站：https://www.bilibili.com/video/BV1YsoSBBEbC/?share_sour', syncViews:10000, searchVol:1, searchRate:0.03, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:32, talent:'dada弹琴', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-25', date:'2026-04-25', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAtT3cAm5z5Gk8vRlGV0X0mqWXxDBxz6IY7jMS-EbbV4qW3EwYkMkMH__jzX0lbtfO?from_tab_name=main&relation=0&vid=7627810319503059914', link:'https://v.douyin.com/EmdovGhhzwQ/', views:13000, likes:513, comments:105, completion:5.08, interaction:1.31, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/explore/69ec91f2000000003502f149?xsec_token=MBWrxAKLJ9Utq8Rs5e_oXJVVovnYj1Gsx8hd1kETsowT0=&xsec_source=pc_pgy\n快手：\n视频号：', syncViews:16900, searchVol:5, searchRate:0.18, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:33, talent:'小赵Piano🎹', platform:'抖音,小红书,快手,视频号', title:'音乐密码合作内容 | 2026-04-26', date:'2026-04-26', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAYG-lRClXtN0eSk66Ep3hMKeb9278inqI03v_TdGDVglPL8q21iXav1oHWCuWpauR?from_tab_name=main&relation=0&vid=7624148944755862715', link:'https://v.douyin.com/urq8pZZHhQg/', views:2500, likes:111, comments:7, completion:6.8, interaction:2.02, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/explore/69ee184e000000003601ba30?xsec_token=MBS1kDQo0Hgqz2jRYeKMKIwkxpKEvww7uxxaS1Yp924B0=&xsec_source=pc_pgy\n快手：\n视频号：', syncViews:3700, searchVol:0, searchRate:0.0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:34, talent:'和平兄妹玩音乐', platform:'抖音', title:'音乐密码合作内容 | 2026-04-26', date:'2026-04-26', price:500.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAh9VnV36PqmQe1XlNyismO-WTJWW25Q1QbAKnkKIVBA0?author_id=73910181551&enter_from=video_detail&enter_method=video_title&from_gid=7633030961052520043&from_tab_name=ma', link:'https://v.douyin.com/rpy8fhS6e68/', views:43000, likes:0, comments:0, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:35, talent:'_佚橙', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-27', date:'2026-04-27', price:404.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAVhWpZGyqTPmDHRtEpztmaLG3-2FZcZPhydLL5ePd9zk?from_tab_name=main&relation=0&vid=7630781120532383203', link:'https://v.douyin.com/LlFkUJONwEk/ o@d.AG', views:25000, likes:379, comments:27, completion:3.09, interaction:1.71, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/explore/69e630f40000000021013849?xsec_token=MBCHW69aOi-o4-EJV2HGaqqIHSmZNNoyQnJc9LKBUoDjU=&xsec_source=pc_pgy', syncViews:900, searchVol:1, searchRate:0.01, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:36, talent:'Piano 毛🎹', platform:'抖音,小红书,视频号', title:'音乐密码合作内容 | 2026-04-28', date:'2026-04-28', price:505.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAr9eIWeLzNnlVHTKu2vAb2o7G6ZbEmfxAx-6Vs1gX9Kg?from_tab_name=main&relation=0&vid=7631087479663336889', link:'https://v.douyin.com/tSpqPPoL8-s/', views:24000, likes:531, comments:31, completion:6.81, interaction:1.96, cover:'🎵', syncLink:'小红书https://www.xiaohongshu.com/discovery/item/69f0389200000000350248ec?source=webshare&xhsshare=pc_web&xsec_token=ABx2MxdY_MJziP9AALpDpytkMKuH5XQtABLvjdtCnbcAo=&xsec_source=pc_share', syncViews:8200, searchVol:6, searchRate:0.02, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:37, talent:'和平兄妹玩音乐', platform:'抖音', title:'音乐密码合作内容 | 2026-04-28', date:'2026-04-28', price:5500.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAh9VnV36PqmQe1XlNyismO-WTJWW25Q1QbAKnkKIVBA0?author_id=73910181551&enter_from=video_detail&enter_method=video_title&from_gid=7633030961052520043&from_tab_name=ma', link:'https://v.douyin.com/P9DIBjB5T-E/ T@Y.Zm', views:1485000, likes:81000, comments:1511, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:38, talent:'玮玮姚✨', platform:'抖音', title:'音乐密码合作内容 | 2026-04-28', date:'2026-04-28', price:800.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAA9UxcPsyVlXM1yI4ecsmxhkECxVjIWhLw77NRGapYMTOZmPLbTZeIQBnk7KRmvtp8?from_tab_name=main&relation=1&vid=7622977027725716145', link:'https://v.douyin.com/VyN70mS2nk8/', views:63000, likes:302, comments:34, completion:0, interaction:0, cover:'🎵', syncLink:'', syncViews:0, searchVol:0, searchRate:0, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:39, talent:'脑脑w', platform:'抖音,小红书', title:'音乐密码合作内容 | 2026-04-29', date:'2026-04-29', price:303.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAAyyFcWlJL6yKbQFKhPsNuNhNkWZy4B4kwukc9HL6xpo8?from_tab_name=main&relation=0&vid=7625616272214899173', link:'https://v.douyin.com/qPwZw1WZpIo/ Y@Z.Zm', views:7500, likes:503, comments:23, completion:5.18, interaction:6.65, cover:'🎵', syncLink:'小红书：https://www.xiaohongshu.com/discovery/item/69f1f5ce000000001a02c9da?source=webshare&xhsshare=pc_web&xsec_token=ABIhGoj7M9CSg3XmkwvrKSPNw_d4JK2u2XCFaW8tE_1H4=&xsec_source=pc_share', syncViews:0, searchVol:1, searchRate:0.01, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' },
-    { id:40, talent:'玮玮姚✨', platform:'抖音', title:'音乐密码合作内容 | 2026-04-30', date:'2026-04-30', price:800.0, homepage:'https://www.douyin.com/user/MS4wLjABAAAA9UxcPsyVlXM1yI4ecsmxhkECxVjIWhLw77NRGapYMTOZmPLbTZeIQBnk7KRmvtp8?from_tab_name=main&relation=1&vid=7622977027725716145', link:'https://v.douyin.com/UtedJYFfaDs/', views:47000, likes:389, comments:32, completion:9.36, interaction:0.96, cover:'🎵', syncLink:'', syncViews:0, searchVol:4, searchRate:0.01, directAttr:0, indirectAttr:0, audience:0, store:'', cpa3:0, searchNote:'' }
-  ],
-  samples: [],
-  materials: [],
-  settlements: [],
-  candidates: [],
-  douyin_promo: {}
+  schedules:[], contents:[], kols:[], samples:[], settlements:[], materials:[], candidates:[],
+  bds:[], supervisors:[], replacements:[], company_posts:[], company_accounts:[],
+  schedule_directions:[], schedule_budgets:[], product_lines:[], platforms:[], tiers:[],
+  work_types:[], payment_accounts:[], sample_products:[], frozenMonths:[],
+  comm_col_prefs:{}, monthly_reviews:{}, douyin_promo:{}, roi_replacement_manual:{}
 };
-
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // Version migration: reset data if version mismatch
-      const CUR_VERSION = 'v11-0509';
-      if (parsed._version !== CUR_VERSION) {
-        localStorage.removeItem(STORE_KEY);
-        return JSON.parse(JSON.stringify(DEFAULTS));
-      }
-      // Merge new keys from defaults if missing
-      Object.keys(DEFAULTS).forEach(k => { if (!parsed[k]) parsed[k] = DEFAULTS[k]; });
-      return parsed;
-    }
-  } catch(e) {}
-  return JSON.parse(JSON.stringify(DEFAULTS));
+function loadData() { return JSON.parse(JSON.stringify(DEFAULTS)); }
+function applyServerData(serverData) {
+  if (serverData._organization_id !== OrgApp.activeId) throw new Error('组织数据不匹配');
+  DB = { ...loadData(), ...serverData }; window.DB = DB;
 }
 
 // 首次从服务器成功同步后才允许上传（防止空缓存浏览器在同步前把空数据推上服务器）
@@ -1228,13 +1128,15 @@ function _syncPayload(extra) {
   const u = window.currentUser || {};
   return JSON.stringify({
     ...DB, _version: 'v11-0509',
-    _baseRev: window.__rev,
+    _baseRev: window.__rev, _organization_id: OrgApp.activeId, _epoch: DB._epoch,
     _actor: { name: u.name || '未知', role: u.role || '' },
     ...(extra || {}),   // ④ 自救重试时带上 _base（浏览器记得的基准版本）
   });
 }
-function _afterSave(r) {
+function _afterSave(r, sentSnapshot) {
   if (!r) return;
+  // 较早请求返回时，不能把之后的新改动误标成已保存。
+  if (sentSnapshot && sentSnapshot !== JSON.stringify(DB)) return;
   window.__dirty = false;                                   // 本地改动已到达服务器
   if (typeof _hideSyncBanner === 'function') _hideSyncBanner();
   if (r.merged) {
@@ -1269,9 +1171,10 @@ function _saveFailed(e) {
     let base = null; try { base = JSON.parse(window.__baseSnapshot); } catch (_) {}
     if (base) {
       window.toast && window.toast('🔄 页面数据已过期，正在自动合并同事的改动后保存…', 'info', 3000);
+      const sentSnapshot = JSON.stringify(DB);
       fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: _syncPayload({ _base: base }) })
         .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) { const err = new Error(j.error || ('HTTP ' + r.status)); err.stale = !!j.stale; err._noRetry = true; throw err; } return j; })
-        .then(r => { _afterSave(r); window.toast && window.toast('✅ 已自动合并同事的改动并保存成功', 'success', 4000); })
+        .then(r => { _afterSave(r, sentSnapshot); window.toast && window.toast('✅ 已自动合并同事的改动并保存成功', 'success', 4000); })
         .catch(_saveFailed);   // 自救也失败 → 走下面的刷新兜底（_noRetry 防止再次自救）
       return;
     }
@@ -1294,12 +1197,13 @@ function saveData() {
   // 同步到服务器（防抖 800ms）
   clearTimeout(saveData._t);
   saveData._t = setTimeout(() => {
+    const sentSnapshot = JSON.stringify(DB);
     fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: _syncPayload()
     }).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) { const err = new Error(j.error || ('HTTP ' + r.status)); err.stale = !!j.stale; err.status = r.status; throw err; } return j; })
-      .then(_afterSave).catch(_saveFailed);
+      .then(r => _afterSave(r, sentSnapshot)).catch(_saveFailed);
   }, 800);
 }
 // 立即写入服务器（不走防抖，用于不能丢的关键写操作）
@@ -1309,12 +1213,13 @@ function saveDataNow() {
   localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
   if (!window.__syncReady) return;
   clearTimeout(saveData._t);
+  const sentSnapshot = JSON.stringify(DB);
   fetch('/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: _syncPayload()
   }).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) { const err = new Error(j.error || ('HTTP ' + r.status)); err.stale = !!j.stale; err.status = r.status; throw err; } return j; })
-    .then(_afterSave).catch(_saveFailed);
+    .then(r => _afterSave(r, sentSnapshot)).catch(_saveFailed);
 }
 
 let DB = loadData();
@@ -1323,20 +1228,26 @@ window.DB = DB;
 window.saveData = saveData;
 
 /* ==================== Auth ==================== */
-const ADMIN_PASS = 'admin123';
 let currentUser = null;
-const SESSION_KEY = 'mw_session_v2';
+const SESSION_KEY = OrgApp.SESSION_KEY;
 
 // 填充登录页身份下拉（DB 已加载后调用）
 async function populateLoginIdentities() {
   const sel = document.getElementById('login-identity');
   if (!sel) return;
   try {
-    const res = await fetch('/api/login-options');
+    const orgId = OrgApp.loginId;
+    sel.disabled = true;
+    const res = await fetch('/api/login-options?organization=' + encodeURIComponent(orgId));
+    if (!res.ok) throw new Error('人员加载失败');
     const opts = await res.json();
-    sel.innerHTML = (opts || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+    if (orgId !== OrgApp.loginId) return;
+    sel.innerHTML = '';
+    (opts || []).forEach(o => sel.add(new Option(o.label, o.value)));
+    sel.disabled = false;
   } catch(e) {
-    sel.innerHTML = '<option value="admin">👑 管理员</option>';
+    sel.innerHTML = '<option value="">人员加载失败，请刷新重试</option>';
+    sel.disabled = true;
   }
 }
 
@@ -1358,6 +1269,7 @@ function _applyLogin(userInfo) {
   const svCard = document.getElementById('admin-sv-card');
   if (bdCard) bdCard.style.display = isAdmin ? '' : 'none';
   if (svCard) svCard.style.display = isAdmin ? '' : 'none';
+  OrgApp.renderCurrent();
   initApp();
 }
 
@@ -1370,15 +1282,11 @@ async function doLogin() {
   try {
     const res = await fetch('/api/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identity, password: p })
+      body: JSON.stringify({ organization: OrgApp.loginId, identity, password: p })
     });
     if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
     const { token, user } = await res.json();
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-    const sess = { identity: user.identity, at: Date.now() };
-    if (user.identity === 'bd') sess.bd_id = user.bd_id;
-    if (user.identity === 'supervisor') sess.sv_id = user.sv_id;
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(sess)); } catch(e) {}
+    OrgApp.setSession({token, user});
     // 重新加载：带令牌拉取全部数据并自动恢复登录态
     location.reload();
   } catch(e) {
@@ -1414,7 +1322,7 @@ async function _olLoad() {
     const qs = new URLSearchParams();
     ['user', 'module', 'action', 'days', 'q'].forEach(k => { if (_ol[k]) qs.set(k, _ol[k]); });
     qs.set('limit', '300');
-    const r = await fetch('/api/logs?' + qs.toString(), { headers: { 'x-auth-token': localStorage.getItem(AUTH_TOKEN_KEY) || '' } });
+    const r = await fetch('/api/logs?' + qs.toString(), { headers: { 'x-auth-token': sessionStorage.getItem(AUTH_TOKEN_KEY) || '' } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     const ACT = { create: ['➕ 新增', 'var(--success)'], update: ['✏️ 修改', 'var(--info)'], delete: ['🗑 删除', 'var(--danger)'] };
@@ -1565,14 +1473,15 @@ function importBackup() {
       if (missing.length === keys.length) {
         window.toast && window.toast('文件格式不对，请选择正确的备份文件', 'error'); return;
       }
+      if ((data._organization_id || 'domestic') !== OrgApp.activeId) { toast('该备份属于其他组织，不能导入当前组织', 'error'); return; }
       const counts = `${data.schedules?.length||0} 条排期 / ${data.kols?.length||0} 个达人 / ${data.contents?.length||0} 条内容 / ${data.samples?.length||0} 条样品`;
-      if (!confirm(`备份文件内容：\n${counts}\n\n确认导入？（将覆盖服务器现有数据）`)) return;
+      if (!confirm(`备份文件内容：\n${counts}\n\n确认导入到当前组织？`)) return;
       // 推送到服务器
       data._saved_at = Date.now();
       const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({...data, _version:'v11-0509'})
+        body: JSON.stringify({...data, _version:'v11-0509', _organization_id:OrgApp.activeId, _epoch:DB._epoch, _baseRev:window.__rev})
       });
       if (!res.ok) throw new Error('服务器保存失败');
       // 更新本地
@@ -1618,7 +1527,7 @@ async function openBackupPanel() {
               <div style="font-weight:500;font-size:.88rem">${b.date}</div>
               <div style="font-size:.75rem;color:var(--text-muted)">${(b.size/1024).toFixed(1)} KB</div>
             </div>
-            <a href="/api/backups/${b.filename}?t=${localStorage.getItem(AUTH_TOKEN_KEY)||''}" download="${b.filename}"
+            <a href="/api/backups/${b.filename}?t=${sessionStorage.getItem(AUTH_TOKEN_KEY)||''}" download="${b.filename}"
                style="font-size:.78rem;padding:4px 12px;border:1px solid var(--primary);border-radius:4px;color:var(--primary);text-decoration:none">
               下载
             </a>
@@ -1646,46 +1555,18 @@ async function openBackupPanel() {
 }
 
 function doLogout() {
-  try { localStorage.removeItem(SESSION_KEY); localStorage.removeItem(AUTH_TOKEN_KEY); } catch(e) {}
-  currentUser = null;
-  window.currentUser = null;
-  populateLoginIdentities();
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-error').textContent = '';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
+  if (window.__dirty || window.__orgPendingWrites) { toast('还有未保存成功的改动，请先保存后退出', 'error'); return; }
+  window.__syncReady = false; clearTimeout(saveData._t);
+  OrgApp.clear(); location.reload();
 }
-
 function tryRestoreSession() {
-  try {
-    if (!localStorage.getItem(AUTH_TOKEN_KEY)) return false; // 没令牌不恢复，强制重新登录
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
-    if (!s || !s.identity) return false;
-    if (s.identity === 'admin') {
-      _applyLogin({ identity: 'admin', name: '管理员', role: '管理员', bd_id: null });
-      return true;
-    }
-    if (s.identity === 'bd' && s.bd_id) {
-      const bd = (window.DB?.bds || []).find(b => b.id === s.bd_id);
-      if (!bd || !bd.password) return false;
-      _applyLogin({ identity: 'bd', name: bd.name, role: '商务BD', bd_id: bd.id });
-      return true;
-    }
-    if (s.identity === 'supervisor' && s.sv_id) {
-      const sv = (window.DB?.supervisors || []).find(x => x.id === s.sv_id);
-      if (!sv || !sv.password) return false;
-      _applyLogin({ identity: 'supervisor', name: sv.name, role: '品宣主管', bd_id: sv.id, sv_id: sv.id });
-      return true;
-    }
-  } catch(e) {}
-  return false;
+  if (!window.__verifiedUser || !window.__syncReady) return false;
+  _applyLogin(window.__verifiedUser); return true;
 }
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-// 页面加载时填充身份下拉
-populateLoginIdentities();
+// 页面加载时先选择组织，再加载该组织人员
+OrgApp.refreshLogin();
 
 /* ==================== Navigation ==================== */
 const PAGE_TITLES = {
@@ -1783,7 +1664,7 @@ function navigate(page) {
   const inlineBar = document.getElementById('page-inline-bar');
   if (inlineBar) inlineBar.style.display = 'none';
   currentPage = page;
-  try { localStorage.setItem('_last_page', page); } catch(e) {}
+  try { localStorage.setItem('_last_page:' + OrgApp.activeId, page); } catch(e) {}
   closeSidebar();
   if (page === 'dashboard')       { renderDashboard(); updateReminderBadge(); }
   if (page === 'schedule')    renderCalendar();
@@ -4711,6 +4592,7 @@ function deleteSettlement() {
 
 /* ==================== Admin Panel ==================== */
 function renderAdminPanel() {
+  OrgApp.renderManagement();
   // ---- 商务BD ----
   const bds = window.ScheduleData ? ScheduleData.listBds({ includeInactive: true }) : [];
   const bdContainer = document.getElementById('admin-bd-list');
@@ -5213,7 +5095,7 @@ function initApp() {
   updateReminderBadge();
   // 恢复上次停留的页面
   try {
-    const lastPage = localStorage.getItem('_last_page');
+    const lastPage = localStorage.getItem('_last_page:' + OrgApp.activeId);
     const validPages = ['dashboard','schedule','monthly-plan','review-log','kols','contents','samples','materials','replacements','candidates','settlement'];
     if (lastPage && validPages.includes(lastPage) && lastPage !== 'dashboard') {
       setTimeout(() => navigate(lastPage), 0);
@@ -5226,7 +5108,7 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=98"></script>
+<script src="js/schedule/data.js?v=99"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
 <script src="js/schedule/calendar.js?v=74"></script>
 <script src="js/schedule/editor.js?v=85"></script>
@@ -5236,7 +5118,7 @@ function initApp() {
 <script src="js/schedule/recycle-bin.js?v=53"></script>
 <script src="js/schedule/kols-page.js?v=68"></script>
 <script src="js/schedule/kols-excel.js?v=53"></script>
-<script src="js/schedule/communication.js?v=126"></script>
+<script src="js/schedule/communication.js?v=127"></script>
 <script src="js/schedule/materials.js?v=7"></script>
 <script src="js/schedule/communication-excel.js?v=56"></script>
 <script src="js/schedule/replacements-page.js?v=52"></script>
@@ -5249,10 +5131,12 @@ function initApp() {
   // 从服务器加载最新数据，保证多端数据同步
   (async function syncFromServer() {
     try {
+      window.__verifiedUser = await OrgApp.restore();
+      if (!window.__verifiedUser) return;
       const res = await fetch('/api/data');
       if (res.status === 401) {
         // 令牌缺失/失效 → 清除并回到登录页
-        try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch(e) {}
+        try { sessionStorage.removeItem(AUTH_TOKEN_KEY); } catch(e) {}
         await populateLoginIdentities();
         return;
       }
@@ -5261,13 +5145,15 @@ function initApp() {
       // 服务器是唯一数据源，直接用服务器数据，不做任何本地与服务器的合并比较
       if (serverData && Object.keys(serverData).length > 0) {
         if (serverData._build) window.__appBuild = serverData._build; // 记录首次加载时的版本
-        Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build' && k !== '_rev') DB[k] = serverData[k]; });
+        applyServerData(serverData);
         if (serverData._rev != null) window.__rev = serverData._rev;   // 记下版本，保存时带回供服务器合并
         try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 此刻本地 == 服务器 → 记为基准（页面过期时自救合并用）
         window.__dirty = false;
         window.DB = DB;
         localStorage.setItem(STORE_KEY, JSON.stringify({...DB, _version:'v11-0509'}));
+        ScheduleData.initialize();
         window.__syncReady = true; // 首次同步完成，允许上传
+        if (window.__dirty) saveDataNow();
         // 一次性回填：把内容发布里填过的粉丝量倒灌进达人库（达人名+主平台匹配，取最新一条），仅跑一次
         if (!DB._fansBackfilled_v1) {
           try {
@@ -5305,8 +5191,9 @@ function initApp() {
         }
       }
     } catch (e) {
-      // 服务器不可达时才降级用本地缓存（离线模式）
-      console.warn('[sync] 服务器不可达，使用本地缓存');
+      window.__syncReady = false;
+      document.getElementById('login-error').textContent = '无法读取组织数据，请重新登录或稍后刷新';
+      console.warn('[sync] 未载入组织数据，不进入工作区');
     }
     if (!tryRestoreSession()) {
       populateLoginIdentities();
@@ -5409,7 +5296,7 @@ function initApp() {
         const res = await fetch('/api/data');
         if (res.status === 401) {
           // 令牌缺失/失效：不是服务器断开，回登录页重新登录
-          try { localStorage.removeItem(AUTH_TOKEN_KEY); localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          try { sessionStorage.removeItem(AUTH_TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
           location.reload();
           return;
         }
@@ -5451,7 +5338,7 @@ function initApp() {
           const _pe0 = document.getElementById('page-' + currentPage);
           if (_pe0) _pe0.querySelectorAll('div').forEach(el => { if (el.scrollTop > _scTop) _scTop = el.scrollTop; });
 
-          Object.keys(serverData).forEach(k => { if (k !== '_version' && k !== '_build' && k !== '_rev') DB[k] = serverData[k]; });
+          applyServerData(serverData);
         if (serverData._rev != null) window.__rev = serverData._rev;   // 记下版本，保存时带回供服务器合并
         try { window.__baseSnapshot = JSON.stringify(DB); } catch (_) {}   // 此刻本地 == 服务器 → 记为基准（页面过期时自救合并用）
         window.__dirty = false;

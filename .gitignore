@@ -32,3 +32,9 @@ logs.json
 
 # 外部系统只读接口的本机密钥交付文件（禁止提交）
 .integration-secrets/
+
+# 组织注册表、独立业务库与会话密钥
+organizations.json
+organizations/
+.organization-session-secret
+before-organizations.json

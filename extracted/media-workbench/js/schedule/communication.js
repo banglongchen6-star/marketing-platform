@@ -205,15 +205,9 @@
 
   /* 顶部 tab：按主平台切分 */
   function renderTabs() {
-    const tabs = [
-      { key: '全部', label: '全部平台' },
-      { key: '抖音', label: '抖音平台' },
-      { key: '小红书', label: '小红书平台' },
-      { key: 'B站', label: 'B站平台' },
-      { key: '视频号', label: '视频号平台' },
-      { key: '快手', label: '快手平台' },
-      { key: '公司账号', label: '🏢 公司账号' },
-    ];
+    const configured = SD.listPlatforms().map(p => p.name);
+    const names = DB._organization?.region === 'overseas' ? configured : [...new Set(['抖音','小红书','B站','视频号','快手', ...configured])];
+    const tabs = [{key:'全部',label:'全部平台'}, ...names.map(name => ({key:name,label:name+'平台'})), {key:'公司账号',label:'🏢 公司账号'}];
     // 公司账号 tab 是独立记录本，不涉及达人内容的月度冻结，故不显示冻结按钮
     const onCompany = state.mainPlatform === '公司账号';
     const frozen = SD.isMonthFrozen(state.year, state.month);

@@ -33,6 +33,7 @@
     { name: 'Vlog', sort_order: 12 },
   ];
 
+  function initialize() {
   /* ------------------------- 2. 初始化集合 ------------------------- */
   // 不动 DB._version（避免清掉用户已有的 contents/candidates 等数据）
   // 新集合用首次访问时按需补齐策略
@@ -60,38 +61,7 @@
   mutated = ensureCollection('sample_products', []) || mutated;
   mutated = ensureCollection('frozenMonths', []) || mutated;
 
-  // ⚠️ 一次性重置（清掉所有迁移自老系统的演示数据），每个浏览器只触发一次
-  // 保留 schedule_directions / schedule_budgets（字典 + 预算配置）
-  // 重置后正常持久化新数据
-  const RESET_FLAG = '_wiped_demo_data_2026_05_11';
-  if (!DB[RESET_FLAG]) {
-    DB.schedules = [];
-    DB.kols = [];
-    DB.schedule_import_logs = [];
-    DB[RESET_FLAG] = true;
-    mutated = true;
-  }
-
-  // 第 1 期联动改造：清掉 5 个老模块的 demo 数据（每浏览器一次），强制走关联排期录入
-  const PHASE1_RESET_FLAG = '_wiped_phase1_modules_2026_05_11';
-  if (!DB[PHASE1_RESET_FLAG]) {
-    DB.contents = [];
-    DB.candidates = [];
-    DB.samples = [];
-    DB.materials = [];
-    DB.settlements = [];
-    DB[PHASE1_RESET_FLAG] = true;
-    mutated = true;
-  }
-
-  // 内容发布模型大改造：从"扁平 1 条 = 1 平台"改为"主信息+publications[]"
-  // 老结构没有 schedule_id 强约束。一次性清空，强制走新结构。
-  const COMMS_RESET_FLAG = '_comms_v2_2026_05_15';
-  if (!DB[COMMS_RESET_FLAG]) {
-    DB.contents = [];
-    DB[COMMS_RESET_FLAG] = true;
-    mutated = true;
-  }
+  for (const flag of ['_wiped_demo_data_2026_05_11','_wiped_phase1_modules_2026_05_11','_comms_v2_2026_05_15']) { if (!DB[flag]) { DB[flag] = true; mutated = true; } }
 
   // 不再自动种入默认达人类型；达人类型全部由用户在「字典管理」中自行添加
 
@@ -106,7 +76,7 @@
   }
 
   // 平台字典种子（首次为空时种 4 条：抖音 / 小红书 / B站 / 视频号）
-  if (DB.platforms.length === 0) {
+  if (DB.platforms.length === 0 && DB._organization?.region !== 'overseas') {
     const now = new Date().toISOString();
     DB.platforms = [
       { id: uid(), name: '抖音',   sort_order: 1, is_active: true, created_at: now },
@@ -141,22 +111,6 @@
    * 凡是检测到旧字段则补齐新字段，旧字段保留以免破坏「内容排期」老视图。
    */
   // 中文 status → 英文枚举映射（兼容老数据）
-  const STATUS_CN_TO_EN = {
-    '待策划': 'planned',
-    '计划中': 'planned',
-    '已联系': 'planned',
-    '已确认': 'planned',
-    '已发布': 'published',
-    '已取消': 'cancelled',
-  };
-  const VALID_STATUS = new Set(['planned','published','cancelled']);
-
-  function normalizeStatus(s) {
-    if (!s) return 'planned';
-    if (VALID_STATUS.has(s)) return s;
-    return STATUS_CN_TO_EN[s] || 'planned';
-  }
-
   if (Array.isArray(DB.schedules)) {
     DB.schedules.forEach((s) => {
       // 判断是否为老数据：缺 schedule_date 且有 date，或 status 是中文
@@ -218,6 +172,24 @@
       saveData();
     }
   })();
+
+  }
+
+  const STATUS_CN_TO_EN = {
+    '待策划': 'planned',
+    '计划中': 'planned',
+    '已联系': 'planned',
+    '已确认': 'planned',
+    '已发布': 'published',
+    '已取消': 'cancelled',
+  };
+  const VALID_STATUS = new Set(['planned','published','cancelled']);
+
+  function normalizeStatus(s) {
+    if (!s) return 'planned';
+    if (VALID_STATUS.has(s)) return s;
+    return STATUS_CN_TO_EN[s] || 'planned';
+  }
 
   /* ------------------------- 4. 工具 ------------------------- */
   function uid() {
@@ -2135,6 +2107,7 @@
   }
 
   window.ScheduleData = {
+    initialize,
     // utils
     uid, nowISO, ymd, pad2, monthRange, prevMonth, todayLocal,
     detectPlatformFromLink, addDays, fetchPlatformStats, checkAndUpdateDailyStats,
