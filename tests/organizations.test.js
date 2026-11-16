@@ -48,10 +48,30 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   }
   const save = (db,token,extra={}) => api('/api/data',{token,body:{...clone(db),_baseRev:db._rev,...extra}});
   await start();
+  // Login must remain private while large HTML/data responses use compression.
+  const home = await fetch(base+'/', {headers:{'Accept-Encoding':'gzip'}});
+  assert.equal(home.headers.get('content-encoding'),'gzip');
+  assert.equal(home.headers.get('cache-control'),'no-cache');
+  assert.match(await home.text(), /<title>离火品宣<\/title>/);
+  const asset = await fetch(base+'/js/organizations.js?v=2', {headers:{'Accept-Encoding':'gzip'}});
+  assert.equal(asset.headers.get('content-encoding'),'gzip');
+  assert.equal(asset.headers.get('cache-control'),'public, max-age=31536000, immutable');
+  await asset.text();
+  const unversioned = await fetch(base+'/js/organizations.js');
+  assert.ok(!unversioned.headers.get('cache-control').includes('immutable'));
+  await unversioned.text();
   const orgs=await api('/api/organizations');assert.equal(orgs.body.length,2);
   assert.equal(fs.readFileSync(path.join(root,'db.json'),'utf8'),domesticText,'startup preserves domestic file exactly');
   assert.equal(fs.readFileSync(path.join(root,'before-organizations.json'),'utf8'),domesticText,'migration archive preserves original bytes');
   const ad=await login('domestic','admin',adminPass), ao=await login('overseas','admin',adminPass);
+  const compressedData = await fetch(base+'/api/data', {headers:{'x-auth-token':ad,'Accept-Encoding':'gzip'}});
+  assert.equal(compressedData.headers.get('content-encoding'),'gzip');
+  assert.equal(compressedData.headers.get('cache-control'),'no-store');
+  assert.equal((await compressedData.json())._organization_id,'domestic');
+  const sessionResponse = await fetch(base+'/api/session', {headers:{'x-auth-token':ad,'Accept-Encoding':'gzip'}});
+  assert.equal(sessionResponse.headers.get('content-encoding'),null);
+  assert.equal(sessionResponse.headers.get('cache-control'),'no-store');
+  await sessionResponse.json();
   const bd=await login('domestic','bd__123','test-bd');
   const sv=await login('domestic','sv__sv1','test-sv');
   assert.equal((await api('/api/login',{body:{organization:'overseas',identity:'bd__123',password:'test-bd'}})).status,401);

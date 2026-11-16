@@ -2,9 +2,6 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>离火品宣</title>
   <!-- PWA：可安装成桌面/手机应用 -->
@@ -60,6 +57,7 @@
     .login-hint{font-size:.78rem;color:var(--text-muted);margin-bottom:20px;}
     .btn-login{width:100%;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;transition:background var(--transition),transform var(--transition);}
     .btn-login:hover{background:var(--primary-dark);transform:translateY(-1px);}
+    .btn-login:disabled{cursor:wait;opacity:.75;transform:none;}
     .login-error{color:var(--danger);font-size:.85rem;margin-top:12px;min-height:18px;}
 
     /* ---- App Shell ---- */
@@ -1274,24 +1272,47 @@ function _applyLogin(userInfo) {
   initApp();
 }
 
+let resolveAppScripts;
+const appScriptsReady = new Promise(resolve => { resolveAppScripts = resolve; });
+function setLoginBusy(busy, message = '正在登录…') {
+  const button = document.querySelector('.btn-login');
+  button.disabled = busy;
+  button.textContent = busy ? message : '登 录';
+  document.querySelector('.login-box').setAttribute('aria-busy', String(busy));
+}
 async function doLogin() {
+  if (doLogin.pending) return;
   const identity = document.getElementById('login-identity').value;
   const p = document.getElementById('login-pass').value;
+  const remember = document.getElementById('login-remember').checked;
+  const organization = OrgApp.loginId;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
   if (!identity) { errEl.textContent = '请选择登录身份'; return; }
+  doLogin.pending = true;
+  setLoginBusy(true, '正在准备登录…');
   try {
+    // 按钮可能先于后面的业务脚本出现；先完成启动检查，避免记住登录与手动登录相互覆盖。
+    await appScriptsReady;
+    await window.__authBootReady;
+    if (window.currentUser) return;
+    setLoginBusy(true, '正在验证账号…');
     const res = await fetch('/api/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organization: OrgApp.loginId, identity, password: p, remember: document.getElementById('login-remember').checked })
+      body: JSON.stringify({ organization, identity, password: p, remember })
     });
     if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
-    const { token, user } = await res.json();
-    OrgApp.setSession({token, user});
-    // 重新加载：带令牌拉取全部数据并自动恢复登录态
-    location.reload();
+    const result = await res.json();
+    OrgApp.setSession(result);
+    setLoginBusy(true, '正在加载数据…');
+    // 登录接口已验证身份，直接载入该组织；不再刷新和重新下载整页脚本。
+    await window.loadAuthenticatedApp(result.user);
+    document.getElementById('login-pass').value = '';
   } catch(e) {
-    errEl.textContent = '登录失败，请重试';
+    errEl.textContent = '登录或数据加载失败，请检查网络后重试';
+  } finally {
+    doLogin.pending = false;
+    setLoginBusy(false);
   }
 }
 
@@ -5137,16 +5158,15 @@ function initApp() {
   // 所有外部 schedule script 加载完成后再恢复登录态
   // —— 避免 initApp → renderDashboard 时 ScheduleData 未就绪
   // 从服务器加载最新数据，保证多端数据同步
-  (async function syncFromServer() {
+  window.loadAuthenticatedApp = async function (userInfo) {
+    window.__verifiedUser = null;
+    window.__syncReady = false;
     try {
-      window.__verifiedUser = await OrgApp.restore();
-      if (!window.__verifiedUser) return;
       const res = await fetch('/api/data');
       if (res.status === 401) {
         // 令牌缺失/失效 → 清除并回到登录页
-        try { sessionStorage.removeItem(AUTH_TOKEN_KEY); } catch(e) {}
-        await populateLoginIdentities();
-        return;
+        OrgApp.clear();
+        throw new Error('登录已失效');
       }
       if (!res.ok) throw new Error('no server');
       const serverData = await res.json();
@@ -5200,13 +5220,26 @@ function initApp() {
       }
     } catch (e) {
       window.__syncReady = false;
+      window.__verifiedUser = null;
+      throw e;
+    }
+    window.__verifiedUser = userInfo;
+    if (!tryRestoreSession()) throw new Error('组织数据未就绪');
+  };
+  window.__authBootReady = (async function () {
+    try {
+      const user = await OrgApp.restore();
+      if (!user) return;
+      setLoginBusy(true, '正在加载数据…');
+      await window.loadAuthenticatedApp(user);
+    } catch (e) {
       document.getElementById('login-error').textContent = '无法读取组织数据，请重新登录或稍后刷新';
       console.warn('[sync] 未载入组织数据，不进入工作区');
-    }
-    if (!tryRestoreSession()) {
-      populateLoginIdentities();
+    } finally {
+      if (!doLogin.pending) setLoginBusy(false);
     }
   })();
+  resolveAppScripts();
 
   // 补全历史排期的样品记录（无样品的排期自动创建）
   // 样品改为全手动新增，不再从排期自动生成（backfillSamples 已移除）

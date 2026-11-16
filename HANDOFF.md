@@ -19,7 +19,7 @@
 - 前端：**原生 HTML/CSS/JS 单页应用，无框架**。主体是 `extracted/media-workbench/index.html`（约 6300 行，内联样式和大量脚本），模块化 JS 在 `extracted/media-workbench/js/schedule/*.js`（排期、预算、达人库、Excel 导入导出、回收站、复盘日志等）
 - 后端：`server.js`（Express，端口 3002）+ `sync-merge.js`（三方合并 + 操作日志）
 - 存储：**按组织隔离的 JSON 文件**（国内保留原位置，其他组织见下文）：`db.json`（全部业务数据）、`logs.json`（操作日志，滚动 3000 条）、`backups/data-YYYY-MM-DD.json`（每日备份，保留 7 份）、`email-config.json`（备份邮件配置）。db.json / logs.json 在 .gitignore 里，**线上数据只在服务器上**
-- 依赖：express、node-cron（定时邮件备份）、nodemailer；前端用 Chart.js、SheetJS
+- 依赖：express、compression（大响应压缩）、node-cron（定时邮件备份）、nodemailer；前端用 Chart.js、SheetJS
 
 **菜单模块**：品宣ROI（dashboard）/ 数据看板（monthly-plan）/ 复盘总结（review-log）/ 样品管理 / 内容排期 / 内容发布 / 达人结算 / 素材管理 / 达人库 / 系统设置（仅管理员）
 
@@ -29,7 +29,7 @@
 
 - **自动部署**：推 `main` → GitHub Actions SSH 到香港阿里云 `8.218.189.74` → `/root/marketing-platform` 里 `git pull` + `npm install` → root pm2 `marketing-platform` 重启 → 同一脚本幂等配置 nginx + HTTPS
 - Secrets：`SSH_HOST` `SSH_USER` `SSH_PRIVATE_KEY`；运行时环境变量：`PORT` `ADMIN_PASS` `AUTH_TOKEN`；专用同步接口使用可选 `CONTENT_SYNC_TOKEN`（GitHub Actions同名Secret）；可选 `HOST`（监听地址）、`DATA_DIR`（数据目录，默认项目根目录），本地预览使用 `LOCAL_PREVIEW`
-- **缓存版本号**：改 `index.html` 内联脚本无需处理；改 `js/schedule/*.js` 要在 index.html 里把引用的 `?v=N` 加 1
+- **缓存版本号**：HTML使用no-cache重新验证，改内联脚本无需处理；带`?v=N`的JS/CSS/图片使用一年immutable缓存，修改任何这类资源必须同步更新引用版本号。业务API保持no-store；页面和大数据响应由compression压缩，登录/会话/退出响应不压缩。
 - 本地：`npm install && node server.js` → http://localhost:3002（本地没有线上 db.json）
 - 同服务器还有 brand-ops(3000)、baoxiao-expense(3003) 等，**别动其它 pm2 进程**
 - 部署验证坑：push 后马上 `gh run list --limit 1` 可能拿到上一次的 run，要核对 headSha 等于本次 commit
@@ -100,6 +100,8 @@
 - 仓库里残留不少调试文件（fix*.ps1、check-*.js、debug*.html、index.html.backup），已在 .gitignore，可清理
 
 ## 7. 更新日志（新的在上）
+
+- 2026-11-16：优化登录性能。修复前只读实测一次：验证密码约0.42秒，点击到工作区约21.3秒；其中整页重载约8.8秒、约789KB未压缩业务数据传输约11.6秒。手动登录改为复用接口返回的已验证身份、直接加载组织数据，不再整页刷新/重复验证；与自动恢复共用loadAuthenticatedApp，等待脚本及启动身份检查，避免竞态。增加验证/加载提示、防重复提交、失败重试。新增compression依赖，HTML/JS/CSS/大数据压缩，带版本资源长期缓存、HTML重新验证、业务API仍no-store、鉴权响应不压缩。4项组织回归通过（新增压缩与缓存检查）；独立浏览器验证无重载/重复鉴权、读取失败不进入系统、重试、记住登录关闭重开、退出、多标签组织隔离及390px手机。线上数据不参与本地测试，发布后只读复测；耗时为具体网络下的单次测量。
 
 - 2026-11-16：新增可选“记住登录（30天内免输密码）”，默认不勾选。使用HttpOnly Cookie保留经服务器验证的组织/身份凭据，不保存用户输入的密码；退出清除、改密/停用/到期失效；管理员切换组织后新窗口恢复上次组织，已有标签页仍独立。修正自动恢复时业务缓存键应按已验证组织动态获取。4项自动化测试通过（含原组织回归），独立浏览器实测关闭/重开、勾选/不勾选、退出、多标签组织及390px手机；JS语法与diff检查通过。organizations.js/css缓存版本升至2。
 

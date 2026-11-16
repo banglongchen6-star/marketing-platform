@@ -24,7 +24,24 @@ const rememberedLogin = require('./remember-login').createRememberLogin(organiza
 const emailJobs = new Map();
 
 app.use(express.json({ limit: '20mb' }));
-app.use(express.static(STATIC_DIR));
+// 大页面和组织数据压缩传输；登录令牌等鉴权响应不参与压缩。
+const compression = require('compression');
+app.use(compression({
+  threshold: 1024,
+  filter(req, res) {
+    if (/^\/api\/(?:login|logout|session)(?:\/|$)/.test(req.path)) return false;
+    return compression.filter(req, res);
+  }
+}));
+app.use(express.static(STATIC_DIR, {
+  setHeaders(res, filename) {
+    if (/\.html$/i.test(filename)) res.setHeader('Cache-Control', 'no-cache');
+    else if (typeof res.req.query.v === 'string' && /^[\w.-]+$/.test(res.req.query.v) && /\.(?:js|css|png|svg|ico|woff2?)$/i.test(filename)) {
+      // 改资源时同步递增HTML中的v参数；业务API始终no-store。
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
 // 运营系统专用只读API，独立密钥；不经过现有整库读写接口。
 registerContentPublicationsApi(app, { dataFile: DATA_FILE, appToken: AUTH_TOKEN, localPreview: process.env.LOCAL_PREVIEW === '1' });

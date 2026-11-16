@@ -9,6 +9,7 @@
     "test:organizations": "node --test tests/organizations.test.js"
   },
   "dependencies": {
+    "compression": "1.8.2",
     "express": "^4.18.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.10"
