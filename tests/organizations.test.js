@@ -53,7 +53,7 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   assert.equal(home.headers.get('content-encoding'),'gzip');
   assert.equal(home.headers.get('cache-control'),'no-cache');
   assert.match(await home.text(), /<title>离火品宣<\/title>/);
-  const asset = await fetch(base+'/js/organizations.js?v=2', {headers:{'Accept-Encoding':'gzip'}});
+  const asset = await fetch(base+'/js/organizations.js?v=4', {headers:{'Accept-Encoding':'gzip'}});
   assert.equal(asset.headers.get('content-encoding'),'gzip');
   assert.equal(asset.headers.get('cache-control'),'public, max-age=31536000, immutable');
   await asset.text();
@@ -141,6 +141,32 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   const unchecked=await api('/api/login',{cookie,extraHeaders:actionHeaders,body:{identity:'admin',password:adminPass,remember:false}});
   assert.match(unchecked.cookie,/Expires=.*1970/);
   assert.equal((await api('/api/session/restore',{method:'POST',cookie:unchecked.cookie.split(';')[0],extraHeaders:actionHeaders})).body.user,null);
+  // 普通退出暂停自动进入，但保留已验证凭据；继续登录必须绑定原组织/账号。
+  const paused=await api('/api/logout',{cookie,extraHeaders:actionHeaders,body:{keepRemembered:true}});
+  assert.equal(paused.status,200);assert.match(paused.cookie,/^__Host-pinxuan_remember_paused=1/);
+  assert.match(paused.cookie,/HttpOnly/);assert.match(paused.cookie,/Secure/);
+  const pausedCookie=cookie+'; '+paused.cookie.split(';')[0];
+  const pausedRestore=await api('/api/session/restore',{method:'POST',cookie:pausedCookie,extraHeaders:actionHeaders});
+  assert.deepEqual(pausedRestore.body,{user:null,remembered:{organization:'domestic',identity:'admin'}});
+  assert.equal((await api('/api/data',{cookie:pausedCookie,extraHeaders:actionHeaders})).status,401);
+  const resumeBody={organization:'domestic',identity:'admin',remember:true};
+  assert.equal((await api('/api/session/resume',{cookie:pausedCookie,body:resumeBody})).status,403);
+  assert.equal((await api('/api/session/resume',{cookie:pausedCookie,body:resumeBody,extraHeaders:{...actionHeaders,origin:'https://unrelated.example'}})).status,403);
+  assert.equal((await api('/api/session/resume',{body:resumeBody,extraHeaders:actionHeaders})).status,401);
+  for (const other of [{organization:'overseas'},{identity:'bd__123'}]) {
+    const denied=await api('/api/session/resume',{cookie:pausedCookie,extraHeaders:actionHeaders,body:{...resumeBody,...other}});
+    assert.equal(denied.status,403);assert.equal(denied.body.token,undefined);
+  }
+  const resumed=await api('/api/session/resume',{cookie:pausedCookie,extraHeaders:actionHeaders,body:resumeBody});
+  assert.equal(resumed.status,200);assert.equal((await api('/api/session',{token:resumed.body.token})).status,200);
+  assert.match(resumed.cookie,/^__Host-pinxuan_remember_paused=;/);
+  assert.match(resumed.cookie,/Expires=.*1970/);
+  assert.ok(!resumed.cookie.includes('__Host-pinxuan_remember='),'continuing does not replace/extend the original remember credential');
+  const resumedClaims=JSON.parse(Buffer.from(resumed.body.token.split('.')[0],'base64url'));
+  assert.ok(resumedClaims.exp<=claims(cookie).exp);
+  const resumeUnchecked=await api('/api/session/resume',{cookie:pausedCookie,extraHeaders:actionHeaders,body:{...resumeBody,remember:false}});
+  assert.equal(resumeUnchecked.status,200);assert.match(resumeUnchecked.cookie,/^__Host-pinxuan_remember=;/);
+  assert.equal((await api('/api/session/resume',{cookie:resumeUnchecked.cookie.split(';')[0],extraHeaders:actionHeaders,body:resumeBody})).status,401);
   const logout=await api('/api/logout',{method:'POST',cookie,extraHeaders:actionHeaders});assert.match(logout.cookie,/Expires=.*1970/);
   assert.equal((await api('/api/session/restore',{method:'POST',cookie:logout.cookie.split(';')[0],extraHeaders:actionHeaders})).body.user,null);
   const invalid=await api('/api/session/restore',{method:'POST',cookie:cookie+'invalid',extraHeaders:actionHeaders});assert.equal(invalid.body.user,null);assert.match(invalid.cookie,/Expires=.*1970/);
@@ -157,6 +183,7 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   let disabled=(await api('/api/data',{token:ao})).body;disabled.bds[0].is_active=false;await save(disabled,ao);
   assert.equal((await api('/api/session',{token:ob})).status,401,'disabled member session revoked');
   assert.equal((await api('/api/session/restore',{method:'POST',cookie:memberCookie,extraHeaders:actionHeaders})).body.user,null,'disabled member cannot use remembered login');
+  assert.equal((await api('/api/session/resume',{cookie:memberCookie,extraHeaders:actionHeaders,body:{organization:'overseas',identity:'bd__123',remember:true}})).status,401,'disabled member cannot click to resume');
   fs.writeFileSync(path.join(root,'organizations','overseas','db.json'),'{broken');
   assert.equal((await api('/api/data',{token:ao})).status,500,'corrupt data is not treated as empty');
   assert.equal((await api('/api/data',{token:ad})).status,200,'another org remains usable');

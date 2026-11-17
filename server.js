@@ -175,18 +175,43 @@ app.post('/api/login', rememberedLogin.sameOrigin, (req, res) => {
     res.set('Cache-Control', 'no-store'); res.json(result);
   } catch(e) { res.status(500).json({ error: '登录服务暂不可用' }); }
 });
+function rememberedAccount(auth) {
+  return { organization: auth.ctx.org.id, identity: auth.user.identity === 'admin' ? 'admin' :
+    (auth.user.identity === 'supervisor' ? 'sv__' : 'bd__') + auth.user.bd_id };
+}
 app.post('/api/session/restore', rememberedLogin.browserAction, (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     const auth = rememberedLogin.read(req);
     if (!auth) { rememberedLogin.clear(req, res); return res.json({ user: null }); }
+    if (rememberedLogin.paused(req)) return res.json({ user: null, remembered: rememberedAccount(auth) });
     const user = organizations.resolveUser(auth.ctx.org.id, auth.user.identity, auth.user.bd_id);
     res.json(organizations.issue(auth.ctx.org.id, user, { expiresAt: Math.min(auth.expiresAt, Date.now() + 7 * 86400000) }));
   } catch (_) { res.status(503).json({error:'暂时无法恢复登录，请稍后重试'}); }
 });
+app.post('/api/session/resume', rememberedLogin.browserAction, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const auth = rememberedLogin.read(req);
+    if (!auth) { rememberedLogin.clear(req, res); return res.status(401).json({error:'记住的登录已失效，请重新输入密码'}); }
+    const account = rememberedAccount(auth);
+    if (req.body?.organization !== account.organization || req.body?.identity !== account.identity)
+      return res.status(403).json({error:'此账号尚未记住，请输入密码'});
+    const user = organizations.resolveUser(auth.ctx.org.id, auth.user.identity, auth.user.bd_id);
+    const result = organizations.issue(auth.ctx.org.id, user, { expiresAt: Math.min(auth.expiresAt, Date.now() + 7 * 86400000) });
+    if (req.body.remember === true) rememberedLogin.resume(req, res);
+    else rememberedLogin.clear(req, res);
+    res.json(result);
+  } catch (_) { res.status(503).json({error:'暂时无法恢复登录，请稍后重试'}); }
+});
 app.post('/api/logout', rememberedLogin.browserAction, (req, res) => {
-  rememberedLogin.clear(req, res);
-  res.set('Cache-Control', 'no-store').json({ok:true});
+  res.set('Cache-Control', 'no-store');
+  try {
+    const auth = req.body?.keepRemembered === true ? rememberedLogin.read(req) : null;
+    if (auth) rememberedLogin.pause(req, res, auth.expiresAt);
+    else rememberedLogin.clear(req, res);
+    res.json({ok:true});
+  } catch (_) { res.status(503).json({error:'暂时无法退出，请稍后重试'}); }
 });
 function requireAuth(req, res, next) {
   try {

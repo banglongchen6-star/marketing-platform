@@ -61,6 +61,9 @@
     #login-boot{padding:26px 0;text-align:center;color:var(--text-secondary);font-size:.92rem;line-height:1.8;}
     #login-boot small{display:block;margin-top:6px;color:var(--text-muted);font-size:.8rem;}
     #login-boot[hidden],#login-fields[hidden]{display:none!important;}
+    #login-password-fields[hidden],#login-remembered-account[hidden]{display:none!important;}
+    #login-remembered-account{margin-bottom:16px;padding:12px;border-radius:var(--radius-sm);background:var(--primary-light);color:var(--primary);font-size:.9rem;line-height:1.6;}
+    #login-forget-account{display:block;margin-top:6px;border:0;padding:4px 0;background:none;color:var(--text-secondary);font:inherit;font-size:.8rem;text-decoration:underline;cursor:pointer;}
     .login-error{color:var(--danger);font-size:.85rem;margin-top:12px;min-height:18px;}
 
     /* ---- App Shell ---- */
@@ -302,8 +305,11 @@
     <select id="login-identity" style="width:100%;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:11px 14px;font-size:.95rem;font-family:inherit;outline:none;margin-bottom:16px;cursor:pointer">
       <option value="admin">👑 管理员</option>
     </select>
+    <div id="login-password-fields">
     <label for="login-pass">密码</label>
     <input type="password" id="login-pass" autocomplete="current-password" placeholder="请输入密码" value="" />
+    </div>
+    <div id="login-remembered-account" hidden><span>已记住此账号，可直接登录</span><button id="login-forget-account" type="button" onclick="forgetLoginAccount()">忘记此账号</button></div>
     <label class="login-remember" for="login-remember"><input type="checkbox" id="login-remember" /><span>记住登录（30天内免输密码）</span></label>
     <button class="btn-login" onclick="doLogin()">登 录</button>
     <div class="login-error" id="login-error" role="alert"></div>
@@ -1081,7 +1087,7 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="js/organizations.js?v=3"></script>
+<script src="js/organizations.js?v=4"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
@@ -1236,7 +1242,7 @@ window.saveData = saveData;
 let currentUser = null;
 const SESSION_KEY = OrgApp.SESSION_KEY;
 
-// 只记住界面的选择；真正的免密凭据仍由服务端签发，主动退出时清除。
+// 只记住界面的选择；真正的免密凭据仍由服务端验证，“忘记此账号”时清除。
 function rememberPreferenceKey(organization, identity) {
   return 'mw_remember_choice_v1:' + JSON.stringify([organization, identity]);
 }
@@ -1249,8 +1255,38 @@ function restoreRememberPreference() {
   const checkbox = document.getElementById('login-remember');
   checkbox.checked = false;
   checkbox.disabled = identity.disabled || !identity.value;
+  updateRememberedAccount();
   if (checkbox.disabled) return;
   try { checkbox.checked = localStorage.getItem(rememberPreferenceKey(OrgApp.loginId, identity.value)) === '1'; } catch (_) {}
+}
+function selectRememberedIdentity() {
+  const sel = document.getElementById('login-identity'), account = OrgApp.remembered;
+  if (!sel.disabled && account?.organization === OrgApp.loginId && Array.from(sel.options).some(o => o.value === account.identity)) {
+    sel.value = account.identity;
+  }
+}
+function updateRememberedAccount() {
+  const sel = document.getElementById('login-identity');
+  const available = !sel.disabled && OrgApp.canResume(OrgApp.loginId, sel.value);
+  document.getElementById('login-password-fields').hidden = available;
+  document.getElementById('login-remembered-account').hidden = !available;
+  if (available) document.getElementById('login-pass').value = '';
+}
+async function forgetLoginAccount() {
+  if (doLogin.pending || forgetLoginAccount.pending) return;
+  forgetLoginAccount.pending = true;
+  setLoginBusy(true, '正在清除记忆…');
+  const button = document.getElementById('login-forget-account');
+  button.disabled = true;
+  try {
+    const account = OrgApp.remembered;
+    await OrgApp.forgetRemembered();
+    if (account) saveRememberPreference(account.organization, account.identity, false);
+    restoreRememberPreference();
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('login-pass').focus();
+  } catch (_) { document.getElementById('login-error').textContent = '清除失败，请稍后重试'; }
+  finally { button.disabled = false; forgetLoginAccount.pending = false; setLoginBusy(false); }
 }
 
 // 填充登录页身份下拉（DB 已加载后调用）
@@ -1268,6 +1304,7 @@ async function populateLoginIdentities() {
     sel.innerHTML = '';
     (opts || []).forEach(o => sel.add(new Option(o.label, o.value)));
     sel.disabled = false;
+    selectRememberedIdentity();
     restoreRememberPreference();
   } catch(e) {
     sel.innerHTML = '<option value="">人员加载失败，请刷新重试</option>';
@@ -1308,7 +1345,7 @@ function setLoginBusy(busy, message = '正在登录…') {
   document.querySelector('.login-box').setAttribute('aria-busy', String(busy));
 }
 async function doLogin() {
-  if (doLogin.pending) return;
+  if (doLogin.pending || forgetLoginAccount.pending) return;
   const identity = document.getElementById('login-identity').value;
   const p = document.getElementById('login-pass').value;
   const remember = document.getElementById('login-remember').checked;
@@ -1324,12 +1361,18 @@ async function doLogin() {
     await window.__authBootReady;
     if (window.currentUser) return;
     setLoginBusy(true, '正在验证账号…');
-    const res = await fetch('/api/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organization, identity, password: p, remember })
-    });
-    if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
-    const result = await res.json();
+    let result;
+    if (OrgApp.canResume(organization, identity)) {
+      result = await OrgApp.resumeLogin(organization, identity, remember);
+    } else {
+      if (!p) { errEl.textContent = '请输入密码；首次记住账号需验证一次'; return; }
+      const res = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organization, identity, password: p, remember })
+      });
+      if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
+      result = await res.json();
+    }
     saveRememberPreference(organization, identity, remember);
     OrgApp.setSession(result);
     setLoginBusy(true, '正在加载数据…');
@@ -1337,7 +1380,8 @@ async function doLogin() {
     await window.loadAuthenticatedApp(result.user);
     document.getElementById('login-pass').value = '';
   } catch(e) {
-    errEl.textContent = '登录或数据加载失败，请检查网络后重试';
+    updateRememberedAccount();
+    errEl.textContent = e.status === 401 || e.status === 403 ? e.message : '登录或数据加载失败，请检查网络后重试';
   } finally {
     doLogin.pending = false;
     setLoginBusy(false);
@@ -1609,7 +1653,7 @@ async function doLogout() {
   if (doLogout.pending) return;
   doLogout.pending = true;
   try {
-    await OrgApp.forgetRemembered();
+    await OrgApp.logout();
     if (window.__dirty || window.__orgPendingWrites) { toast('还有未保存成功的改动，请先保存后退出', 'error'); return; }
     window.__syncReady = false; clearTimeout(saveData._t);
     OrgApp.clear(); location.reload();
@@ -1622,7 +1666,11 @@ function tryRestoreSession() {
 }
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-document.getElementById('login-identity').addEventListener('change', restoreRememberPreference);
+document.getElementById('login-identity').addEventListener('change', () => {
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').textContent = '';
+  restoreRememberPreference();
+});
 document.getElementById('login-remember').addEventListener('change', e => {
   const identity = document.getElementById('login-identity');
   if (!identity.disabled) saveRememberPreference(OrgApp.loginId, identity.value, e.target.checked);
@@ -5270,6 +5318,8 @@ function initApp() {
       document.getElementById('login-error').textContent = '无法读取组织数据，请重新登录或稍后刷新';
       console.warn('[sync] 未载入组织数据，不进入工作区');
     } finally {
+      selectRememberedIdentity();
+      restoreRememberPreference();
       document.getElementById('login-boot').hidden = true;
       document.getElementById('login-fields').hidden = !!window.currentUser;
       if (!doLogin.pending) setLoginBusy(false);

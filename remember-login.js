@@ -17,11 +17,25 @@ function createRememberLogin(organizations) {
   function clear(req, res) {
     const { name, options } = cookieOptions(req);
     res.clearCookie(name, options);
+    resume(req, res);
+  }
+  function paused(req) {
+    const { name } = cookieOptions(req);
+    return (req.headers.cookie || '').split(';').some(s => s.trim() === name + '_paused=1');
+  }
+  function pause(req, res, expiresAt) {
+    const { name, options } = cookieOptions(req);
+    res.cookie(name + '_paused', '1', { ...options, maxAge: Math.max(0, expiresAt - Date.now()) });
+  }
+  function resume(req, res) {
+    const { name, options } = cookieOptions(req);
+    res.clearCookie(name + '_paused', options);
   }
   function write(req, res, orgId, user, expiresAt = Date.now() + REMEMBER_MS) {
     const { name, options } = cookieOptions(req);
     const { token } = organizations.issue(orgId, user, { purpose: 'remember', expiresAt });
     res.cookie(name, token, { ...options, maxAge: Math.max(0, expiresAt - Date.now()) });
+    resume(req, res);
   }
   // Cookies only restore a tab session. All business routes still require an explicit token.
   function sameOrigin(req, res, next) {
@@ -37,6 +51,6 @@ function createRememberLogin(organizations) {
     if (req.get('x-login-action') !== '1') return res.status(403).json({error:'登录操作无效'});
     sameOrigin(req, res, next);
   }
-  return { read, clear, write, sameOrigin, browserAction };
+  return { read, clear, write, paused, pause, resume, sameOrigin, browserAction };
 }
 module.exports = { createRememberLogin };

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const TOKEN_KEY = 'mw_org_token_v1', SESSION_KEY = 'mw_org_session_v1', LAST_KEY = 'mw_last_organization';
-  let session = null, organizations = [], loginChoice = localStorage.getItem(LAST_KEY) || 'domestic';
+  let session = null, remembered = null, organizations = [], loginChoice = localStorage.getItem(LAST_KEY) || 'domestic';
   try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (_) {}
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function json(url, options) {
@@ -42,11 +42,28 @@
       catch(e) { if (e.status !== 401) throw e; clear(); }
     }
     const data = await json('/api/session/restore', {method:'POST', headers:{'x-login-action':'1'}});
+    remembered = data.remembered || null;
     if (!data.user) { clear(); return null; }
     setSession(data); return data.user;
   }
   async function forgetRemembered() {
     await json('/api/logout', {method:'POST', headers:{'x-login-action':'1'}});
+    remembered = null;
+  }
+  async function logout() {
+    await json('/api/logout', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'}, body:JSON.stringify({keepRemembered:true})});
+  }
+  function canResume(organization, identity) {
+    return !!remembered && remembered.organization === organization && remembered.identity === identity;
+  }
+  async function resumeLogin(organization, identity, remember) {
+    try {
+      return await json('/api/session/resume', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'},
+        body:JSON.stringify({organization, identity, remember})});
+    } catch(e) {
+      if (e.status === 401 || e.status === 403) remembered = null;
+      throw e;
+    }
   }
   function clear() {
     sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY);
@@ -107,6 +124,7 @@
     modal.querySelector('input').focus();
   }
   window.OrgApp = { TOKEN_KEY, SESSION_KEY, get activeId() { return session?.organization?.id || 'domestic'; },
-    get user() { return session; }, get loginId() { return loginChoice; }, setSession, clear, restore, forgetRemembered, refreshLogin, renderCurrent, renderManagement, openCreate,
+    get user() { return session; }, get loginId() { return loginChoice; }, get remembered() { return remembered; },
+    setSession, clear, restore, forgetRemembered, logout, canResume, resumeLogin, refreshLogin, renderCurrent, renderManagement, openCreate,
     get cacheKey() { return 'pxw_org_v1:' + (session?.organization?.id || 'anonymous') + ':' + (session?.identity || '') + ':' + (session?.bd_id || ''); } };
 })();
