@@ -168,47 +168,46 @@ app.post('/api/login', rememberedLogin.sameOrigin, (req, res) => {
     const { organization = 'domestic', identity, password, remember = false } = req.body || {};
     const result = organizations.login(organization, identity, password);
     if (!result) return res.status(401).json({ error: '账号或密码错误，或不属于所选组织' });
-    if (remember === true) {
-      const user = organizations.resolveUser(organization, result.user.identity, result.user.bd_id);
-      rememberedLogin.write(req, res, organization, user);
-    } else rememberedLogin.clear(req, res);
+    const user = organizations.resolveUser(organization, result.user.identity, result.user.bd_id);
+    // 每个账号各记各的：勾选则记住/刷新本账号，不勾选只忘记本账号，不影响已记住的其他账号
+    if (remember === true) rememberedLogin.write(req, res, organization, user);
+    else rememberedLogin.forget(req, res, { organization, identity: rememberedLogin.identityOf(user) });
     res.set('Cache-Control', 'no-store'); res.json(result);
   } catch(e) { res.status(500).json({ error: '登录服务暂不可用' }); }
 });
-function rememberedAccount(auth) {
-  return { organization: auth.ctx.org.id, identity: auth.user.identity === 'admin' ? 'admin' :
-    (auth.user.identity === 'supervisor' ? 'sv__' : 'bd__') + auth.user.bd_id };
-}
+// remembered：本浏览器已记住的全部账号（只含组织和身份，不含凭据），供登录页切换身份时免输密码
 app.post('/api/session/restore', rememberedLogin.browserAction, (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     const auth = rememberedLogin.read(req);
-    if (!auth) { rememberedLogin.clear(req, res); return res.json({ user: null }); }
-    if (rememberedLogin.paused(req)) return res.json({ user: null, remembered: rememberedAccount(auth) });
+    if (!auth) { rememberedLogin.clear(req, res); return res.json({ user: null, remembered: [] }); }
+    const remembered = rememberedLogin.accounts(req);
+    if (rememberedLogin.paused(req)) return res.json({ user: null, remembered });
     const user = organizations.resolveUser(auth.ctx.org.id, auth.user.identity, auth.user.bd_id);
-    res.json(organizations.issue(auth.ctx.org.id, user, { expiresAt: Math.min(auth.expiresAt, Date.now() + 7 * 86400000) }));
+    res.json({ ...organizations.issue(auth.ctx.org.id, user, { expiresAt: Math.min(auth.expiresAt, Date.now() + 7 * 86400000) }), remembered });
   } catch (_) { res.status(503).json({error:'暂时无法恢复登录，请稍后重试'}); }
 });
 app.post('/api/session/resume', rememberedLogin.browserAction, (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
-    const auth = rememberedLogin.read(req);
-    if (!auth) { rememberedLogin.clear(req, res); return res.status(401).json({error:'记住的登录已失效，请重新输入密码'}); }
-    const account = rememberedAccount(auth);
-    if (req.body?.organization !== account.organization || req.body?.identity !== account.identity)
-      return res.status(403).json({error:'此账号尚未记住，请输入密码'});
+    const account = { organization: req.body?.organization, identity: req.body?.identity };
+    if (!rememberedLogin.read(req)) { rememberedLogin.clear(req, res); return res.status(401).json({error:'记住的登录已失效，请重新输入密码'}); }
+    const auth = rememberedLogin.find(req, account);
+    if (!auth) return res.status(403).json({error:'此账号尚未记住，请输入密码'});
     const user = organizations.resolveUser(auth.ctx.org.id, auth.user.identity, auth.user.bd_id);
     const result = organizations.issue(auth.ctx.org.id, user, { expiresAt: Math.min(auth.expiresAt, Date.now() + 7 * 86400000) });
-    if (req.body.remember === true) rememberedLogin.resume(req, res);
-    else rememberedLogin.clear(req, res);
+    if (req.body.remember === true) { rememberedLogin.touch(req, res, account); rememberedLogin.resume(req, res); }
+    else rememberedLogin.forget(req, res, account);
     res.json(result);
   } catch (_) { res.status(503).json({error:'暂时无法恢复登录，请稍后重试'}); }
 });
 app.post('/api/logout', rememberedLogin.browserAction, (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
-    const auth = req.body?.keepRemembered === true ? rememberedLogin.read(req) : null;
-    if (auth) rememberedLogin.pause(req, res, auth.expiresAt);
+    const { keepRemembered, organization, identity } = req.body || {};
+    // 退出：保留全部已记住账号，只是不再自动进入；忘记某账号：只删这一个；都没给：全部清除
+    if (keepRemembered === true && rememberedLogin.read(req)) rememberedLogin.pause(req, res);
+    else if (organization && identity) rememberedLogin.forget(req, res, { organization, identity });
     else rememberedLogin.clear(req, res);
     res.json({ok:true});
   } catch (_) { res.status(503).json({error:'暂时无法退出，请稍后重试'}); }
@@ -239,8 +238,9 @@ app.post('/api/organizations/switch', requireAuth, requireSuperAdmin, (req, res)
   const id = req.body.organization;
   if (!organizations.find(id)) return res.status(404).json({ error: '组织不存在' });
   const user = organizations.resolveUser(id, 'admin');
-  const remembered = rememberedLogin.read(req);
-  if (remembered?.user.isSuperAdmin) rememberedLogin.write(req, res, id, user, remembered.expiresAt);
+  // 当前组织的管理员已记住时，目标组织的管理员也一并记住（沿用原到期时间，不延长）
+  const remembered = rememberedLogin.find(req, { organization: req.org.org.id, identity: 'admin' });
+  if (remembered) rememberedLogin.write(req, res, id, user, remembered.expiresAt);
   res.json(organizations.issue(id, user));
 });
 function clientData(data, user) {

@@ -135,7 +135,7 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   assert.equal(restored.body.user.organization.id,'domestic');assert.equal((await api('/api/session',{token:restored.body.token})).status,200);
   const switchedRemember=await api('/api/organizations/switch',{token:restored.body.token,cookie,extraHeaders:actionHeaders,body:{organization:'overseas'}});
   const overseasCookie=switchedRemember.cookie.split(';')[0];
-  const claims=c=>JSON.parse(Buffer.from(decodeURIComponent(c.split('=')[1]).split('.')[0],'base64url'));
+  const claims=c=>JSON.parse(Buffer.from(decodeURIComponent(c.split('=')[1]).split('~')[0].split('.')[0],'base64url'));
   assert.equal(claims(overseasCookie).exp,claims(cookie).exp,'switching does not extend 30-day deadline');
   assert.equal((await api('/api/session/restore',{method:'POST',cookie:overseasCookie,extraHeaders:actionHeaders})).body.user.organization.id,'overseas');
   const unchecked=await api('/api/login',{cookie,extraHeaders:actionHeaders,body:{identity:'admin',password:adminPass,remember:false}});
@@ -147,7 +147,7 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   assert.match(paused.cookie,/HttpOnly/);assert.match(paused.cookie,/Secure/);
   const pausedCookie=cookie+'; '+paused.cookie.split(';')[0];
   const pausedRestore=await api('/api/session/restore',{method:'POST',cookie:pausedCookie,extraHeaders:actionHeaders});
-  assert.deepEqual(pausedRestore.body,{user:null,remembered:{organization:'domestic',identity:'admin'}});
+  assert.deepEqual(pausedRestore.body,{user:null,remembered:[{organization:'domestic',identity:'admin'}]});
   assert.equal((await api('/api/data',{cookie:pausedCookie,extraHeaders:actionHeaders})).status,401);
   const resumeBody={organization:'domestic',identity:'admin',remember:true};
   assert.equal((await api('/api/session/resume',{cookie:pausedCookie,body:resumeBody})).status,403);
@@ -159,9 +159,9 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   }
   const resumed=await api('/api/session/resume',{cookie:pausedCookie,extraHeaders:actionHeaders,body:resumeBody});
   assert.equal(resumed.status,200);assert.equal((await api('/api/session',{token:resumed.body.token})).status,200);
-  assert.match(resumed.cookie,/^__Host-pinxuan_remember_paused=;/);
+  assert.match(resumed.cookie,/__Host-pinxuan_remember_paused=;/);
   assert.match(resumed.cookie,/Expires=.*1970/);
-  assert.ok(!resumed.cookie.includes('__Host-pinxuan_remember='),'continuing does not replace/extend the original remember credential');
+  assert.ok(resumed.cookie.includes(cookie+';'),'continuing only reorders the original remember credential, never replaces/extends it');
   const resumedClaims=JSON.parse(Buffer.from(resumed.body.token.split('.')[0],'base64url'));
   assert.ok(resumedClaims.exp<=claims(cookie).exp);
   const resumeUnchecked=await api('/api/session/resume',{cookie:pausedCookie,extraHeaders:actionHeaders,body:{...resumeBody,remember:false}});
@@ -170,6 +170,23 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   const logout=await api('/api/logout',{method:'POST',cookie,extraHeaders:actionHeaders});assert.match(logout.cookie,/Expires=.*1970/);
   assert.equal((await api('/api/session/restore',{method:'POST',cookie:logout.cookie.split(';')[0],extraHeaders:actionHeaders})).body.user,null);
   const invalid=await api('/api/session/restore',{method:'POST',cookie:cookie+'invalid',extraHeaders:actionHeaders});assert.equal(invalid.body.user,null);assert.match(invalid.cookie,/Expires=.*1970/);
+  // 多账号记住：每个组织/身份各存一张凭据，互不覆盖；忘记或取消勾选只影响该账号。
+  const bdAccount={organization:'overseas',identity:'bd__123'}, adminAccount={organization:'domestic',identity:'admin'};
+  const both=(await api('/api/login',{cookie,extraHeaders:actionHeaders,body:{...bdAccount,password:'test-overseas',remember:true}})).cookie.split(';')[0];
+  assert.equal(decodeURIComponent(both.split('=')[1]).split('~').length,2,'second account is added, first is kept');
+  assert.equal(claims(both).org,'overseas','most recent login comes first');
+  const bothPaused=both+'; '+(await api('/api/logout',{cookie:both,extraHeaders:actionHeaders,body:{keepRemembered:true}})).cookie.split(';')[0];
+  assert.deepEqual((await api('/api/session/restore',{method:'POST',cookie:bothPaused,extraHeaders:actionHeaders})).body,{user:null,remembered:[bdAccount,adminAccount]});
+  for (const account of [adminAccount,bdAccount]) {
+    const r=await api('/api/session/resume',{cookie:bothPaused,extraHeaders:actionHeaders,body:{...account,remember:true}});
+    assert.equal(r.status,200);assert.equal(r.body.user.organization.id,account.organization,'each remembered account resumes without password');
+  }
+  assert.equal(claims((await api('/api/session/resume',{cookie:bothPaused,extraHeaders:actionHeaders,body:{...adminAccount,remember:true}})).cookie.split(';')[0]).org,'domestic','resumed account moves to front');
+  const forgotBd=(await api('/api/logout',{cookie:both,extraHeaders:actionHeaders,body:bdAccount})).cookie.split(';')[0];
+  assert.deepEqual((await api('/api/session/restore',{method:'POST',cookie:forgotBd+'; '+paused.cookie.split(';')[0],extraHeaders:actionHeaders})).body.remembered,[adminAccount],'forgetting one account keeps the other');
+  const uncheckedAdmin=(await api('/api/login',{cookie:both,extraHeaders:actionHeaders,body:{...adminAccount,password:adminPass,remember:false}})).cookie.split(';')[0];
+  assert.equal(claims(uncheckedAdmin).org,'overseas','unchecking remember only removes that account');
+  assert.equal((await api('/api/session/resume',{cookie:uncheckedAdmin,extraHeaders:actionHeaders,body:{...adminAccount,remember:true}})).status,403);
   const rememberedMember=await api('/api/login',{body:{organization:'overseas',identity:'bd__123',password:'test-overseas',remember:true},extraHeaders:actionHeaders});
   const memberCookie=rememberedMember.cookie.split(';')[0];
   const beforeRestart=(await api('/api/data',{token:ad})).body;

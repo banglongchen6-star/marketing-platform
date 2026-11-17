@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const TOKEN_KEY = 'mw_org_token_v1', SESSION_KEY = 'mw_org_session_v1', LAST_KEY = 'mw_last_organization';
-  let session = null, remembered = null, organizations = [], loginChoice = localStorage.getItem(LAST_KEY) || 'domestic';
+  let session = null, remembered = [], organizations = [], loginChoice = localStorage.getItem(LAST_KEY) || 'domestic';
   try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (_) {}
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function json(url, options) {
@@ -42,26 +42,29 @@
       catch(e) { if (e.status !== 401) throw e; clear(); }
     }
     const data = await json('/api/session/restore', {method:'POST', headers:{'x-login-action':'1'}});
-    remembered = data.remembered || null;
+    remembered = Array.isArray(data.remembered) ? data.remembered : [];
     if (!data.user) { clear(); return null; }
     setSession(data); return data.user;
   }
-  async function forgetRemembered() {
-    await json('/api/logout', {method:'POST', headers:{'x-login-action':'1'}});
-    remembered = null;
+  const isAccount = (a, organization, identity) => a.organization === organization && a.identity === identity;
+  // 只忘记指定账号，其他已记住的账号保留
+  async function forgetRemembered(organization, identity) {
+    await json('/api/logout', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'}, body:JSON.stringify({organization, identity})});
+    remembered = remembered.filter(a => !isAccount(a, organization, identity));
   }
   async function logout() {
     await json('/api/logout', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'}, body:JSON.stringify({keepRemembered:true})});
   }
   function canResume(organization, identity) {
-    return !!remembered && remembered.organization === organization && remembered.identity === identity;
+    return remembered.some(a => isAccount(a, organization, identity));
   }
   async function resumeLogin(organization, identity, remember) {
     try {
       return await json('/api/session/resume', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'},
         body:JSON.stringify({organization, identity, remember})});
     } catch(e) {
-      if (e.status === 401 || e.status === 403) remembered = null;
+      if (e.status === 401) remembered = [];
+      else if (e.status === 403) remembered = remembered.filter(a => !isAccount(a, organization, identity));
       throw e;
     }
   }

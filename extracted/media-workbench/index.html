@@ -62,8 +62,8 @@
     #login-boot small{display:block;margin-top:6px;color:var(--text-muted);font-size:.8rem;}
     #login-boot[hidden],#login-fields[hidden]{display:none!important;}
     #login-password-fields[hidden],#login-remembered-account[hidden]{display:none!important;}
-    #login-remembered-account{margin-bottom:16px;padding:12px;border-radius:var(--radius-sm);background:var(--primary-light);color:var(--primary);font-size:.9rem;line-height:1.6;}
-    #login-forget-account{display:block;margin-top:6px;border:0;padding:4px 0;background:none;color:var(--text-secondary);font:inherit;font-size:.8rem;text-decoration:underline;cursor:pointer;}
+    #login-remembered-account{margin:-8px 0 14px;color:var(--primary);font-size:.8rem;line-height:1.6;}
+    #login-forget-account{display:inline;margin-left:8px;border:0;padding:0;background:none;color:var(--text-secondary);font:inherit;text-decoration:underline;cursor:pointer;}
     .login-error{color:var(--danger);font-size:.85rem;margin-top:12px;min-height:18px;}
 
     /* ---- App Shell ---- */
@@ -309,7 +309,7 @@
     <label for="login-pass">密码</label>
     <input type="password" id="login-pass" autocomplete="current-password" placeholder="请输入密码" value="" />
     </div>
-    <div id="login-remembered-account" hidden><span>已记住此账号，可直接登录</span><button id="login-forget-account" type="button" onclick="forgetLoginAccount()">忘记此账号</button></div>
+    <div id="login-remembered-account" hidden><span>已记住此账号，直接点登录即可</span><button id="login-forget-account" type="button" onclick="forgetLoginAccount()">忘记此账号</button></div>
     <label class="login-remember" for="login-remember"><input type="checkbox" id="login-remember" /><span>记住登录（30天内免输密码）</span></label>
     <button class="btn-login" onclick="doLogin()">登 录</button>
     <div class="login-error" id="login-error" role="alert"></div>
@@ -1087,7 +1087,7 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="js/organizations.js?v=4"></script>
+<script src="js/organizations.js?v=5"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
@@ -1259,18 +1259,25 @@ function restoreRememberPreference() {
   if (checkbox.disabled) return;
   try { checkbox.checked = localStorage.getItem(rememberPreferenceKey(OrgApp.loginId, identity.value)) === '1'; } catch (_) {}
 }
+// 默认选中本组织最近使用的已记住账号
 function selectRememberedIdentity() {
-  const sel = document.getElementById('login-identity'), account = OrgApp.remembered;
-  if (!sel.disabled && account?.organization === OrgApp.loginId && Array.from(sel.options).some(o => o.value === account.identity)) {
-    sel.value = account.identity;
-  }
+  const sel = document.getElementById('login-identity');
+  if (sel.disabled) return;
+  const account = OrgApp.remembered.find(a => a.organization === OrgApp.loginId && Array.from(sel.options).some(o => o.value === a.identity));
+  if (account) sel.value = account.identity;
 }
+// 已记住的账号：密码框填入占位圆点（并非真实密码），点登录走免密恢复；一旦手动输入就改为按密码登录
+const REMEMBERED_PASS_MASK = '•'.repeat(8);
 function updateRememberedAccount() {
   const sel = document.getElementById('login-identity');
+  const pass = document.getElementById('login-pass');
   const available = !sel.disabled && OrgApp.canResume(OrgApp.loginId, sel.value);
-  document.getElementById('login-password-fields').hidden = available;
   document.getElementById('login-remembered-account').hidden = !available;
-  if (available) document.getElementById('login-pass').value = '';
+  if (available) { pass.value = REMEMBERED_PASS_MASK; pass.dataset.remembered = '1'; }
+  else if (pass.dataset.remembered) { pass.value = ''; delete pass.dataset.remembered; }
+}
+function usingRememberedPass() {
+  return document.getElementById('login-pass').dataset.remembered === '1';
 }
 async function forgetLoginAccount() {
   if (doLogin.pending || forgetLoginAccount.pending) return;
@@ -1279,9 +1286,9 @@ async function forgetLoginAccount() {
   const button = document.getElementById('login-forget-account');
   button.disabled = true;
   try {
-    const account = OrgApp.remembered;
-    await OrgApp.forgetRemembered();
-    if (account) saveRememberPreference(account.organization, account.identity, false);
+    const organization = OrgApp.loginId, identity = document.getElementById('login-identity').value;
+    await OrgApp.forgetRemembered(organization, identity);
+    saveRememberPreference(organization, identity, false);
     restoreRememberPreference();
     document.getElementById('login-error').textContent = '';
     document.getElementById('login-pass').focus();
@@ -1362,7 +1369,7 @@ async function doLogin() {
     if (window.currentUser) return;
     setLoginBusy(true, '正在验证账号…');
     let result;
-    if (OrgApp.canResume(organization, identity)) {
+    if (OrgApp.canResume(organization, identity) && usingRememberedPass()) {
       result = await OrgApp.resumeLogin(organization, identity, remember);
     } else {
       if (!p) { errEl.textContent = '请输入密码；首次记住账号需验证一次'; return; }
@@ -1666,6 +1673,13 @@ function tryRestoreSession() {
 }
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+// 在占位圆点上输入/删除：清空占位，改为按新输入的密码登录
+document.getElementById('login-pass').addEventListener('beforeinput', e => {
+  const pass = e.target;
+  if (!pass.dataset.remembered) return;
+  pass.value = ''; delete pass.dataset.remembered;
+  document.getElementById('login-remembered-account').hidden = true;
+});
 document.getElementById('login-identity').addEventListener('change', () => {
   document.getElementById('login-pass').value = '';
   document.getElementById('login-error').textContent = '';
