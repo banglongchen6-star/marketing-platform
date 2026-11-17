@@ -47,11 +47,6 @@
     setSession(data); return data.user;
   }
   const isAccount = (a, organization, identity) => a.organization === organization && a.identity === identity;
-  // 只忘记指定账号，其他已记住的账号保留
-  async function forgetRemembered(organization, identity) {
-    await json('/api/logout', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'}, body:JSON.stringify({organization, identity})});
-    remembered = remembered.filter(a => !isAccount(a, organization, identity));
-  }
   async function logout() {
     await json('/api/logout', {method:'POST', headers:{'x-login-action':'1','Content-Type':'application/json'}, body:JSON.stringify({keepRemembered:true})});
   }
@@ -128,6 +123,6 @@
   }
   window.OrgApp = { TOKEN_KEY, SESSION_KEY, get activeId() { return session?.organization?.id || 'domestic'; },
     get user() { return session; }, get loginId() { return loginChoice; }, get remembered() { return remembered; },
-    setSession, clear, restore, forgetRemembered, logout, canResume, resumeLogin, refreshLogin, renderCurrent, renderManagement, openCreate,
+    setSession, clear, restore, logout, canResume, resumeLogin, refreshLogin, renderCurrent, renderManagement, openCreate,
     get cacheKey() { return 'pxw_org_v1:' + (session?.organization?.id || 'anonymous') + ':' + (session?.identity || '') + ':' + (session?.bd_id || ''); } };
 })();

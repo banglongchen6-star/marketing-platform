@@ -63,7 +63,6 @@
     #login-boot[hidden],#login-fields[hidden]{display:none!important;}
     #login-password-fields[hidden],#login-remembered-account[hidden]{display:none!important;}
     #login-remembered-account{margin:-8px 0 14px;color:var(--primary);font-size:.8rem;line-height:1.6;}
-    #login-forget-account{display:inline;margin-left:8px;border:0;padding:0;background:none;color:var(--text-secondary);font:inherit;text-decoration:underline;cursor:pointer;}
     .login-error{color:var(--danger);font-size:.85rem;margin-top:12px;min-height:18px;}
 
     /* ---- App Shell ---- */
@@ -309,7 +308,7 @@
     <label for="login-pass">密码</label>
     <input type="password" id="login-pass" autocomplete="current-password" placeholder="请输入密码" value="" />
     </div>
-    <div id="login-remembered-account" hidden><span>已记住此账号，直接点登录即可</span><button id="login-forget-account" type="button" onclick="forgetLoginAccount()">忘记此账号</button></div>
+    <div id="login-remembered-account" hidden><span>已记住此账号，直接点登录即可</span></div>
     <label class="login-remember" for="login-remember"><input type="checkbox" id="login-remember" /><span>记住登录（30天内免输密码）</span></label>
     <button class="btn-login" onclick="doLogin()">登 录</button>
     <div class="login-error" id="login-error" role="alert"></div>
@@ -1087,7 +1086,7 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="js/organizations.js?v=5"></script>
+<script src="js/organizations.js?v=6"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
@@ -1279,22 +1278,6 @@ function updateRememberedAccount() {
 function usingRememberedPass() {
   return document.getElementById('login-pass').dataset.remembered === '1';
 }
-async function forgetLoginAccount() {
-  if (doLogin.pending || forgetLoginAccount.pending) return;
-  forgetLoginAccount.pending = true;
-  setLoginBusy(true, '正在清除记忆…');
-  const button = document.getElementById('login-forget-account');
-  button.disabled = true;
-  try {
-    const organization = OrgApp.loginId, identity = document.getElementById('login-identity').value;
-    await OrgApp.forgetRemembered(organization, identity);
-    saveRememberPreference(organization, identity, false);
-    restoreRememberPreference();
-    document.getElementById('login-error').textContent = '';
-    document.getElementById('login-pass').focus();
-  } catch (_) { document.getElementById('login-error').textContent = '清除失败，请稍后重试'; }
-  finally { button.disabled = false; forgetLoginAccount.pending = false; setLoginBusy(false); }
-}
 
 // 填充登录页身份下拉（DB 已加载后调用）
 async function populateLoginIdentities() {
@@ -1352,7 +1335,7 @@ function setLoginBusy(busy, message = '正在登录…') {
   document.querySelector('.login-box').setAttribute('aria-busy', String(busy));
 }
 async function doLogin() {
-  if (doLogin.pending || forgetLoginAccount.pending) return;
+  if (doLogin.pending) return;
   const identity = document.getElementById('login-identity').value;
   const p = document.getElementById('login-pass').value;
   const remember = document.getElementById('login-remember').checked;
