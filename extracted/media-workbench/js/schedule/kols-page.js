@@ -234,7 +234,7 @@
           <td style="padding:10px 12px">${platCell}</td>
           <td style="padding:10px 12px">${kolRecord?.followers != null ? formatFollowers(kolRecord.followers) : '<span style="color:var(--text-muted)">—</span>'}</td>
           <td style="padding:10px 12px"><b style="color:var(--primary)">${k.count}</b> 次</td>
-          <td style="padding:10px 12px">¥${k.totalAmount.toLocaleString()}</td>
+          <td style="padding:10px 12px">${SD.feeSymbol()}${k.totalAmount.toLocaleString()}</td>
           <td style="padding:10px 12px"><span style="font-size:.78rem">${k.lastDate || '—'}</span></td>
           <td style="padding:10px 12px"><span style="font-size:.78rem;color:var(--text-secondary)">${escapeHtml((kolRecord?.notes||'').slice(0,30))}</span></td>
         </tr>`;
@@ -282,7 +282,7 @@
         <td>${homepage}</td>
         <td onclick="event.stopPropagation()" style="padding:0">${renderFollowersCell(k)}</td>
         <td>${stats.count > 0 ? `<b style="color:var(--primary)">${stats.count}</b> 次` : '<span style="color:var(--text-muted)">0</span>'}</td>
-        <td>${stats.totalAmount > 0 ? `¥${stats.totalAmount.toLocaleString()}` : '<span style="color:var(--text-muted)">¥0</span>'}</td>
+        <td>${stats.totalAmount > 0 ? `${SD.feeSymbol()}${stats.totalAmount.toLocaleString()}` : '<span style="color:var(--text-muted)">${SD.feeSymbol()}0</span>'}</td>
         <td><span style="font-size:.78rem">${lastDate}</span></td>
         <td><span style="font-size:.78rem;color:var(--text-secondary)">${escapeHtml((k.notes||'').slice(0,30))}</span></td>
         <td><button class="sched-budget-del" title="删除" onclick="event.stopPropagation();KolsPage._delete('${k.id}')">🗑</button></td>
@@ -554,7 +554,7 @@
         <div style="background:var(--primary-light);padding:10px 14px;border-radius:var(--radius-sm);font-size:.82rem;margin-top:14px">
           <strong style="color:var(--primary)">📊 合作记录</strong>
           <div style="margin-top:4px;color:var(--text-secondary)">
-            非取消合作：<b>${stats.count}</b> 次 · 累计 <b>¥${stats.totalAmount.toLocaleString()}</b>
+            非取消合作：<b>${stats.count}</b> 次 · 累计 <b>${SD.feeSymbol()}${stats.totalAmount.toLocaleString()}</b>
             ${stats.firstDate ? ` · 首次 ${stats.firstDate}` : ''}
             ${stats.lastDate && stats.lastDate !== stats.firstDate ? ` · 最近 ${stats.lastDate}` : ''}
           </div>

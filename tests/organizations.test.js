@@ -20,6 +20,7 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   data.contents = [{id:'c1',kol_name:'测试国内达人',publications:[{id:'p1',platform:'抖音',date:'2026-11-16',link:'https://example.com/domestic'}]}];
   const domesticText = JSON.stringify(data);
   fs.writeFileSync(path.join(root,'db.json'), domesticText);
+  fs.writeFileSync(path.join(root,'exchange-rates.json'), JSON.stringify({USD:{'2026-11-06':{rate:6.7168,source:'cfets'}}}));
   let child, base, output = '';
   async function start() {
     child = spawn(process.execPath, ['server.js'], { cwd:path.resolve(__dirname,'..'), env:{...process.env,
@@ -73,6 +74,20 @@ test('organization auth, persistence, merging, exports and restart isolation', a
   assert.equal(sessionResponse.headers.get('cache-control'),'no-store');
   await sessionResponse.json();
   const bd=await login('domestic','bd__123','test-bd');
+  // 汇率：只随海外组织数据下发、保存时剔除；查看需管理权限，录入/撤销仅总管理员
+  const overseasData=(await api('/api/data',{token:ao})).body;
+  assert.equal(overseasData._fx_rates['2026-11-06'].rate,6.7168);
+  assert.equal((await api('/api/data',{token:ad})).body._fx_rates,undefined,'domestic data carries no rates');
+  assert.equal((await save(overseasData,ao)).status,200);
+  assert.ok(!('_fx_rates' in JSON.parse(fs.readFileSync(path.join(root,'organizations','overseas','db.json'),'utf8'))),'rates are never stored in org data');
+  assert.equal((await api('/api/exchange-rates',{token:bd})).status,403);
+  assert.equal((await api('/api/exchange-rates',{token:ad})).body.rates['2026-11-06'].source,'cfets');
+  assert.equal((await api('/api/exchange-rates',{token:bd,body:{date:'2026-11-06',rate:7}})).status,403);
+  assert.equal((await api('/api/exchange-rates',{token:ad,body:{date:'2026-11-6',rate:7}})).status,400);
+  const manualRate=await api('/api/exchange-rates',{token:ad,body:{date:'2026-11-06',rate:7.12345}});
+  assert.equal(manualRate.status,200);assert.equal(manualRate.body.rate,7.1235);assert.equal(manualRate.body.cfets,6.7168);
+  assert.equal((await api('/api/data',{token:ao})).body._fx_rates['2026-11-06'].rate,7.1235,'manual rate applies to statistics');
+  assert.equal((await api('/api/exchange-rates/2026-11-06',{token:ad,method:'DELETE'})).body.rate.rate,6.7168,'undo restores central bank value');
   const sv=await login('domestic','sv__sv1','test-sv');
   assert.equal((await api('/api/login',{body:{organization:'overseas',identity:'bd__123',password:'test-bd'}})).status,401);
   const opts=await api('/api/login-options?organization=overseas');assert.deepEqual(opts.body.map(o=>o.value),['admin']);
@@ -258,4 +273,27 @@ test('remember credentials expire and become invalid after password changes', ()
     const normal=store.login('domestic','admin','old-test-password').token;
     assert.equal(store.authenticate(normal,'remember'),null);
   } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('exchange rates: paged fetch, weekend fallback, manual values survive refresh', async () => {
+  const { createExchangeRates, fetchCfets } = require('../exchange-rates');
+  const pages = {
+    1: { data: { pageTotal: 2 }, records: [{ date: '2026-11-06', values: ['6.7168'] }, { date: '2026-11-05', values: ['bad'] }] },
+    2: { data: { pageTotal: 2 }, records: [{ date: '2026-11-09', values: ['6.7188'] }] },
+  };
+  const request = async url => pages[new URL(url).searchParams.get('pageNum')];
+  assert.deepEqual(await fetchCfets('2026-11-01', '2026-11-10', request), { '2026-11-06': 6.7168, '2026-11-09': 6.7188 });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pinxuan-fx-test-'));
+  try {
+    const fx = createExchangeRates(root, { request });
+    await fx.refresh('2026-11-01', '2026-11-10');
+    assert.equal(fx.lookup('2026-11-08').date, '2026-11-06', 'weekend uses previous published day');
+    assert.equal(fx.lookup('2026-11-09').rate, 6.7188);
+    fx.setManual('2026-11-09', 7, 'tester');
+    await fx.refresh('2026-11-01', '2026-11-10');
+    assert.equal(fx.lookup('2026-11-09').rate, 7, 'refresh never overwrites a manual value');
+    assert.equal(createExchangeRates(root, { request }).lookup('2026-11-09').source, 'manual', 'persists across restart');
+    assert.equal(fx.clearManual('2026-11-09').rate, 6.7188);
+    assert.throws(() => fx.setManual('2026-11-09', -1), /汇率/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

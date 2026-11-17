@@ -555,6 +555,14 @@
           <button class="btn btn-secondary btn-sm" onclick="openOpLogs()">📜 查看操作日志</button>
         </div>
       </div>
+      <!-- 汇率记录（海外组织 / 总管理员） -->
+      <div class="card" id="fx-rate-card" hidden style="margin-bottom:16px;max-width:680px">
+        <div class="card-title"><span>💱 汇率记录</span></div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 14px">海外组织的美元费用按央行中间价（USD/CNY）折算人民币：已打款按付款时间当天汇率，未打款按发布日汇率预估。可逐日查看、导出核对。</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <button class="btn btn-secondary btn-sm" onclick="FxRates.open()">💱 查看汇率记录</button>
+        </div>
+      </div>
       <!-- 商务BD -->
       <div class="card" id="admin-bd-card" style="margin-bottom:16px;max-width:680px">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -1087,6 +1095,7 @@
 <div class="toast-container" id="toast-container"></div>
 
 <script src="js/organizations.js?v=6"></script>
+<script src="js/fx-rates.js?v=1"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
@@ -2006,6 +2015,9 @@ function closeModalOnOverlay(e, id) { if (e.target === e.currentTarget) closeMod
 function nextId(arr)   { return arr.length ? Math.max(...arr.map(x=>x.id)) + 1 : 1; }
 function fmtNum(n)      { if (n>=10000) return (n/10000).toFixed(1)+'万'; return n.toLocaleString(); }
 function fmtYuan(n)     { return (Number(n)||0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }); } // 结算金额：显示完整金额，不折算成万、不取整
+// 结算/合作费的币种：海外组织按美元录入和显示，统计时另行折算人民币
+function _feeSym()  { return window.ScheduleData && ScheduleData.usesUsd() ? "$" : "¥"; }
+function _feeUnit() { return window.ScheduleData && ScheduleData.usesUsd() ? "美元" : "元"; }
 function fmtMoney(n)    { return '¥' + n.toLocaleString(); }
 function getDateRange(days) {
   // 如果是自然月模式，返回该月的日期范围
@@ -3452,7 +3464,7 @@ function _stRefreshTotal() {
     const fullAmtEl = document.getElementById('st-full-amount-display');
     if (fullAmtEl) {
       const t = (parseFloat(_st.contract_amount) || 0) + (_st.bonus_enabled ? (parseFloat(_st.bonus_amount) || 0) : 0);
-      fullAmtEl.innerHTML = `¥${fmtYuan(t)}<span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:6px">自动同步</span>`;
+      fullAmtEl.innerHTML = `${_feeSym()}${fmtYuan(t)}<span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:6px">自动同步</span>`;
     }
   }
   const bar = document.getElementById('st-total-bar');
@@ -3462,15 +3474,15 @@ function _stRefreshTotal() {
   const total = base + bonus;
   bar.innerHTML = `
     <div style="font-size:.82rem;color:var(--text-muted)">合同基础金额</div>
-    <div style="font-weight:600">¥${fmtYuan(base)}</div>
+    <div style="font-weight:600">${_feeSym()}${fmtYuan(base)}</div>
     ${bonus > 0 ? `
       <div style="color:var(--text-muted)">+</div>
       <div style="font-size:.82rem;color:var(--text-muted)">奖金</div>
-      <div style="font-weight:600;color:#92400e">¥${fmtYuan(bonus)}</div>
+      <div style="font-weight:600;color:#92400e">${_feeSym()}${fmtYuan(bonus)}</div>
       <div style="color:var(--text-muted)">=</div>
     ` : '<div style="color:var(--text-muted);font-size:.82rem;margin:0 4px">无奖金 =</div>'}
     <div style="font-size:.82rem;color:var(--text-muted)">总结算金额</div>
-    <div style="font-size:1.1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(total)}</div>
+    <div style="font-size:1.1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(total)}</div>
   `;
 }
 
@@ -3553,12 +3565,12 @@ function _stRender() {
     <div style="font-weight:600;font-size:.88rem;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">💰 费用构成</div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">合同基础金额（元）</label>
+        <label class="form-label">合同基础金额（${_feeUnit()}）</label>
         ${_st.schedule_id === 'none'
           ? `<input type="number" class="form-control" value="${escapeHtml(String(_st.contract_amount||''))}" placeholder="请输入金额" min="0" step="any" oninput="_st.contract_amount=this.value;_stSyncFullAmount();_stRefreshTotal()" />`
           : _st.schedule_id
             ? `<div style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;color:var(--primary)">
-                ¥${fmtYuan(parseFloat(_st.contract_amount)||0)}
+                ${_feeSym()}${fmtYuan(parseFloat(_st.contract_amount)||0)}
                 <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:6px">来自排期，不可修改</span>
                </div>`
             : `<div style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:.85rem">请先选择关联排期</div>`
@@ -3582,7 +3594,7 @@ function _stRender() {
     ${_st.bonus_enabled === true ? `
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">奖金金额（元）</label>
+          <label class="form-label">奖金金额（${_feeUnit()}）</label>
           <input type="number" class="form-control" value="${escapeHtml(_st.bonus_amount)}" placeholder="0"
             oninput="_st.bonus_amount=this.value;_stSyncFullAmount();_stRefreshTotal()" />
         </div>
@@ -3599,15 +3611,15 @@ function _stRender() {
       const total = base + bonus;
       return `<div id="st-total-bar" style="display:flex;align-items:center;gap:16px;padding:10px 14px;background:linear-gradient(135deg,rgba(26,86,219,.08),rgba(26,86,219,.04));border:1px solid rgba(26,86,219,.2);border-radius:6px;margin-bottom:12px">
         <div style="font-size:.82rem;color:var(--text-muted)">合同基础金额</div>
-        <div style="font-weight:600">¥${fmtYuan(base)}</div>
+        <div style="font-weight:600">${_feeSym()}${fmtYuan(base)}</div>
         ${bonus > 0 ? `
           <div style="color:var(--text-muted)">+</div>
           <div style="font-size:.82rem;color:var(--text-muted)">奖金</div>
-          <div style="font-weight:600;color:#92400e">¥${fmtYuan(bonus)}</div>
+          <div style="font-weight:600;color:#92400e">${_feeSym()}${fmtYuan(bonus)}</div>
           <div style="color:var(--text-muted)">=</div>
         ` : '<div style="color:var(--text-muted);font-size:.82rem;margin:0 4px">无奖金 =</div>'}
         <div style="font-size:.82rem;color:var(--text-muted)">总结算金额</div>
-        <div style="font-size:1.1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(total)}</div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(total)}</div>
       </div>`;
     })() : ''}
 
@@ -3646,9 +3658,9 @@ function _stRender() {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label" style="font-size:.75rem">金额（元）</label>
+              <label class="form-label" style="font-size:.75rem">金额（${_feeUnit()}）</label>
               ${_st.payment_type==='full'
-                ? `<div id="st-full-amount-display" style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;color:var(--primary)">¥${fmtYuan(parseFloat(p.amount)||0)}<span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:6px">自动同步</span></div>`
+                ? `<div id="st-full-amount-display" style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;color:var(--primary)">${_feeSym()}${fmtYuan(parseFloat(p.amount)||0)}<span style="font-size:.7rem;color:var(--text-muted);font-weight:400;margin-left:6px">自动同步</span></div>`
                 : `<input type="number" class="form-control" value="${escapeHtml(String(p.amount??''))}" placeholder="0" oninput="_st.payments[${i}].amount=this.value" />`
               }
             </div>
@@ -3708,7 +3720,7 @@ function _stSchedInfo(sched) {
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><span style="color:var(--text-muted)">达人：</span><b>${escapeHtml(sched.kol_name||'-')}</b>${noContentBadge}</div>
       <div><span style="color:var(--text-muted)">平台：</span><b>${escapeHtml(plats)}</b></div>
       <div><span style="color:var(--text-muted)">发布日期：</span><b>${escapeHtml(sched.schedule_date||'-')}</b></div>
-      <div><span style="color:var(--text-muted)">合同价：</span><b style="color:var(--primary)">¥${fmtYuan(sched.amount||0)}</b></div>
+      <div><span style="color:var(--text-muted)">合同价：</span><b style="color:var(--primary)">${_feeSym()}${fmtYuan(sched.amount||0)}</b></div>
     </div>
   `;
 }
@@ -3865,12 +3877,19 @@ function exportPendingToExcel() {
     const pays  = _stPayments(st);
     const paidSum = pays.filter(p => !!p.actual_paid_date).reduce((s,p) => s+(parseFloat(p.amount)||0), 0);
 
-    rows.push({
+    const row = {
       '达人昵称': talent,
       '发布日期': date,
       '未付款金额': (base + bonus) - paidSum,
       '账户': st.account || '-',
-    });
+    };
+    // 海外组织：金额为美元，另附按发布日中间价预估的人民币
+    if (ScheduleData.usesUsd()) {
+      const fx = ScheduleData.collabFx({ settlement: st });
+      row['币种'] = 'USD';
+      row['未付折合人民币（预估）'] = Math.round((fx.payments || []).filter(p => p.estimated).reduce((sum, p) => sum + p.cny, 0) * 100) / 100;
+    }
+    rows.push(row);
   });
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -3983,6 +4002,33 @@ function _stInvoiceSelect(s) {
   const v = s.invoice || '未开票';
   const opt = (val) => `<option value="${val}" ${v === val ? 'selected' : ''}>${val}</option>`;
   return `<select onchange="_stSetInvoice('${s.id}', this.value)" style="font-size:.78rem;padding:3px 7px;border:1px solid var(--border);border-radius:5px;background:var(--bg-panel);cursor:pointer;color:var(--text-primary)">${opt('未开票')}${opt('已开票')}${opt('无需')}</select>`;
+}
+
+/** 海外组织：一组结算单折人民币（已付按各笔付款时间汇率，未付按预估日汇率） */
+function _stCny(sts) {
+  const out = { paid: 0, pending: 0, total: 0, estimated: false };
+  if (!ScheduleData.usesUsd()) return out;
+  (sts || []).forEach(st => {
+    const fx = ScheduleData.collabFx({ settlement: st });
+    (fx.payments || []).forEach(p => { if (p.estimated) out.pending += p.cny; else out.paid += p.cny; });
+    out.total += fx.cny || 0;
+    if (fx.estimated) out.estimated = true;
+  });
+  return out;
+}
+// 结算行：折合人民币 + 每笔付款的汇率明细（悬停查看）
+function _stRowCny(st) {
+  if (!ScheduleData.usesUsd()) return '';
+  const fx = ScheduleData.collabFx({ settlement: st });
+  const r4 = n => (Number(n) || 0).toFixed(4);
+  const detail = (fx.payments || []).map(p => p.estimated
+    ? `$${fmtYuan(p.amount)} × ${r4(p.rate)}（${fx.estimateDate} 发布日中间价，预估）= ¥${fmtYuan(Math.round(p.cny * 100) / 100)}`
+    : `$${fmtYuan(p.amount)} × ${r4(p.rate)}（${p.rateDate || p.date} 中间价，付款时间 ${p.date}）= ¥${fmtYuan(Math.round(p.cny * 100) / 100)}`).join('\n');
+  return `<div style="font-size:.72rem;color:var(--text-muted);margin-top:2px;cursor:help" title="${escapeHtml(detail)}">≈¥${fmtYuan(Math.round((fx.cny || 0) * 100) / 100)}${fx.estimated ? '（含预估）' : ''}</div>`;
+}
+function _stCnyHint(cny, estimated) {
+  if (!ScheduleData.usesUsd()) return '';
+  return `<span style="font-size:.72rem;color:var(--text-muted);white-space:nowrap" title="按央行中间价折算：已打款按付款时间当天汇率，未打款按发布日汇率预估">≈¥${fmtYuan(Math.round(cny * 100) / 100)}${estimated ? '（含预估）' : ''}</span>`;
 }
 
 /** 统一计算三个 tab 的 badge（待结算/已申请付款/已结算），与当前 tab 无关 */
@@ -4128,9 +4174,11 @@ function _renderPendingArea() {
 
   // 统计（排期来源）
   let totalAmt = 0, paidAmt = 0, pendingAmt = 0;
+  const _fxSts = []; // 海外组织：本区结算单，合计时折人民币
   scheds.forEach(sched => {
     const st = (DB.settlements||[]).find(s => String(s.schedule_id) === String(sched.id) && !s.settled);
     if (!st) return;
+    _fxSts.push(st);
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
@@ -4143,6 +4191,7 @@ function _renderPendingArea() {
   unscheduledContents.forEach(c => {
     const st = (DB.settlements||[]).find(s => String(s.content_id) === String(c.id) && !s.settled);
     if (!st) return;
+    _fxSts.push(st);
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
@@ -4153,6 +4202,7 @@ function _renderPendingArea() {
   });
   // 统计（独立结算）
   standaloneSettlements.forEach(st => {
+    _fxSts.push(st);
     const base  = parseFloat(st.contract_amount ?? st.amount) || 0;
     const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
     totalAmt += base + bonus;
@@ -4170,15 +4220,15 @@ function _renderPendingArea() {
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(217,119,6,.08),rgba(217,119,6,.04));border:1px solid rgba(217,119,6,.18)">
         <span style="font-size:.72rem;font-weight:600;color:var(--warning);white-space:nowrap">待付金额</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--warning)">¥${fmtYuan(pendingAmt)}</span>
+        <span style="font-size:1.1rem;font-weight:700;color:var(--warning)">${_feeSym()}${fmtYuan(pendingAmt)}</span>${_stCnyHint(_stCny(_fxSts).pending, _stCny(_fxSts).pending > 0)}
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(5,150,105,.08),rgba(5,150,105,.04));border:1px solid rgba(5,150,105,.18)">
         <span style="font-size:.72rem;font-weight:600;color:var(--success);white-space:nowrap">已付金额</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--success)">¥${fmtYuan(paidAmt)}</span>
+        <span style="font-size:1.1rem;font-weight:700;color:var(--success)">${_feeSym()}${fmtYuan(paidAmt)}</span>${_stCnyHint(_stCny(_fxSts).paid)}
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(124,58,237,.04));border:1px solid rgba(124,58,237,.18)">
         <span style="font-size:.72rem;font-weight:600;color:var(--purple);white-space:nowrap">总应付金额</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--purple)">¥${fmtYuan(totalAmt)}</span>
+        <span style="font-size:1.1rem;font-weight:700;color:var(--purple)">${_feeSym()}${fmtYuan(totalAmt)}</span>${_stCnyHint(_stCny(_fxSts).total, _stCny(_fxSts).estimated)}
       </div>
     </div>
   `;
@@ -4206,7 +4256,7 @@ function _renderPendingArea() {
       // 无结算信息：显示排期预算金额
       const schedAmt = Number(sched.amount) || 0;
       const amtHtml = sched.amount != null
-        ? `<span style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(schedAmt)}</span><span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">排期预算</span>`
+        ? `<span style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(schedAmt)}</span><span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">排期预算</span>`
         : `<span style="color:var(--text-muted);font-size:.82rem">— 未设金额 —</span>`;
       return `<tr class="comm-main-row" style="border-left:3px solid #e5e7eb">
         <td><strong>${escapeHtml(talent)}</strong></td>
@@ -4234,7 +4284,7 @@ function _renderPendingArea() {
     const transferReasons = [];
     if (!hasLink)               transferReasons.push('🔗 链接未填（未发布）');
     if (_ps.status === 'unpaid')  transferReasons.push('💰 未付款');
-    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付¥${fmtYuan(_ps.paid)}/应付¥${fmtYuan(_ps.due)}）`);
+    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付${_feeSym()}${fmtYuan(_ps.paid)}/应付${_feeSym()}${fmtYuan(_ps.due)}）`);
     const transferCell = canTransfer
       ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferToSettled('${sched.id}')">✅ 可转结算</button>`
       : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
@@ -4256,13 +4306,13 @@ function _renderPendingArea() {
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${pubTag}</td>
           <td rowspan="${total}" style="vertical-align:middle">
-            <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(base+bonus)}</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(base+bonus)}</div>${_stRowCny(st)}
             ${isInstallment
               ? `<div style="font-size:.75rem;margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">
-                  ${paidSum>0?`<span style="color:var(--success)">已付¥${fmtYuan(paidSum)}</span>`:''}
-                  ${unpaidSum>0?`<span style="color:var(--warning)">未付¥${fmtYuan(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付¥${fmtYuan(base+bonus)}</span>`}
+                  ${paidSum>0?`<span style="color:var(--success)">已付${_feeSym()}${fmtYuan(paidSum)}</span>`:''}
+                  ${unpaidSum>0?`<span style="color:var(--warning)">未付${_feeSym()}${fmtYuan(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付${_feeSym()}${fmtYuan(base+bonus)}</span>`}
                 </div>`
-              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtYuan(base)} · 奖金¥${fmtYuan(bonus)}</div>`:''}
+              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础${_feeSym()}${fmtYuan(base)} · 奖金${_feeSym()}${fmtYuan(bonus)}</div>`:''}
           </td>
           <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[st.payment_type]||'全款付清'}</td>
           <td>${statusHtml}</td>
@@ -4289,7 +4339,7 @@ function _renderPendingArea() {
     if (!st) {
       const cAmt = Number(c.price) || 0;
       const amtHtml = (c.price != null && c.price !== '')
-        ? `<span style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(cAmt)}</span><span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">内容报价</span>`
+        ? `<span style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(cAmt)}</span><span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">内容报价</span>`
         : `<span style="color:var(--text-muted);font-size:.82rem">— 未设金额 —</span>`;
       return `<tr class="comm-main-row" style="border-left:3px solid #e5e7eb">
         <td><strong>${escapeHtml(talent)}</strong></td>
@@ -4316,7 +4366,7 @@ function _renderPendingArea() {
     const transferReasons = [];
     if (!hasLink)               transferReasons.push('🔗 链接未填（未发布）');
     if (_ps.status === 'unpaid')  transferReasons.push('💰 未付款');
-    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付¥${fmtYuan(_ps.paid)}/应付¥${fmtYuan(_ps.due)}）`);
+    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付${_feeSym()}${fmtYuan(_ps.paid)}/应付${_feeSym()}${fmtYuan(_ps.due)}）`);
     const transferCell = canTransfer
       ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferSettlementById('${st.id}')">✅ 可转结算</button>`
       : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
@@ -4337,13 +4387,13 @@ function _renderPendingArea() {
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${pubTag}</td>
           <td rowspan="${total}" style="vertical-align:middle">
-            <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(base+bonus)}</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(base+bonus)}</div>${_stRowCny(st)}
             ${isInstallment
               ? `<div style="font-size:.75rem;margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">
-                  ${paidSum>0?`<span style="color:var(--success)">已付¥${fmtYuan(paidSum)}</span>`:''}
-                  ${unpaidSum>0?`<span style="color:var(--warning)">未付¥${fmtYuan(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付¥${fmtYuan(base+bonus)}</span>`}
+                  ${paidSum>0?`<span style="color:var(--success)">已付${_feeSym()}${fmtYuan(paidSum)}</span>`:''}
+                  ${unpaidSum>0?`<span style="color:var(--warning)">未付${_feeSym()}${fmtYuan(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付${_feeSym()}${fmtYuan(base+bonus)}</span>`}
                 </div>`
-              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtYuan(base)} · 奖金¥${fmtYuan(bonus)}</div>`:''}
+              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础${_feeSym()}${fmtYuan(base)} · 奖金${_feeSym()}${fmtYuan(bonus)}</div>`:''}
           </td>
           <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[st.payment_type]||'全款付清'}</td>
           <td>${statusHtml}</td>
@@ -4375,7 +4425,7 @@ function _renderPendingArea() {
 
     const transferReasons = [];
     if (_ps.status === 'unpaid')  transferReasons.push('💰 未付款');
-    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付¥${fmtYuan(_ps.paid)}/应付¥${fmtYuan(_ps.due)}）`);
+    else if (_ps.status !== 'paid') transferReasons.push(`💰 未付清（已付${_feeSym()}${fmtYuan(_ps.paid)}/应付${_feeSym()}${fmtYuan(_ps.due)}）`);
     const transferCell = canTransfer
       ? `<button class="btn btn-sm" style="font-size:.75rem;padding:4px 12px;background:#d1fae5;border:1px solid #10b981;color:#065f46;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="transferSettlementById('${st.id}')">✅ 可转结算</button>`
       : transferReasons.map(r => `<div style="font-size:.72rem;color:var(--text-muted);line-height:1.6">${r}</div>`).join('');
@@ -4396,13 +4446,13 @@ function _renderPendingArea() {
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">${pubTag}</td>
           <td rowspan="${total}" style="vertical-align:middle">
-            <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(base+bonus)}</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(base+bonus)}</div>${_stRowCny(st)}
             ${isInstallment
               ? `<div style="font-size:.75rem;margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">
-                  ${paidSum>0?`<span style="color:var(--success)">已付¥${fmtYuan(paidSum)}</span>`:''}
-                  ${unpaidSum>0?`<span style="color:var(--warning)">未付¥${fmtYuan(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付¥${fmtYuan(base+bonus)}</span>`}
+                  ${paidSum>0?`<span style="color:var(--success)">已付${_feeSym()}${fmtYuan(paidSum)}</span>`:''}
+                  ${unpaidSum>0?`<span style="color:var(--warning)">未付${_feeSym()}${fmtYuan(unpaidSum)}</span>`:paidSum>0?'':`<span style="color:var(--warning)">未付${_feeSym()}${fmtYuan(base+bonus)}</span>`}
                 </div>`
-              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtYuan(base)} · 奖金¥${fmtYuan(bonus)}</div>`:''}
+              : bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础${_feeSym()}${fmtYuan(base)} · 奖金${_feeSym()}${fmtYuan(bonus)}</div>`:''}
           </td>
           <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${PAY_TYPE_LABEL[st.payment_type]||'全款付清'}</td>
           <td>${statusHtml}</td>
@@ -4437,7 +4487,7 @@ function _renderPendingArea() {
         </thead>
         <tbody>${bodyRows}${unscheduledBodyRows}${standaloneBodyRows}</tbody>
         <tfoot><tr class="comm-footer-row"><td colspan="${showPayCols ? 11 : 9}">
-          共 ${totalCount} 位达人待结算 · 待付 <b style="color:var(--warning)">¥${fmtYuan(pendingAmt)}</b> · 已付 <b style="color:var(--success)">¥${fmtYuan(paidAmt)}</b>
+          共 ${totalCount} 位达人待结算 · 待付 <b style="color:var(--warning)">${_feeSym()}${fmtYuan(pendingAmt)}</b> · 已付 <b style="color:var(--success)">${_feeSym()}${fmtYuan(paidAmt)}</b>
         </td></tr></tfoot>
       </table>
     </div>`;
@@ -4490,7 +4540,7 @@ function _renderSettledArea() {
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(5,150,105,.08),rgba(5,150,105,.04));border:1px solid rgba(5,150,105,.18)">
         <span style="font-size:.72rem;font-weight:600;color:var(--success);white-space:nowrap">已结算总金额</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--success)">¥${fmtYuan(totalAmt)}</span>
+        <span style="font-size:1.1rem;font-weight:700;color:var(--success)">${_feeSym()}${fmtYuan(totalAmt)}</span>${_stCnyHint(_stCny(list).total)}
       </div>
     </div>
   `;
@@ -4517,8 +4567,8 @@ function _renderSettledArea() {
       <td style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
       <td style="vertical-align:middle">${escapeHtml(date)}</td>
       <td style="vertical-align:middle">
-        <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(base+bonus)}</div>
-        ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtYuan(base)} · 奖金¥${fmtYuan(bonus)}</div>`:''}
+        <div style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(base+bonus)}</div>${_stRowCny(s)}
+        ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础${_feeSym()}${fmtYuan(base)} · 奖金${_feeSym()}${fmtYuan(bonus)}</div>`:''}
       </td>
       <td style="vertical-align:middle;font-size:.8rem;color:var(--text-muted)">—</td>
       <td style="vertical-align:middle;font-size:.8rem">${_stInvoiceSelect(s)}</td>
@@ -4532,8 +4582,8 @@ function _renderSettledArea() {
           <td rowspan="${total}" style="vertical-align:middle;font-weight:600"><strong>${escapeHtml(talent)}</strong></td>
           <td rowspan="${total}" style="vertical-align:middle">${escapeHtml(date)}</td>
           <td rowspan="${total}" style="vertical-align:middle">
-            <div style="font-size:1rem;font-weight:700;color:var(--primary)">¥${fmtYuan(base+bonus)}</div>
-            ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础¥${fmtYuan(base)} · 奖金¥${fmtYuan(bonus)}</div>`:''}
+            <div style="font-size:1rem;font-weight:700;color:var(--primary)">${_feeSym()}${fmtYuan(base+bonus)}</div>${_stRowCny(s)}
+            ${bonus>0?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">基础${_feeSym()}${fmtYuan(base)} · 奖金${_feeSym()}${fmtYuan(bonus)}</div>`:''}
           </td>
           <td style="font-size:.8rem">${paidTag}</td>
           <td rowspan="${total}" style="vertical-align:middle;font-size:.8rem">${_stInvoiceSelect(s)}</td>
@@ -4566,7 +4616,7 @@ function _renderSettledArea() {
         </thead>
         <tbody>${bodyRows}</tbody>
         <tfoot><tr class="comm-footer-row"><td colspan="6">
-          共 ${list.length} 条已结算 · 总金额 <b style="color:var(--success)">¥${fmtYuan(totalAmt)}</b>
+          共 ${list.length} 条已结算 · 总金额 <b style="color:var(--success)">${_feeSym()}${fmtYuan(totalAmt)}</b>
         </td></tr></tfoot>
       </table>
     </div>`;
@@ -4700,6 +4750,8 @@ function deleteSettlement() {
 /* ==================== Admin Panel ==================== */
 function renderAdminPanel() {
   OrgApp.renderManagement();
+  const fxCard = document.getElementById('fx-rate-card');
+  if (fxCard) fxCard.hidden = !((window.ScheduleData && ScheduleData.usesUsd()) || OrgApp.user?.isSuperAdmin);
   // ---- 商务BD ----
   const bds = window.ScheduleData ? ScheduleData.listBds({ includeInactive: true }) : [];
   const bdContainer = document.getElementById('admin-bd-list');
@@ -5215,17 +5267,17 @@ function initApp() {
 
 <!-- ============ 达人营销 · 内容排期模块 ============ -->
 <!-- v 参数用作 cache-bust：每次开发改动后递增，确保浏览器加载最新脚本 -->
-<script src="js/schedule/data.js?v=100"></script>
+<script src="js/schedule/data.js?v=101"></script>
 <script src="js/schedule/schedule-picker.js?v=53"></script>
-<script src="js/schedule/calendar.js?v=74"></script>
-<script src="js/schedule/editor.js?v=85"></script>
-<script src="js/schedule/monthly-plan.js?v=68"></script>
+<script src="js/schedule/calendar.js?v=75"></script>
+<script src="js/schedule/editor.js?v=86"></script>
+<script src="js/schedule/monthly-plan.js?v=69"></script>
 <script src="js/schedule/review-log.js?v=6"></script>
 <script src="js/schedule/dict.js?v=58"></script>
 <script src="js/schedule/recycle-bin.js?v=53"></script>
-<script src="js/schedule/kols-page.js?v=68"></script>
+<script src="js/schedule/kols-page.js?v=69"></script>
 <script src="js/schedule/kols-excel.js?v=53"></script>
-<script src="js/schedule/communication.js?v=127"></script>
+<script src="js/schedule/communication.js?v=128"></script>
 <script src="js/schedule/materials.js?v=7"></script>
 <script src="js/schedule/communication-excel.js?v=56"></script>
 <script src="js/schedule/replacements-page.js?v=52"></script>

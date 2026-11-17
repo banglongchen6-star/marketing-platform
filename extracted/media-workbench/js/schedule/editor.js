@@ -263,12 +263,12 @@
       return `
         <div style="padding:10px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-weight:600;font-size:.95rem">¥${total.toLocaleString()}</span>
+            <span style="font-weight:600;font-size:.95rem">${SD.feeSymbol()}${total.toLocaleString()}</span>
             <span style="font-size:.72rem;padding:2px 8px;border-radius:10px;background:${statusColor}18;color:${statusColor};border:1px solid ${statusColor}40">${escapeHtml(s.status || '—')}</span>
           </div>
           <div style="display:flex;gap:16px;margin-top:6px;font-size:.78rem;color:var(--text-muted)">
-            <span>已付 <b style="color:var(--success)">¥${paid.toLocaleString()}</b></span>
-            <span>未付 <b style="color:${unpaid > 0 ? 'var(--warning)' : 'var(--text-muted)'}">¥${unpaid.toLocaleString()}</b></span>
+            <span>已付 <b style="color:var(--success)">${SD.feeSymbol()}${paid.toLocaleString()}</b></span>
+            <span>未付 <b style="color:${unpaid > 0 ? 'var(--warning)' : 'var(--text-muted)'}">${SD.feeSymbol()}${unpaid.toLocaleString()}</b></span>
             ${s.account ? `<span>账户：${escapeHtml(s.account)}</span>` : ''}
           </div>
         </div>`;
@@ -331,7 +331,7 @@
           </label>` : ''}
         </div>
         <div class="sched-form-group">
-          <label class="sched-form-label">合同基础金额（元）<span class="req">*</span></label>
+          <label class="sched-form-label">合同基础金额（${SD.usesUsd() ? "美元" : "元"}）<span class="req">*</span></label>
           <input type="number" min="0" step="0.01" id="f-amount"
                  class="sched-form-control ${err.amount?'error':''}"
                  placeholder="0" value="${escapeAttr(f.amount)}">
@@ -347,7 +347,7 @@
         if (!st) {
           bonusHtml = '<span style="color:var(--text-muted)">—</span>';
         } else if (st.bonus_enabled && st.bonus_amount) {
-          bonusHtml = `<span style="color:#92400e;font-weight:600">+¥${bonusAmt.toLocaleString()}</span>`;
+          bonusHtml = `<span style="color:#92400e;font-weight:600">+${SD.feeSymbol()}${bonusAmt.toLocaleString()}</span>`;
           if (st.bonus_reason) bonusHtml += `<span style="color:var(--text-muted);font-size:.75rem;margin-left:4px">${escapeHtml(st.bonus_reason)}</span>`;
         } else {
           bonusHtml = '<span style="color:var(--text-muted)">无奖金</span>';
@@ -361,7 +361,7 @@
           <div style="width:1px;height:14px;background:var(--border)"></div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="color:var(--text-muted)">总结算金额：</span>
-            <span style="font-weight:700;color:${totalColor};font-size:.95rem">¥${totalAmt.toLocaleString()}</span>
+            <span style="font-weight:700;color:${totalColor};font-size:.95rem">${SD.feeSymbol()}${totalAmt.toLocaleString()}</span>
             ${!st ? '<span style="color:var(--text-muted);font-size:.72rem">（估算）</span>' : ''}
           </div>
           <span style="color:var(--text-muted);font-size:.72rem;margin-left:auto">由结算模块自动同步</span>

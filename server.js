@@ -21,6 +21,8 @@ const MAX_BACKUPS = 7;
 const organizations = createOrganizationStore(DATA_DIR, ADMIN_PASS);
 organizations.context('domestic');
 const rememberedLogin = require('./remember-login').createRememberLogin(organizations);
+const exchangeRates = require('./exchange-rates').createExchangeRates(DATA_DIR);
+const usesUsd = org => org.region === 'overseas'; // 海外组织费用按美元录入，统计时按汇率折算人民币
 const emailJobs = new Map();
 
 app.use(express.json({ limit: '20mb' }));
@@ -260,6 +262,7 @@ app.get('/api/data', requireAuth, (req, res) => {
     data._epoch = req.org.epoch;
     data._build = BUILD_ID; // 附带版本标识（前端用于检测部署、自动刷新旧标签）
     data._rev = req.org.revision; // 数据版本：客户端保存时带回，用于三方合并
+    if (usesUsd(req.org.org)) data._fx_rates = exchangeRates.list(); // 只读附带，保存时剔除
     res.json(data);
   } catch(e) { res.status(500).json({ error: '读取失败' }); }
 });
@@ -321,7 +324,7 @@ app.post('/api/data', requireAuth, (req, res) => {
         }
       }
     }
-    ['_baseRev', '_actor', '_rev', '_build', '_base', '_epoch', '_organization', '_organization_id'].forEach(k => { delete final[k]; });
+    ['_baseRev', '_actor', '_rev', '_build', '_base', '_epoch', '_organization', '_organization_id', '_fx_rates'].forEach(k => { delete final[k]; });
     if (!req.user.isSuperAdmin) { final.bds = server.bds || []; final.supervisors = server.supervisors || []; }
     final._organization_id = req.org.org.id;
     final._saved_at = Date.now();
@@ -416,6 +419,32 @@ app.post('/api/email-test', requireAuth, requireManager, async (req, res) => {
 });
 
 /* ========== 部署流程说明：点击即下载 ========== */
+/* ========== 汇率（央行中间价 USD/CNY）========== */
+app.get('/api/exchange-rates', requireAuth, requireManager, (req, res) => {
+  res.json({ rates: exchangeRates.list() });
+});
+app.post('/api/exchange-rates', requireAuth, requireSuperAdmin, (req, res) => {
+  try { res.json(exchangeRates.setManual(req.body?.date, req.body?.rate, req.user.name)); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.delete('/api/exchange-rates/:date', requireAuth, requireSuperAdmin, (req, res) => {
+  res.json({ ok: true, rate: exchangeRates.clearManual(req.params.date) });
+});
+app.post('/api/exchange-rates/refresh', requireAuth, requireSuperAdmin, async (req, res) => {
+  try { res.json({ ok: true, changed: await exchangeRates.sync() }); }
+  catch (e) { res.status(502).json({ error: '获取央行中间价失败：' + e.message }); }
+});
+function syncExchangeRates() {
+  exchangeRates.sync().then(n => { if (n) console.log(`💱 汇率已更新 ${n} 条`); })
+    .catch(e => console.warn('💱 汇率获取失败：', e.message));
+}
+// 中间价每个工作日 9:15 公布；9:30 拉取，11:00 再补一次
+if (process.env.NODE_ENV !== 'test' || process.env.FX_FETCH === '1') {
+  cron.schedule('30 9 * * *', syncExchangeRates, { timezone: 'Asia/Shanghai' });
+  cron.schedule('0 11 * * *', syncExchangeRates, { timezone: 'Asia/Shanghai' });
+  syncExchangeRates();
+}
+
 app.get('/download/deploy-guide', (req, res) => {
   res.download(path.join(STATIC_DIR, '部署流程说明.md'), '部署流程说明.md');
 });

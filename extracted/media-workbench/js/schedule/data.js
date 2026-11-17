@@ -1434,6 +1434,75 @@
     return { status, paid, due };
   }
 
+  /* ------------------------- 7.4.9 美元折算（海外组织） -------------------------
+   * 海外组织的合作费/奖金/付款金额都以「美元」存储（排期、结算、内容之间照常同步，单位一致），
+   * 只在汇总统计时折成人民币，汇率取央行中间价（服务器随数据下发 DB._fx_rates）：
+   *   已打款的每一笔：按该笔「付款时间」当天的汇率
+   *   尚未打款的部分：按预估日（主视频发布日 → 排期日 → 今天）的汇率，标记为预估
+   * 周末/节假日无公布值时沿用此前最近一个公布日。国内组织不受影响（折算率恒为 1）。
+   */
+  function usesUsd() { return !!(DB._organization && DB._organization.region === 'overseas'); }
+  function feeSymbol() { return usesUsd() ? '$' : '¥'; }
+  function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+  function fxRateOn(date) {
+    const rates = DB._fx_rates || {};
+    const dates = Object.keys(rates).sort();
+    if (!dates.length) return null;
+    const target = date || todayStr();
+    let hit = null;
+    for (const d of dates) { if (d <= target) hit = d; else break; }
+    const d = hit || dates[0];
+    return { date: d, rate: Number(rates[d].rate) || 0, source: rates[d].source };
+  }
+  // 一次合作（排期或不挂排期的内容）的预估日：主视频发布日 → 排期日 → 内容创建日 → 今天
+  function _fxEstimateDate(sched, content) {
+    const c = content || (sched ? DB.contents.find(x => idEq(x.schedule_id, sched.id)) : null);
+    const main = c && (c.publications || [])[0];
+    return (main && main.date) || (sched && sched.schedule_date) || (c && (c.created_at || '').slice(0, 10)) || todayStr();
+  }
+  /**
+   * 一次合作的美元→人民币折算：返回 { rate, estimated, estimateDate, estimateRate, payments:[{amount, date, rate, cny}] }
+   * rate 为加权折算率（人民币总额 / 美元应付总额），用于把排期金额等折成人民币
+   */
+  function collabFx({ schedule, content, settlement } = {}) {
+    if (!usesUsd()) return { rate: 1, estimated: false };
+    if (settlement && !schedule && !content) {
+      if (settlement.schedule_id) schedule = DB.schedules.find(x => idEq(x.id, settlement.schedule_id)) || null;
+      else if (settlement.content_id) content = DB.contents.find(x => idEq(x.id, settlement.content_id)) || null;
+    }
+    const sched = schedule || (content && content.schedule_id ? DB.schedules.find(x => idEq(x.id, content.schedule_id)) : null);
+    const st = settlement
+      || (sched ? (DB.settlements || []).find(s => idEq(s.schedule_id, sched.id)) : null)
+      || (content ? (DB.settlements || []).find(s => idEq(s.content_id, content.id)) : null);
+    // 独立结算（不挂排期/内容）用它自己的发布日期预估
+    const estimateDate = (!sched && !content && st && st.publish_date) || _fxEstimateDate(sched, content);
+    const est = fxRateOn(estimateDate);
+    const estimateRate = est ? est.rate : 0;
+    if (!st) return { rate: estimateRate, estimated: true, estimateDate, estimateRate, payments: [] };
+    const base = parseFloat(st.contract_amount ?? st.amount) || 0;
+    const bonus = st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0;
+    const due = base + bonus;
+    let paidUsd = 0, cny = 0;
+    const payments = normalizeSettlementPayments(st).map(p => {
+      const amount = parseFloat(p.amount) || 0;
+      if (!p.actual_paid_date) return { amount, date: '', rate: estimateRate, cny: amount * estimateRate, estimated: true };
+      const r = fxRateOn(p.actual_paid_date);
+      const rate = r ? r.rate : estimateRate;
+      paidUsd += amount; cny += amount * rate;
+      return { amount, date: p.actual_paid_date, rateDate: r && r.date, rate, cny: amount * rate, estimated: false };
+    });
+    const remaining = Math.max(0, due - paidUsd);
+    cny += remaining * estimateRate;
+    const rate = due > 0 ? cny / due : estimateRate;
+    return { rate, estimated: remaining > 0.005, estimateDate, estimateRate, payments, dueUsd: due, cny };
+  }
+  // 合作费（排期金额/内容报价）折人民币；国内组织原样返回
+  function contentPriceCny(c, r) {
+    const price = Number((r || resolveContent(c)).price) || 0;
+    if (!usesUsd() || !price) return price;
+    return price * collabFx({ content: c }).rate;
+  }
+
   /** 月度 KPI：选定月份的总播放/总费用/CPM */
   function getCommunicationKPI({ year, month, mainPlatform, bd_id } = {}) {
     const list = listContents({ year, month, mainPlatform, bd_id });
@@ -1447,7 +1516,7 @@
       // 合作费(price)只在「主平台 tab / 全部」计入，避免在同步平台 tab 重复计；投流费按平台各自计
       const _mainPlat = (c.publications || [])[0]?.platform;
       if (!mainPlatform || mainPlatform === '全部' || _mainPlat === mainPlatform) {
-        totalPrice += Number(r.price) || 0;
+        totalPrice += contentPriceCny(c, r);
       }
       (c.publications || [])
         .filter(p => !mainPlatform || mainPlatform === '全部' || p.platform === mainPlatform)
@@ -1551,7 +1620,7 @@
         }
         // 合作费：只在主行平台主行日期计一次
         if (idx === 0 && p.platform === mainPlatform && day === mainDay) {
-          platforms[p.platform].perDay[day].cost += Number(r.price) || 0;
+          platforms[p.platform].perDay[day].cost += contentPriceCny(c, r); // 海外组织美元按汇率折人民币
         }
       });
     });
@@ -2146,6 +2215,8 @@
     // contents (传播执行)
     createContent, updateContent, deleteContent,
     listContents, resolveContent, getCommunicationKPI, getSettlementPayStatus, normalizeSettlementPayments,
+    // 美元折算（海外组织）
+    usesUsd, feeSymbol, fxRateOn, collabFx, contentPriceCny,
     autoPublishPastSchedules,
     getBrandRoiMatrix,
     // replacements (置换成本)

@@ -138,8 +138,8 @@
       ? (parseFloat(st.contract_amount || s.amount) || 0) + (st.bonus_enabled ? (parseFloat(st.bonus_amount) || 0) : 0)
       : (Number(s.amount) || 0);
     const amountText = amount >= 10000
-      ? `¥${(amount/10000).toFixed(1)}万`
-      : `¥${amount.toLocaleString()}`;
+      ? `${SD.feeSymbol()}${(amount/10000).toFixed(1)}万`
+      : `${SD.feeSymbol()}${amount.toLocaleString()}`;
     const tierChip = ''; // 层级已移除
     const dirChip = s.category_direction
       ? `<span class="sched-card-chip direction" title="达人类型">${escapeHtml(s.category_direction)}</span>` : '';
@@ -287,7 +287,7 @@
         <div class="sched-cal-header">
           <span>${year} 年 ${month} 月</span>
           <span class="sched-cal-month-stats" style="display:flex;align-items:center;gap:8px">
-            达人 <b>${monthTalentCount}</b> 位 · 排期金额 <b>¥${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
+            达人 <b>${monthTalentCount}</b> 位 · 排期金额 <b>${SD.feeSymbol()}${monthSpent.toLocaleString()}</b> · 共 <b>${monthCount}</b> 条
             ${freezeBtn}
           </span>
         </div>

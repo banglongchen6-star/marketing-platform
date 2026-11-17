@@ -118,7 +118,7 @@
         perPlatform[plat] = (perPlatform[plat] || 0) + 1;
       });
       // 合作费只计入主视频所在区间（与品宣ROI一致），区间内只有同步视频时不重复计费
-      const fee = inRange(pubs[0] && pubs[0].date) ? (Number(r.price) || 0) : 0;
+      const fee = inRange(pubs[0] && pubs[0].date) ? SD.contentPriceCny(c, r) : 0;
       perContent.push({ talent: r.talent, plat: mainPlat, exp: cExp, inter: cInter, likes: cLikes, collects: cCollects, comments: cComments, cost: fee + cPromo });
     });
 

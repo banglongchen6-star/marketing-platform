@@ -680,7 +680,7 @@
         if (state.mainPlatform !== '全部' && _mp && _mp !== state.mainPlatform) {
           return '<span style="color:var(--text-muted);font-size:.72rem" title="合作费在主平台计入">—<span style="margin-left:2px">主平台计</span></span>';
         }
-        return ctx.r.price != null && ctx.r.price !== '' ? '¥'+Number(ctx.r.price).toLocaleString() : '-';
+        return ctx.r.price != null && ctx.r.price !== '' ? SD.feeSymbol()+Number(ctx.r.price).toLocaleString() : '-';
       }
       case 'fans':  return ctx.content.fans != null ? formatFans(ctx.content.fans) : '-';
       case 'category': return escapeHtml(ctx.r.category || '-');
@@ -857,7 +857,7 @@
       <tr class="comm-footer-row">
         <td colspan="${colCount + (readOnly ? 1 : 4)}">
           <span style="color:var(--text-secondary)">合计 ${list.length} 条内容 ·
-          价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
+          价格 <b style="color:var(--primary)">${SD.feeSymbol()}${totalPrice.toLocaleString()}</b> ·
           播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
         </td>
       </tr>
@@ -923,7 +923,7 @@
       // price / fans：主行 rowspan，子行跳过
       if (col.key === 'price') {
         if (i > 0) return '';
-        return `<td rowspan="${total}" style="background:#fafbfd;vertical-align:middle">${r.price != null && r.price !== '' ? '¥'+Number(r.price).toLocaleString() : '-'}</td>`;
+        return `<td rowspan="${total}" style="background:#fafbfd;vertical-align:middle">${r.price != null && r.price !== '' ? SD.feeSymbol()+Number(r.price).toLocaleString() : '-'}</td>`;
       }
       if (col.key === 'fans') {
         if (i > 0) return '';
@@ -1063,7 +1063,7 @@
             <tr class="comm-footer-row">
               <td colspan="${activeCols.length + 5}">
                 <span style="color:var(--text-secondary)">合计 ${pricedKols.size} 位达人 · ${totalPubs} 条发布 ·
-                价格 <b style="color:var(--primary)">¥${totalPrice.toLocaleString()}</b> ·
+                价格 <b style="color:var(--primary)">${SD.feeSymbol()}${totalPrice.toLocaleString()}</b> ·
                 播放量 <b style="color:var(--success)">${totalViews.toFixed(2)} 万</b></span>
                 ${placeholders.length ? `<span style="margin-left:12px;color:var(--text-muted)">· 待填写 ${placeholders.length} 条</span>` : ''}
               </td>
@@ -1233,13 +1233,13 @@
         return `
           <label class="sched-form-label">合作价格</label>
           <div class="sched-form-control" style="background:var(--bg-secondary);display:flex;align-items:center;gap:6px;cursor:default">
-            <span style="font-weight:500">¥${Number(f.price || 0).toLocaleString()}</span>
+            <span style="font-weight:500">${SD.feeSymbol()}${Number(f.price || 0).toLocaleString()}</span>
             <span style="font-size:.65rem;color:var(--text-muted);margin-left:auto">🔒 已有结算</span>
           </div>`;
       }
       const hint = realSchedIdForPrice ? '保存后同步排期' : '';
       return `
-        <label class="sched-form-label">合作价格</label>
+        <label class="sched-form-label">合作价格${SD.usesUsd() ? "（美元）" : ""}</label>
         <input id="cf-price" class="sched-form-control" type="number" min="0" step="1"
                placeholder="请输入金额"
                value="${escapeAttr(f.price)}">
