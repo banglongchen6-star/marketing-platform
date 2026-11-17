@@ -58,6 +58,9 @@
     .btn-login{width:100%;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;transition:background var(--transition),transform var(--transition);}
     .btn-login:hover{background:var(--primary-dark);transform:translateY(-1px);}
     .btn-login:disabled{cursor:wait;opacity:.75;transform:none;}
+    #login-boot{padding:26px 0;text-align:center;color:var(--text-secondary);font-size:.92rem;line-height:1.8;}
+    #login-boot small{display:block;margin-top:6px;color:var(--text-muted);font-size:.8rem;}
+    #login-boot[hidden],#login-fields[hidden]{display:none!important;}
     .login-error{color:var(--danger);font-size:.85rem;margin-top:12px;min-height:18px;}
 
     /* ---- App Shell ---- */
@@ -291,6 +294,8 @@
 <div id="login-screen">
   <div class="login-box">
     <div class="login-brand"><img src="assets/brand-logo.png?v=20261116-2" width="60" height="60" alt="品牌标识" /><div><div class="login-logo">离火品宣</div><div class="login-sub">内部管理系统 · BRAND OPS</div></div></div>
+    <div id="login-boot" role="status" aria-live="polite"><span id="login-boot-message">正在检查登录状态…</span><small>已记住登录的设备将自动进入</small></div>
+    <div id="login-fields" hidden>
     <label>选择组织</label>
     <div id="login-organizations" class="org-login-options" aria-label="选择组织">正在加载组织…</div>
     <label for="login-identity">选择身份</label>
@@ -302,6 +307,7 @@
     <label class="login-remember" for="login-remember"><input type="checkbox" id="login-remember" /><span>记住登录（30天内免输密码）</span></label>
     <button class="btn-login" onclick="doLogin()">登 录</button>
     <div class="login-error" id="login-error" role="alert"></div>
+    </div>
   </div>
 </div>
 
@@ -1278,6 +1284,7 @@ function setLoginBusy(busy, message = '正在登录…') {
   const button = document.querySelector('.btn-login');
   button.disabled = busy;
   button.textContent = busy ? message : '登 录';
+  if (busy) document.getElementById('login-boot-message').textContent = message;
   document.querySelector('.login-box').setAttribute('aria-busy', String(busy));
 }
 async function doLogin() {
@@ -5228,6 +5235,7 @@ function initApp() {
   };
   window.__authBootReady = (async function () {
     try {
+      setLoginBusy(true, '正在恢复登录…');
       const user = await OrgApp.restore();
       if (!user) return;
       setLoginBusy(true, '正在加载数据…');
@@ -5236,6 +5244,8 @@ function initApp() {
       document.getElementById('login-error').textContent = '无法读取组织数据，请重新登录或稍后刷新';
       console.warn('[sync] 未载入组织数据，不进入工作区');
     } finally {
+      document.getElementById('login-boot').hidden = true;
+      document.getElementById('login-fields').hidden = !!window.currentUser;
       if (!doLogin.pending) setLoginBusy(false);
     }
   })();
