@@ -1495,12 +1495,15 @@
     const daysInMonth = new Date(year, month, 0).getDate();
     const allDays = Array.from({ length: daysInMonth }, (_, i) => pad2(i + 1));
 
-    // 列出本月发布 publications（从 contents.publications 展开）
-    const contents = listContents({ year, month, bd_id });
+    // 每条 publication 按它自己的发布日期归月：主视频10月、同步视频11月的合作，
+    // 同步部分计入11月（不能按主视频把整条合作归到10月，否则11-01会被当成10-01）
+    const monthStr = `${year}-${pad2(month)}`;
+    const inMonth = p => !!p && typeof p.date === 'string' && p.date.startsWith(monthStr);
+    const contents = listContents({ bd_id }).filter(c => (c.publications || []).some(inMonth));
     // 平台来源：字典里全部 active 平台 + 数据中出现的额外平台（保证 6 大平台总是显示）
     const platformSet = new Set();
     listPlatforms().forEach(p => platformSet.add(p.name));
-    contents.forEach(c => (c.publications || []).forEach(p => p.platform && platformSet.add(p.platform)));
+    contents.forEach(c => (c.publications || []).filter(inMonth).forEach(p => p.platform && platformSet.add(p.platform)));
 
     // 一次合作（content）只能算一次"品宣费"——价格归在主行
     // perDay: 每个平台每天的 { count, views(万), cost }
@@ -1534,7 +1537,7 @@
       const mainDay = (mainPub.date || '').slice(8, 10);
       const mainPlatform = mainPub.platform;
       pubs.forEach((p, idx) => {
-        if (!p.platform || !platforms[p.platform]) return;
+        if (!inMonth(p) || !p.platform || !platforms[p.platform]) return;
         const day = (p.date || '').slice(8, 10);
         if (!day || !platforms[p.platform].perDay[day]) return;
         platforms[p.platform].perDay[day].count += 1;
