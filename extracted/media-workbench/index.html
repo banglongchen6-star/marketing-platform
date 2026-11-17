@@ -1081,7 +1081,7 @@
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="js/organizations.js?v=2"></script>
+<script src="js/organizations.js?v=3"></script>
 <script src="js/ui-shell.js?v=4"></script>
 <script src="js/mobile-ui.js?v=1"></script>
 <script>
@@ -1236,6 +1236,23 @@ window.saveData = saveData;
 let currentUser = null;
 const SESSION_KEY = OrgApp.SESSION_KEY;
 
+// 只记住界面的选择；真正的免密凭据仍由服务端签发，主动退出时清除。
+function rememberPreferenceKey(organization, identity) {
+  return 'mw_remember_choice_v1:' + JSON.stringify([organization, identity]);
+}
+function saveRememberPreference(organization, identity, remember) {
+  if (!organization || !identity) return;
+  try { localStorage.setItem(rememberPreferenceKey(organization, identity), remember ? '1' : '0'); } catch (_) {}
+}
+function restoreRememberPreference() {
+  const identity = document.getElementById('login-identity');
+  const checkbox = document.getElementById('login-remember');
+  checkbox.checked = false;
+  checkbox.disabled = identity.disabled || !identity.value;
+  if (checkbox.disabled) return;
+  try { checkbox.checked = localStorage.getItem(rememberPreferenceKey(OrgApp.loginId, identity.value)) === '1'; } catch (_) {}
+}
+
 // 填充登录页身份下拉（DB 已加载后调用）
 async function populateLoginIdentities() {
   const sel = document.getElementById('login-identity');
@@ -1243,6 +1260,7 @@ async function populateLoginIdentities() {
   try {
     const orgId = OrgApp.loginId;
     sel.disabled = true;
+    restoreRememberPreference();
     const res = await fetch('/api/login-options?organization=' + encodeURIComponent(orgId));
     if (!res.ok) throw new Error('人员加载失败');
     const opts = await res.json();
@@ -1250,9 +1268,11 @@ async function populateLoginIdentities() {
     sel.innerHTML = '';
     (opts || []).forEach(o => sel.add(new Option(o.label, o.value)));
     sel.disabled = false;
+    restoreRememberPreference();
   } catch(e) {
     sel.innerHTML = '<option value="">人员加载失败，请刷新重试</option>';
     sel.disabled = true;
+    restoreRememberPreference();
   }
 }
 
@@ -1310,6 +1330,7 @@ async function doLogin() {
     });
     if (!res.ok) { errEl.textContent = '账号或密码错误'; return; }
     const result = await res.json();
+    saveRememberPreference(organization, identity, remember);
     OrgApp.setSession(result);
     setLoginBusy(true, '正在加载数据…');
     // 登录接口已验证身份，直接载入该组织；不再刷新和重新下载整页脚本。
@@ -1601,6 +1622,11 @@ function tryRestoreSession() {
 }
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('login-identity').addEventListener('change', restoreRememberPreference);
+document.getElementById('login-remember').addEventListener('change', e => {
+  const identity = document.getElementById('login-identity');
+  if (!identity.disabled) saveRememberPreference(OrgApp.loginId, identity.value, e.target.checked);
+});
 // 页面加载时先选择组织，再加载该组织人员
 OrgApp.refreshLogin();
 

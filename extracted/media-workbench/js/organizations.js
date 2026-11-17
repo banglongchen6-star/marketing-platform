@@ -17,6 +17,9 @@
   }
   async function refreshLogin() {
     const host = document.getElementById('login-organizations');
+    const identity = document.getElementById('login-identity');
+    identity.disabled = true; identity.value = '';
+    restoreRememberPreference();
     try {
       organizations = await json('/api/organizations');
       if (!organizations.some(o => o.id === loginChoice)) loginChoice = organizations[0].id;
