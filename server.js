@@ -49,6 +49,8 @@ app.use(express.static(STATIC_DIR, {
 registerContentPublicationsApi(app, { dataFile: DATA_FILE, appToken: AUTH_TOKEN, localPreview: process.env.LOCAL_PREVIEW === '1' });
 // Cowork 统一登录（OIDC_* 四个环境变量没配齐时整体 404，原密码登录不受影响）
 require('./cowork-sso').registerCoworkSso(app, { organizations, rememberedLogin });
+// 按人只读开放接口 /api/open/*：Cowork 访问密钥或 popumind 身份断言，交给 Cowork 验证（用统一登录的三个 OIDC 变量）
+require('./open-api').registerOpenApi(app, { organizations });
 
 // 仅用于标记隔离的本地体验环境，不返回路径或鉴权信息。
 app.get('/api/runtime-info', (req, res) => {
