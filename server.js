@@ -47,6 +47,8 @@ app.use(express.static(STATIC_DIR, {
 
 // 运营系统专用只读API，独立密钥；不经过现有整库读写接口。
 registerContentPublicationsApi(app, { dataFile: DATA_FILE, appToken: AUTH_TOKEN, localPreview: process.env.LOCAL_PREVIEW === '1' });
+// Cowork 统一登录（OIDC_* 四个环境变量没配齐时整体 404，原密码登录不受影响）
+require('./cowork-sso').registerCoworkSso(app, { organizations, rememberedLogin });
 
 // 仅用于标记隔离的本地体验环境，不返回路径或鉴权信息。
 app.get('/api/runtime-info', (req, res) => {

@@ -37,6 +37,11 @@
     }
   }
   async function restore() {
+    // 刚从 Cowork 统一登录回来：丢掉这个标签页里旧的会话，改用服务器刚发的统一登录会话（防串号）
+    if (new URLSearchParams(location.search).has('sso')) {
+      clear();
+      history.replaceState(null, '', location.pathname + location.hash);
+    }
     if (sessionStorage.getItem(TOKEN_KEY)) {
       try { const data = await json('/api/session'); setSession(data); return data.user; }
       catch(e) { if (e.status !== 401) throw e; clear(); }

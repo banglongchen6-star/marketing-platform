@@ -34,6 +34,11 @@ jobs:
             git pull --ff-only origin main
             npm install --no-audit --no-fund
             git checkout -- package-lock.json
+            # 服务器本机配置（代码目录外、600 权限，不进仓库和 GitHub）：Cowork 统一登录的 OIDC_* 等。
+            # 放在删旧进程之前：文件写错时部署在这里停下，旧进程照常运行。
+            # 没有这个文件或 OIDC_* 没配齐时，统一登录整体关闭，原密码登录照常。
+            SERVER_ENV=/root/marketing-platform.env
+            if [ -f "$SERVER_ENV" ]; then set -a; . "$SERVER_ENV"; set +a; echo "已读取服务器配置"; fi
             pm2 delete marketing-platform 2>/dev/null || true
             pm2 start server.js --name marketing-platform
             pm2 save

@@ -29,11 +29,11 @@ function createRememberLogin(organizations) {
     }
     return entries;
   }
-  function save(req, res, entries) {
+  function save(req, res, entries, { persistent = true } = {}) {
     const { name, options } = cookieOptions(req);
     if (!entries.length) { res.clearCookie(name, options); resume(req, res); return; }
     const expiresAt = Math.max(...entries.map(e => e.auth.expiresAt));
-    res.cookie(name, entries.map(e => e.token).join('~'), { ...options, maxAge: Math.max(0, expiresAt - Date.now()) });
+    res.cookie(name, entries.map(e => e.token).join('~'), persistent ? { ...options, maxAge: Math.max(0, expiresAt - Date.now()) } : options);
   }
   function read(req) { return readAll(req)[0]?.auth || null; }
   function find(req, account) { return readAll(req).find(e => sameAccount(e.account, account))?.auth || null; }
@@ -66,11 +66,13 @@ function createRememberLogin(organizations) {
     const { name, options } = cookieOptions(req);
     res.clearCookie(name + '_paused', options);
   }
-  function write(req, res, orgId, user, expiresAt = Date.now() + REMEMBER_MS) {
+  // persistent:false = 浏览器会话 Cookie，关掉浏览器即失效（统一登录用）；凭据本身仍按 expiresAt 过期
+  // ponytail: 多个账号共用一个 Cookie，最近一次是统一登录时整个 Cookie 都变成关浏览器即失效；要分开就给统一登录单独一个 Cookie
+  function write(req, res, orgId, user, expiresAt = Date.now() + REMEMBER_MS, { persistent = true } = {}) {
     const { token } = organizations.issue(orgId, user, { purpose: 'remember', expiresAt });
     const account = { organization: orgId, identity: identityOf(user) };
     const auth = { expiresAt };
-    save(req, res, [{ token, auth, account }, ...readAll(req).filter(e => !sameAccount(e.account, account))].slice(0, MAX_ACCOUNTS));
+    save(req, res, [{ token, auth, account }, ...readAll(req).filter(e => !sameAccount(e.account, account))].slice(0, MAX_ACCOUNTS), { persistent });
     resume(req, res);
   }
   // Cookies only restore a tab session. All business routes still require an explicit token.

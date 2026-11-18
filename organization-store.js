@@ -139,6 +139,8 @@ function createOrganizationStore(root, adminPass) {
     if (!user || user.credential !== claims.cred) return null;
     return { user: publicUser(user, claims.org), ctx: context(claims.org), expiresAt: claims.exp };
   }
-  return { list: () => registry.organizations.map(o => ({ ...o })), find, context, readDb, snapshot, create, login, issue, resolveUser, authenticate };
+  // 其他模块需要防篡改签名时用（如统一登录的登录中 cookie），按用途区分，不暴露密钥本身
+  const sign = (purpose, body) => crypto.createHmac('sha256', secret).update(purpose + ':' + body).digest('base64url');
+  return { list: () => registry.organizations.map(o => ({ ...o })), find, context, readDb, snapshot, create, login, issue, resolveUser, authenticate, sign };
 }
 module.exports = { createOrganizationStore, atomicJson, emptyData };
